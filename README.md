@@ -13,7 +13,7 @@
   <a href="https://github.com/prodnull/cloneguard/releases/latest"><img src="https://img.shields.io/github/v/release/prodnull/cloneguard" alt="Release"></a>
   <a href="https://github.com/prodnull/cloneguard/blob/main/LICENSE"><img src="https://img.shields.io/github/license/prodnull/cloneguard" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python">
-  <img src="https://img.shields.io/badge/tests-962%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-968%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/F1-95.8%25%20(5--fold%20CV)-blue" alt="F1 Score">
   <a href="https://huggingface.co/prodnull/minilm-prompt-injection-classifier"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Model-yellow.svg" alt="HuggingFace Model"></a>
   <a href="https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Dataset-yellow.svg" alt="HuggingFace Dataset"></a>
@@ -58,7 +58,7 @@ Four defense layers, each running before the agent can act on injected content:
 | 2 | PostToolUse | Scans all tool output for injection |
 | 3 | PreToolUse | Gates writes, builds, and config changes |
 
-**Tier 0** uses 191 compiled regex patterns across 24 categories, completing in under 50ms. **Tier 1.5** (optional) adds a bundled ONNX classifier (fine-tuned MiniLM-L6-v2, 87 MB) with 95.9% cross-validated F1 — catches semantic attacks that regex misses, at ~16 ms/sample with no external dependencies. **Tier 2** falls back to Ollama LLM classification if the ONNX model is not installed.
+**Tier 0** uses 191 compiled regex patterns across 24 categories, completing in under 50ms. **Tier 1.5** (optional) adds a bundled ONNX classifier (fine-tuned MiniLM-L6-v2, 87 MB) with 95.8% cross-validated F1 — catches semantic attacks that regex misses, at ~16 ms/sample with no external dependencies. **Tier 2** falls back to Ollama LLM classification if the ONNX model is not installed.
 
 ## Install
 
@@ -249,7 +249,7 @@ pytest
 
 ## Testing
 
-962 tests covering all components:
+968 tests covering all components:
 
 ```bash
 pytest                                   # all tests (951)

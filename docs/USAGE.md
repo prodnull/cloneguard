@@ -26,12 +26,12 @@ pip install "cloneguard[mini]" --find-links .  # Install runtime deps for the mo
 **From PyPI** (when available):
 
 ```bash
-pip install cloneguard            # Tier 0 regex only (175 patterns, <50ms)
+pip install cloneguard            # Tier 0 regex only (191 patterns, <50ms)
 pip install cloneguard[mini]      # + Tier 1.5 ONNX model (recommended, ~16ms/file)
 pip install cloneguard[all]       # + Ollama fallback
 ```
 
-The `[mini]` install is recommended. It bundles a fine-tuned classifier (87 MB) that catches semantic attacks regex cannot — synonym substitution, social engineering, encoding evasion — with 95.9% cross-validated F1 and no external dependencies.
+The `[mini]` install is recommended. It bundles a fine-tuned classifier (87 MB) that catches semantic attacks regex cannot — synonym substitution, social engineering, encoding evasion — with 95.8% cross-validated F1 and no external dependencies.
 
 ## Setup (One Time)
 
@@ -74,7 +74,7 @@ Before the agent starts, CloneGuard scans every high-priority file in the repo:
 | `*.svg` | SVG script injection |
 | Plus 15+ more medium-priority files | See source for full list |
 
-**Tier 0 (regex)** runs on every file: 175 compiled patterns across 23 attack categories, completing in under 50ms.
+**Tier 0 (regex)** runs on every file: 191 compiled patterns across 24 attack categories, completing in under 50ms.
 
 **Tier 1.5 (ONNX model)** runs automatically if installed: catches what regex misses — semantic rephrasing, social engineering, encoded payloads — at ~16ms per file.
 
@@ -253,7 +253,7 @@ CloneGuard includes an MCP Gateway guardrail plugin (`cloneguard.mcp_plugin`) th
 
 | Component | Latency | What it covers |
 |-----------|---------|---------------|
-| Tier 0 regex scan | <5 ms | 175 patterns, known attack signatures |
+| Tier 0 regex scan | <5 ms | 191 patterns, known attack signatures |
 | Tier 1.5 ONNX scan | ~16 ms | Semantic attacks, synonym evasion, social engineering |
 | Combined | ~20 ms | Both tiers |
 | Typical LLM API call | 2–30 sec | For comparison — CloneGuard adds <1% overhead |

@@ -89,7 +89,7 @@ Bundled fine-tuned MiniLM-L6-v2 classifier (87 MB ONNX). Runs entirely offline a
 
 Trained on 5,671 labeled samples from 14+ published research sources (v2 dataset: mislabels removed, long benign hard negatives added). Cross-validated F1: 95.80% ± 0.65% (5-fold CV). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
 
-Install with: `pip install cloneguard[mini]`
+Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) (`.whl` includes the ONNX model).
 
 ### Tier 2: Semantic Classifier (Ollama, fallback)
 
@@ -230,7 +230,7 @@ Scenario 5 demonstrates the fundamental regex limitation: instructions to "use `
 
 9. **Layer 0 TOCTOU gap.** Layer 0 scans files on disk, then the agent reads them. A race condition is theoretically possible if files change between scan and read. Layers 1-3 mitigate this since they scan the actual content the agent processes (via stdin JSON).
 
-10. **No guarantee of long-term viability.** This defense pattern — regex + embedding classifier + runtime hooks — has not been formally proven to be durable against adaptive adversaries. It is plausible that advances in adversarial ML, novel LLM exploitation techniques, or fundamental changes in how agents process input could render this entire approach ineffective. The 95.9% F1 is measured against today's attack distribution; future attacks are unconstrained. Defense-in-depth buys time and raises cost, but it is an empirical bet, not a mathematical guarantee. If the underlying assumption — that semantic evasion is structurally harder than byte-level evasion — is invalidated, the ONNX classifier's advantage over regex diminishes. We publish this tool as a practical improvement over no defense, not as a solved problem.
+10. **No guarantee of long-term viability.** This defense pattern — regex + embedding classifier + runtime hooks — has not been formally proven to be durable against adaptive adversaries. It is plausible that advances in adversarial ML, novel LLM exploitation techniques, or fundamental changes in how agents process input could render this entire approach ineffective. The 95.8% F1 is measured against today's attack distribution; future attacks are unconstrained. Defense-in-depth buys time and raises cost, but it is an empirical bet, not a mathematical guarantee. If the underlying assumption — that semantic evasion is structurally harder than byte-level evasion — is invalidated, the ONNX classifier's advantage over regex diminishes. We publish this tool as a practical improvement over no defense, not as a solved problem.
 
 ## Performance Overhead
 

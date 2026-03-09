@@ -28,7 +28,7 @@ Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
 
 Tier 1.5 is the primary semantic defense. It runs when `--tier2` is enabled (or automatically in the Layer 0 wrapper). If onnxruntime is not installed, the system falls back to Tier 2 (Ollama). If neither is available, only Tier 0 regex runs.
 
-Install with: `pip install cloneguard[mini]`
+Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) (`.whl` includes the ONNX model).
 
 ## Benchmark Results
 
@@ -342,7 +342,7 @@ uv run python scripts/train_mini_model.py
 uv run python scripts/fetch_model.py
 
 # Benchmark
-uv pip install cloneguard[mini]
+uv pip install -e ".[mini]"
 uv run python scripts/benchmark_tiers.py
 uv run python scripts/adversarial_eval.py
 uv run python scripts/kfold_eval.py
