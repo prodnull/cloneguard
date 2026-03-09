@@ -304,7 +304,7 @@ pytest tests/test_security_vectors.py
 # Pattern engine — regex loading, matching, severity
 pytest tests/test_patterns.py
 
-# Full pipeline — all 175 patterns end-to-end
+# Full pipeline — all 191 patterns end-to-end
 pytest tests/test_integration_all_patterns.py
 
 # Tier 1.5 ONNX model

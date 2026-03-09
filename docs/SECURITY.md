@@ -212,7 +212,9 @@ Scenario 5 demonstrates the fundamental regex limitation: instructions to "use `
 
 1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 95.4% recall (cross-validated) but is not infallible.
 
-2. **Mean-pooling dilution.** The mini model (Tier 1.5) uses mean-pooling, which averages token embeddings across the sequence. A short malicious instruction embedded in a long block of legitimate code can be diluted below the detection threshold. Tier 0 regex partially mitigates this by scanning line-by-line. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md#structural-vulnerability-mean-pooling-dilution) for analysis.
+2. **Mean-pooling dilution (mitigated).** The mini model (Tier 1.5) uses mean-pooling, which averages token embeddings across the sequence. A short malicious instruction embedded in a long block of legitimate code can be diluted below the detection threshold within a single 256-token window. **Mitigations:** (a) Sliding window classification — when input exceeds 256 tokens, the classifier applies a 256-token window with 128-token stride (50% overlap), scanning up to 16 chunks (~8K chars, ~256ms worst case). This prevents truncation-based evasion for the vast majority of scanned content. (b) Per-value scanning in the MCP plugin classifies each extracted text value independently, preventing concatenation-based dilution. (c) Tier 0 regex scans full content line-by-line with no token limit. Mean-pooling dilution within a single 256-token chunk remains a limitation. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md#structural-vulnerability-mean-pooling-dilution) for analysis.
+
+   **Depth limit.** The MCP plugin's recursive text extraction has a depth limit of 10 levels. Deeply nested structures beyond this limit are not scanned; a warning is logged when this limit is reached.
 
 3. **Multilingual gaps.** The mini model has limited non-English training data (~30 samples). Non-English attacks may evade Tier 1.5. Tier 2 (Ollama) handles multilingual content natively if available.
 
@@ -241,6 +243,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |
 | Layer 1-3 hooks (per invocation) | <50 ms | Tier 0 only; ~70 ms with Tier 1.5 |
+| Tier 1.5 ONNX sliding window (long input) | ~256 ms | Max 16 chunks × 16ms |
 | MCP Gateway plugin (per request) | ~20 ms | Tier 0 + Tier 1.5 combined |
 | Trust cache hit | ~0 ms | SHA-256 comparison only |
 
