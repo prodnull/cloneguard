@@ -17,8 +17,8 @@ This document describes CloneGuard's threat model, defense architecture, known l
 
 CloneGuard does not guarantee protection against any attack class. It raises the cost, skill, and risk of discovery required for successful prompt injection by adding detection layers that an attacker must evade:
 
-- Known prompt injection patterns — 175 regex rules across 23 categories force attackers to avoid well-documented techniques
-- Semantic prompt injection — bundled ONNX classifier (Tier 1.5, CV F1=95.89%) forces attackers beyond synonym substitution and social engineering rewording
+- Known prompt injection patterns — 191 regex rules across 24 categories force attackers to avoid well-documented techniques
+- Semantic prompt injection — bundled ONNX classifier (Tier 1.5, CV F1=95.80%) forces attackers beyond synonym substitution and social engineering rewording
 - LLM classification (Tier 2, Ollama fallback) — adds a reasoning-capable detection layer for novel patterns
 - HTML comment injection — scanner reads what human reviewers skip, removing a free hiding spot
 - Self-propagating agent config files — detection of viral spread patterns (.cursorrules, CLAUDE.md)
@@ -65,7 +65,7 @@ Gates dangerous operations before they execute:
 
 ### Tier 1: Pattern Engine (Regex)
 
-175 compiled regex patterns across 23 categories. Executes in under 50ms. Each pattern has an ID, severity (LOW/MEDIUM/HIGH/CRITICAL), and description.
+191 compiled regex patterns across 24 categories. Executes in under 50ms. Each pattern has an ID, severity (LOW/MEDIUM/HIGH/CRITICAL), and description.
 
 **Categories include:** instruction override, authority impersonation, credential harvesting, exfiltration, behavioral manipulation, viral propagation, config file injection, privilege escalation, encoding obfuscation, HTML/SVG injection, build script attacks, CI/CD poisoning, environment variable hijacking, devcontainer abuse, MCP tool poisoning, and more.
 
@@ -87,7 +87,7 @@ Bundled fine-tuned MiniLM-L6-v2 classifier (87 MB ONNX). Runs entirely offline a
 - Encoding evasion (base64, hex, ROT13 framing)
 - Homoglyph/Unicode evasion (Cyrillic substitution, zero-width characters)
 
-Trained on 5,687 labeled samples from 14+ published research sources (cleaned dataset: 355 mislabeled entries removed, 114 targeted samples added). Cross-validated F1: 95.89% ± 0.44% (5-fold CV). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
+Trained on 5,671 labeled samples from 14+ published research sources (v2 dataset: mislabels removed, long benign hard negatives added). Cross-validated F1: 95.80% ± 0.65% (5-fold CV). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
 
 Install with: `pip install cloneguard[mini]`
 
@@ -210,7 +210,7 @@ Scenario 5 demonstrates the fundamental regex limitation: instructions to "use `
 
 ## Known Limitations
 
-1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 95.1% recall (cross-validated) but is not infallible.
+1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 95.4% recall (cross-validated) but is not infallible.
 
 2. **Mean-pooling dilution.** The mini model (Tier 1.5) uses mean-pooling, which averages token embeddings across the sequence. A short malicious instruction embedded in a long block of legitimate code can be diluted below the detection threshold. Tier 0 regex partially mitigates this by scanning line-by-line. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md#structural-vulnerability-mean-pooling-dilution) for analysis.
 
@@ -236,7 +236,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 
 | Component | Latency | Context |
 |-----------|---------|---------|
-| Tier 0 regex (175 patterns) | <50 ms | Full repo scan (~20 files) |
+| Tier 0 regex (191 patterns) | <50 ms | Full repo scan (~20 files) |
 | Tier 1.5 ONNX (per file) | ~16 ms | Single file classification |
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |

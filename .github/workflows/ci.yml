@@ -139,3 +139,5 @@ jobs:
             echo "$dupes"
             exit 1
           fi
+      - name: Cross-file consistency check
+        run: python3 scripts/consistency_check.py
