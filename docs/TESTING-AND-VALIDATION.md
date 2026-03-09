@@ -18,8 +18,8 @@ Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stor
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 962 tests (Tier 0 + Tier 1.5, no external deps)
-pytest --co -q | tail -1    # verify count: "962 tests collected"
+pytest                      # 968 tests (Tier 0 + Tier 1.5, no external deps)
+pytest --co -q | tail -1    # verify count: "968 tests collected"
 ```
 
 Expected: all pass in < 30 seconds. Tests requiring Ollama or Docker auto-skip via markers in `tests/conftest.py`.
@@ -271,7 +271,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 ## 6. Test Suite Structure
 
-962 tests across 14 test files. All in `tests/`.
+968 tests across 14 test files. All in `tests/`.
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|
