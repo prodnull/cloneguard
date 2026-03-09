@@ -97,7 +97,9 @@ class ScanReport:
 _HIGH_PRIORITY_FILES = [
     "CLAUDE.md",
     "GEMINI.md",
+    "AGENTS.MD",
     ".cursorrules",
+    ".junie/guidelines.md",
     "README.md",
     "CONTRIBUTING.md",
     "package.json",
@@ -122,6 +124,12 @@ _MEDIUM_PRIORITY_FILES = [
     ".devcontainer/devcontainer.json",
     ".devcontainer.json",
     ".vscode/settings.json",
+    ".idea/workspace.xml",
+    ".gitattributes",
+    ".gitconfig",
+    "Dockerfile",
+    "codex.json",
+    ".gemini/settings.json",
     ".npmrc",
     ".yarnrc.yml",
     ".envrc",
@@ -135,6 +143,7 @@ _MEDIUM_PRIORITY_FILES = [
 
 _MEDIUM_PRIORITY_GLOB_PATTERNS = [
     "*.svg",
+    "*.code-workspace",
 ]
 
 

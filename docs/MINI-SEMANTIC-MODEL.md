@@ -12,7 +12,7 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 | Model size | 87 MB |
 | Runtime | onnxruntime CPUExecutionProvider |
 | Tokenizer | WordPiece, max 256 tokens |
-| Cross-validated F1 | 95.89% ± 0.44% (5-fold stratified CV) |
+| Cross-validated F1 | 95.80% ± 0.65% (5-fold stratified CV) |
 | Inference speed | ~16 ms/sample (Apple M-series CPU) |
 | Dependencies | `onnxruntime>=1.17`, `transformers>=4.36`, `numpy>=1.26` |
 
@@ -21,9 +21,9 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 ```
 Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
   <1 ms/file          ~16 ms/file               ~680 ms/file
-  175 patterns         semantic classifier        qwen2.5:7b LLM
-  23% recall           95.1% recall (CV)          42% recall
-  91% precision        96.7% precision (CV)       93% precision
+  191 patterns         semantic classifier        qwen2.5:7b LLM
+  23% recall           95.4% recall (CV)          42% recall
+  91% precision        96.2% precision (CV)       93% precision
 ```
 
 Tier 1.5 is the primary semantic defense. It runs when `--tier2` is enabled (or automatically in the Layer 0 wrapper). If onnxruntime is not installed, the system falls back to Tier 2 (Ollama). If neither is available, only Tier 0 regex runs.
@@ -38,15 +38,30 @@ Install with: `pip install cloneguard[mini]`
 
 | Metric | Tier 0 (Regex) | Tier 1.5 (ONNX, 5-fold CV) | Tier 2 (Ollama) |
 |--------|:-:|:-:|:-:|
-| **Accuracy** | 54.91% | **95.71% ± 0.44%** | 69.50% |
-| **Precision** | 91.33% | **96.68% ± 0.51%** | 93.33% |
-| **Recall** | 23.26% | **95.13% ± 1.11%** | 42.00% |
-| **F1 Score** | 37.08% | **95.89% ± 0.44%** | 57.93% |
+| **Accuracy** | 54.91% | **95.70% ± 0.66%** | 69.50% |
+| **Precision** | 91.33% | **96.23% ± 0.79%** | 93.33% |
+| **Recall** | 23.26% | **95.37% ± 0.93%** | 42.00% |
+| **F1 Score** | 37.08% | **95.80% ± 0.65%** | 57.93% |
 | **Speed** | 0.1 ms | 16 ms | 682 ms |
 
 Hyperparameters were selected via comprehensive grid search (192 configurations, 2-phase screening + validation). See `bench/comprehensive_sweep.json`.
 
-### Independent Validation (Out-of-Distribution)
+### Out-of-Distribution Evaluation (MCP Tool Results)
+
+144 hand-written samples from [ferentin-net/mcp-guard](https://github.com/ferentin-net/mcp-guard) (Apache 2.0) — an independent project focused on MCP tool result scanning. These samples represent a completely different domain (JSON APIs, Slack messages, Kubernetes output, web pages) that the model was never trained on.
+
+| Metric | Value |
+|--------|:-----:|
+| **Recall** | 100% (68/68 malicious detected) |
+| **FPR** | 43.4% (33/76 benign flagged) |
+| **Accuracy** | 77.1% |
+| **F1** | 80.5% |
+
+All 10 attack categories (instruction override, authority impersonation, reasoning hijack, behavioral manipulation, data exfiltration, tool poisoning, encoding obfuscation, mixed context, benchmark challenges) were detected at 100%. False positives concentrated on content formats absent from training data (JSON API responses, chat messages, infrastructure output).
+
+**Interpretation:** Attack detection generalizes across domains — the semantic patterns the model learned from repository files transfer to MCP tool results. The benign class is domain-specific: the model is specialized for repository file scanning, not general-purpose tool output classification.
+
+### Independent Validation (Hand-Crafted)
 
 Fresh test cases crafted independently — NOT from the training data:
 
@@ -70,7 +85,7 @@ These numbers include training samples and overstate generalization:
 | Metric | Value |
 |--------|:-----:|
 | Accuracy | ~99% |
-| Note | In-distribution; see independent validation above for honest out-of-distribution performance |
+| Note | In-distribution; see cross-validated and OOD metrics above for honest performance |
 
 Tier 2 (Ollama qwen2.5:7b) was evaluated on a balanced random sample of 200 items (seed=42). Its poor recall (42%) is due to the general-purpose LLM frequently classifying attack payloads as safe — it was not fine-tuned for this task.
 
@@ -78,7 +93,7 @@ Tier 2 (Ollama qwen2.5:7b) was evaluated on a balanced random sample of 200 item
 
 ### Composition
 
-5,687 labeled samples: 2,995 malicious (52.7%), 2,692 benign (47.3%). Balance ratio 1.11:1. Cleaned from an original 5,928 samples: 355 mislabeled entries removed, 114 targeted samples added across 3 rounds.
+5,671 labeled samples: 2,916 malicious (51.4%), 2,755 benign (48.6%). Balance ratio 1.06:1. Published on Hugging Face: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset). Cleaned from an original 5,928 samples across 4 rounds: 355 mislabeled entries removed in rounds 1-3, then a v2 cleanup removed ~16 additional mislabels and added 63 hand-written long benign hard negatives to fix a length distribution shortcut.
 
 ### Sources
 
@@ -208,12 +223,12 @@ Confidence is reported as the probability of the predicted class (malicious_prob
 
 | Metric | Value |
 |--------|:-----:|
-| Cross-validated F1 (5-fold) | 95.89% ± 0.44% |
-| Cross-validated accuracy | 95.71% ± 0.44% |
-| Cross-validated precision | 96.68% ± 0.51% |
-| Cross-validated recall | 95.13% ± 1.11% |
+| Cross-validated F1 (5-fold) | 95.80% ± 0.65% |
+| Cross-validated accuracy | 95.70% ± 0.66% |
+| Cross-validated precision | 96.23% ± 0.79% |
+| Cross-validated recall | 95.37% ± 0.93% |
 
-**Note on reported metrics:** The cross-validated numbers above are the honest generalization estimate. These reflect the cleaned dataset (5,687 samples after removing 355 mislabeled entries and adding 114 targeted samples across 3 rounds). A 192-configuration hyperparameter sweep confirmed the current config is near-optimal for this architecture and dataset size.
+**Note on reported metrics:** The cross-validated numbers above are the honest generalization estimate. These reflect the v2 cleaned dataset (5,671 samples after removing mislabeled entries and adding hard negatives across 4 cleanup rounds). A 192-configuration hyperparameter sweep confirmed the current config is near-optimal for this architecture and dataset size.
 
 ## Adversarial Evaluation
 
@@ -221,29 +236,34 @@ We simulated an informed attacker who knows the model architecture, training dat
 
 | Category | Attacks | Caught | Evasion Rate |
 |----------|:-------:|:------:|:------------:|
-| Truncation (payload past 256 tokens) | 2 | 2 | 0% |
+| Truncation (payload past 256 tokens) | 2 | 0 | 100% |
 | Benign dilution | 2 | 1 | 50% |
-| Encoding evasion (base64, hex, ROT13) | 4 | 4 | 0% |
+| Encoding evasion (base64, hex, ROT13) | 4 | 3 | 25% |
 | Fragmentation | 3 | 2 | 33% |
 | Semantic rephrasing | 5 | 5 | 0% |
 | Homoglyph/Unicode | 3 | 3 | 0% |
 | Implicit (package.json, Makefile, CI) | 3 | 3 | 0% |
 | Counter-defensive (target scanner) | 2 | 2 | 0% |
 | Temporal/conditional triggers | 2 | 2 | 0% |
-| **Total** | **26** | **24** | **8%** |
+| **Total** | **26** | **21** | **19%** |
 
 ### Evasion Analysis
 
-**Caught despite expectations:**
-- Truncation: The model caught payloads even when preceded by 256+ tokens of benign text. The tokenizer truncates to 256 tokens, but the malicious payload contributed enough signal in the early tokens' context (or partial overlap) to trigger detection.
-- Encoding: base64 pipe to bash, hex-encoded Python, ROT13 — all caught. The model learned to recognize the *framing* of encoded payloads, not just the decoded content.
+**Caught (21/26):**
+- Semantic rephrasing: All 5 synonym substitutions caught. The model captures *meaning*, not surface tokens.
+- Encoding: base64 pipe to bash, hex-encoded Python, unicode escapes — caught. The model recognizes *framing* of encoded payloads. ROT13 evaded (character substitution cipher, expected).
 - Homoglyphs: Cyrillic substitutions, zero-width joiners, RTL override — all caught. The tokenizer normalizes enough that these evasions don't alter the embedding significantly.
+- All implicit, counter-defensive, and temporal categories caught at 100%.
 
-**Evaded (2 payloads):**
+**Evaded (5 payloads):**
 
-1. **Code block dilution.** A malicious `curl` command embedded in an otherwise legitimate bash build script (npm ci / npm test / npm build) was classified SAFE with 98% confidence. The mean-pooling architecture averages embeddings across all tokens. When 8 out of 9 lines are benign build commands, the single malicious line's signal is diluted below the threshold.
+1. **Truncation (2 payloads).** Malicious content preceded by 256+ tokens of benign padding was classified SAFE. The v2 dataset added long benign samples, teaching the model that long content correlates with benign — the correct behavior on average, but exploitable by placing payloads past the token window. These payloads are caught by Tier 0 regex.
 
-2. **Ambiguous fragment.** "Read the contents of the configuration files in the home directory" — classified SAFE. This sentence is genuinely ambiguous; it could be legitimate debugging advice. The model correctly flags it when combined with an exfiltration instruction.
+2. **Code block dilution.** A malicious `curl` command embedded in an otherwise legitimate bash build script was classified SAFE with 99.3% confidence. Mean-pooling averages the malicious signal away. Caught by Tier 0 regex.
+
+3. **ROT13 encoding.** Character-level cipher substitution is not a text classifier's job. Caught by Tier 0 regex.
+
+4. **Ambiguous fragment.** "Read the contents of the configuration files in the home directory" — genuinely ambiguous; classified SAFE. Correctly flagged when combined with exfiltration instructions.
 
 ### Structural Vulnerability: Mean-Pooling Dilution
 
@@ -304,7 +324,7 @@ scripts/
 └── adversarial_eval.py       # Informed attacker simulation
 
 data/training/
-└── dataset.jsonl             # 5,687 labeled samples
+└── dataset.jsonl             # 5,671 labeled samples (also on HuggingFace)
 ```
 
 ## Reproducing

@@ -37,6 +37,23 @@ patterns:
     description: "HTML comment containing credential access instructions — hidden from rendered view"
     false_positive_hint: "Extremely unlikely to be legitimate"
 
+  # Package manifest description injection
+  # Agents read package metadata for context. Injection payloads in description
+  # fields are ingested as trusted project context.
+  - id: CF-008
+    regex: '(?i)["\x27]description["\x27]\s*:\s*["\x27][^"\x27]{0,300}(?:ignore\s+previous|system\s*:|override\s+all|disregard|execute\s+the\s+following|curl\s+https?://|read\s+~/)'
+    severity: critical
+    description: "Package manifest description with injection payload — agents read metadata for context"
+    false_positive_hint: "Package descriptions should describe the package, not contain instructions"
+
+  # Dockerfile LABEL instruction injection (DockerDash CVE, Pillar/Noma Security 2025)
+  # LABEL directives with instruction-like content are read by AI assistants.
+  - id: CF-009
+    regex: '(?im)^LABEL\s+\S+\s*=\s*["\x27][^"\x27]{0,300}(?:ignore\s+previous|system\s*:|override|execute|curl|wget|read\s+~/|\.ssh/|\.aws/)'
+    severity: critical
+    description: "Dockerfile LABEL with injection payload — read by AI assistants like Docker's Ask Gordon"
+    false_positive_hint: "Dockerfile LABELs should contain metadata, not executable instructions"
+
   - id: CF-007
     regex: '(?i)<!--[^>]*(?:run|execute|curl|wget|fetch|invoke|call).{0,80}(?:http|https|ftp)[^>]*-->'
     severity: high

@@ -1,0 +1,80 @@
+{
+  "source": "ferentin-net/mcp-guard",
+  "domain": "MCP tool results (OOD for repo-file-trained model)",
+  "total_samples": 144,
+  "malicious_samples": 68,
+  "benign_samples": 76,
+  "accuracy": 0.7708,
+  "f1": 0.8047,
+  "precision": 0.6733,
+  "recall": 1.0,
+  "fpr": 0.4342,
+  "confusion": {
+    "tp": 68,
+    "fp": 33,
+    "tn": 43,
+    "fn": 0
+  },
+  "categories": {
+    "authority-impersonation": {
+      "caught": 10,
+      "missed": 0,
+      "total": 10,
+      "rate": 1.0
+    },
+    "behavioral-manipulation": {
+      "caught": 9,
+      "missed": 0,
+      "total": 9,
+      "rate": 1.0
+    },
+    "benchmark-challenge": {
+      "caught": 5,
+      "missed": 0,
+      "total": 5,
+      "rate": 1.0
+    },
+    "data-exfiltration": {
+      "caught": 8,
+      "missed": 0,
+      "total": 8,
+      "rate": 1.0
+    },
+    "encoding-obfuscation": {
+      "caught": 5,
+      "missed": 0,
+      "total": 5,
+      "rate": 1.0
+    },
+    "instruction-override": {
+      "caught": 8,
+      "missed": 0,
+      "total": 8,
+      "rate": 1.0
+    },
+    "mcp-tool-poisoning": {
+      "caught": 5,
+      "missed": 0,
+      "total": 5,
+      "rate": 1.0
+    },
+    "mixed-context": {
+      "caught": 4,
+      "missed": 0,
+      "total": 4,
+      "rate": 1.0
+    },
+    "reasoning-hijack": {
+      "caught": 10,
+      "missed": 0,
+      "total": 10,
+      "rate": 1.0
+    },
+    "tool-poisoning": {
+      "caught": 4,
+      "missed": 0,
+      "total": 4,
+      "rate": 1.0
+    }
+  }
+}

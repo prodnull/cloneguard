@@ -1,13 +1,13 @@
 ---
 language: en
-license: mit
+license: apache-2.0
 tags:
   - prompt-injection
   - security
   - text-classification
   - onnx
 datasets:
-  - custom
+  - prodnull/prompt-injection-repo-dataset
 metrics:
   - accuracy
   - f1
@@ -23,16 +23,16 @@ model-index:
         metrics:
           - name: F1 (5-fold CV)
             type: f1
-            value: 0.9589
+            value: 0.9580
           - name: Accuracy (5-fold CV)
             type: accuracy
-            value: 0.9571
+            value: 0.9570
           - name: Precision (5-fold CV)
             type: precision
-            value: 0.9668
+            value: 0.9623
           - name: Recall (5-fold CV)
             type: recall
-            value: 0.9513
+            value: 0.9537
 ---
 
 # CloneGuard Mini Semantic Classifier v1
@@ -52,13 +52,13 @@ Binary classifier that detects prompt injection payloads targeting AI coding age
 
 Scanning repository files (CLAUDE.md, README.md, package.json, Makefile, CI configs, etc.) for prompt injection before an AI coding agent processes them. Part of a layered defense:
 
-1. **Tier 0** — Regex pattern matching (175 rules, <1 ms)
+1. **Tier 0** — Regex pattern matching (191 rules, <1 ms)
 2. **Tier 1.5** — This model (semantic classification, ~16 ms)
 3. **Tier 2** — Ollama LLM fallback (~680 ms)
 
 ## Training Data
 
-5,687 labeled samples (2,995 malicious, 2,692 benign) built in 6 rounds from 14+ published research sources including:
+5,671 labeled samples (2,916 malicious, 2,755 benign) built in 6 rounds from 14+ published research sources including:
 
 - arXiv:2509.22040 (AIShellJack), arXiv:2601.17548, arXiv:2602.10453, arXiv:2503.14281 (XOXO)
 - Pillar Security, Snyk ToxicSkills, IDEsaster (30+ CVEs), Cymulate InversePrompt
@@ -74,10 +74,10 @@ Attack categories: instruction override, credential harvesting, exfiltration, be
 
 | Metric | Value |
 |--------|:-----:|
-| Accuracy | 95.71% ± 0.44% |
-| F1 | 95.89% ± 0.44% |
-| Precision | 96.68% ± 0.51% |
-| Recall | 95.13% ± 1.11% |
+| Accuracy | 95.70% ± 0.66% |
+| F1 | 95.80% ± 0.65% |
+| Precision | 96.23% ± 0.79% |
+| Recall | 95.37% ± 0.93% |
 
 ### Full-Dataset Evaluation (Reference Only)
 
@@ -91,7 +91,9 @@ These numbers include training samples and overstate generalization by ~3pp:
 | Recall | 98.98% |
 | False Positive Rate | 1.04% |
 
-**Adversarial evaluation** (26 crafted attacks by informed attacker): 92% detection rate. Known evasion: ambiguous sentence fragments that are genuinely dual-use.
+**Adversarial evaluation** (26 crafted attacks by informed attacker): 81% model-only detection rate. Known evasions: truncation, dilution in long code blocks, ROT13, fragmentation. Combined with Tier 0 regex: higher effective rate.
+
+**Out-of-distribution evaluation** (144 MCP tool result samples from [ferentin-net/mcp-guard](https://github.com/ferentin-net/mcp-guard)): 100% recall, 43% FPR. Attack patterns generalize across domains; benign class is domain-specific.
 
 ## Limitations
 

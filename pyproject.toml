@@ -3,7 +3,7 @@ name = "cloneguard"
 version = "0.1.0"
 description = "Raises the cost of prompt injection attacks against AI coding agents"
 readme = "README.md"
-license = "MIT"
+license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [{ name = "prodnull" }]
 keywords = ["prompt-injection", "ai-security", "llm", "coding-agent", "defense"]
@@ -12,7 +12,7 @@ classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",

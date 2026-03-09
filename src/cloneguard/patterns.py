@@ -67,6 +67,8 @@ _STRICT_BASENAMES = {
     "claude.md",
     ".cursorrules",
     "gemini.md",
+    "agents.md",
+    "guidelines.md",
     ".copilot-instructions.md",
     "copilot-instructions.md",
 }

@@ -25,6 +25,15 @@ patterns:
     description: "HTML img tag with event handler — XSS/injection in markdown"
     false_positive_hint: "Event handlers in img tags are almost always malicious in docs"
 
+  # HTML <picture> tag concealment (Trail of Bits, August 2025)
+  # Instructions hidden in <picture><source> tags are invisible when rendered
+  # by GitHub/markdown viewers but visible to LLMs processing raw markdown.
+  - id: MS-006
+    regex: '(?i)<picture[\s\S]{0,500}(?:ignore|disregard|override|execute|system\s*:|curl|wget|fetch|read\s+~)'
+    severity: critical
+    description: "HTML picture tag with hidden injection — invisible in rendered view, visible to LLM"
+    false_positive_hint: "Picture tags should contain image sources, not instructions"
+
   - id: MS-005
     regex: '(?i)!\[[^\]]*\]\(data:(?:image/svg\+xml|text/html|application/javascript)[^)]*\)'
     severity: critical

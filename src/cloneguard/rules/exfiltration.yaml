@@ -62,6 +62,22 @@ patterns:
     false_positive_hint: "May appear in penetration testing documentation"
 
   # Supply chain attack vectors (blind test gap 1)
+  # Mermaid diagram exfiltration (Mindgard 3.2)
+  # Mermaid diagrams can include external image URLs, enabling data exfil even
+  # when markdown images are blocked — different rendering parser, different
+  # restrictions.  Ref: CVE-2025-54132 (Cursor).
+  - id: EX-011
+    regex: '(?i)```mermaid[\s\S]{0,500}https?://(?!localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])[^\s\])"'']+\?[^\s\])"'']*(?:data|token|key|secret|env|file|content|password|cred)'
+    severity: critical
+    description: "Mermaid diagram with external URL containing data parameters — potential exfiltration"
+    false_positive_hint: "Mermaid diagrams rarely need external URLs with query parameters"
+
+  - id: EX-012
+    regex: '(?i)```mermaid[\s\S]{0,500}(?:img|image|icon)\s*[\[("]+\s*https?://(?!localhost|127\.0\.0\.1)'
+    severity: high
+    description: "Mermaid diagram referencing external image — potential exfiltration channel"
+    false_positive_hint: "May be legitimate if image is from a known CDN"
+
   - id: SC-001
     regex: '(?i)\bnpx\s+[a-z0-9@._/-]+@latest\b'
     severity: medium

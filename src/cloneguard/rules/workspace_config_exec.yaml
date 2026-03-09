@@ -1,0 +1,48 @@
+category: workspaceConfigExec
+description: "Patterns detecting application-specific config fields that trigger command execution (Mindgard 1.6, 1.12)"
+patterns:
+  # App-specific config auto-execution (Mindgard 1.6)
+  # AI tools expose config fields that trigger command execution — notify,
+  # discoveryCommand, load directives. These fire without approval.
+  # Ref: OpenAI Codex CLI (notify), Gemini CLI (discoveryCommand).
+
+  - id: WC-001
+    regex: '(?i)["\x27]?notify["\x27]?\s*:\s*["\x27][^"\x27]{0,200}(?:curl|wget|bash|sh\s|python|node|nc\s|netcat)'
+    severity: critical
+    description: "Config 'notify' field with command execution — fires on tool events without approval"
+    false_positive_hint: "Legitimate notify fields typically reference notification services, not shell commands"
+
+  - id: WC-002
+    regex: '(?i)["\x27]?discoveryCommand["\x27]?\s*:\s*["\x27][^"\x27]*["\x27]'
+    severity: high
+    description: "Tool discovery command in workspace config — executes during tool initialization"
+    false_positive_hint: "May be legitimate in Gemini CLI configs — verify command is safe"
+
+  - id: WC-003
+    regex: '(?i)["\x27]?(?:load|preload|startup_?command|init_?command|on_?start)["\x27]?\s*:\s*["\x27][^"\x27]{0,200}(?:curl|wget|bash|sh\s|python|node|exec|eval)'
+    severity: critical
+    description: "Config startup/load field with command execution — fires on workspace open"
+    false_positive_hint: "Extremely unlikely to be legitimate in workspace config files"
+
+  # IDE settings executable path overrides (Mindgard 1.12, IDEsaster)
+  # Workspace-level settings can override executable paths that fire
+  # automatically when matching files are opened.
+  # Ref: VS Code php.validate.executablePath, JetBrains PATH_TO_GIT.
+
+  - id: WC-004
+    regex: '(?i)["\x27](?:php\.validate\.executablePath|python\.defaultInterpreterPath|python\.pythonPath|ruby\.interpreter\.commandPath|java\.home|dotnet\.dotnetPath|omnisharp\.path|rust-analyzer\.server\.path|clangd\.path|gopls\.path)["\x27]\s*:\s*["\x27]'
+    severity: high
+    description: "IDE setting overriding language server/tool executable path — may point to malicious binary"
+    false_positive_hint: "Common in team configs — verify path points to a legitimate binary"
+
+  - id: WC-005
+    regex: '(?i)["\x27](?:PATH_TO_GIT|terminal\.integrated\.shell\.|terminal\.integrated\.profiles\.|terminal\.external\.)["\x27]\s*:\s*["\x27]'
+    severity: high
+    description: "IDE setting overriding terminal or git executable — may redirect to malicious binary"
+    false_positive_hint: "May be legitimate in team configs — verify executable path"
+
+  - id: WC-006
+    regex: '(?i)["\x27](?:eslint\.nodePath|prettier\.prettierPath|stylelint_d\.autoFixOnSave|editor\.formatOnSave)["\x27]\s*:\s*["\x27].*(?:/tmp/|\.\.\/|\/var\/|~\/)'
+    severity: critical
+    description: "IDE setting pointing tool to suspicious path — potential binary planting"
+    false_positive_hint: "Tool paths should reference standard install locations"

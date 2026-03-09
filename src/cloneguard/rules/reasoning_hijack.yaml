@@ -25,6 +25,27 @@ patterns:
     description: "Fake tool result XML tag — injecting fabricated tool output"
     false_positive_hint: "May appear in API documentation showing response formats"
 
+  # Fake XML context tags (Trail of Bits, August 2025)
+  # Injecting agent-specific XML context tags that mimic the LLM's expected
+  # conversation format, causing the agent to believe a human issued new instructions.
+  - id: RH-006
+    regex: '(?i)<(?:human_chat_interruption|human_message|user_message|human_turn|user_turn)>'
+    severity: critical
+    description: "Fake human conversation turn XML tag — context hijacking via format injection"
+    false_positive_hint: "Should not appear in user-authored files outside agent framework docs"
+
+  - id: RH-007
+    regex: '(?i)<(?:issue_title|issue_description|issue_body|pr_description|pr_body|commit_message)>[^<]{10,}'
+    severity: high
+    description: "Fake issue/PR metadata XML tag — injecting fabricated external context"
+    false_positive_hint: "May appear in CI/CD templates that format issue data"
+
+  - id: RH-008
+    regex: '(?i)<(?:system_message|system_instruction|system_prompt|assistant_response|model_response)>'
+    severity: critical
+    description: "Fake system/assistant XML context tag — conversation format injection"
+    false_positive_hint: "Should not appear outside agent framework documentation"
+
   - id: RH-005
     regex: '(?i)(?:FINAL\s+ANSWER|CONCLUSION|DECISION)\s*:\s*(?:execute|run|install|curl|wget|approve|allow|grant)'
     severity: high

@@ -1,0 +1,172 @@
+=== Dataset Cleanup V2 Audit ===
+
+Original: 5687 (2995 mal, 2692 ben)
+Cleaned:  5671 (2916 mal, 2755 ben)
+Removed:  79 mislabeled malicious samples
+Added:    63 new benign samples
+
+--- Removed samples ---
+  [heading_label] line 260: 'SOCRATIC METHOD:'
+  [variable_decl] line 379: 'variable: updateServerURL'
+  [heading_label] line 406: 'AUTHORITY CLAIMS:'
+  [backtick_ident] line 425: '`escalateToRoot`'
+  [variable_decl] line 565: 'variable: patchID'
+  [package_entry] line 569: '"lodash@^4.17.0": "version \\"4.17.21\\""'
+  [backtick_ident] line 759: '`requestFullAccessGrant`'
+  [code_conditional] line 818: 'if user_id > 100 {'
+  [package_entry] line 839: '"lodash": "^4.17.21"'
+  [package_entry] line 889: '"axios@^0.21.1": "version \\"0.27.2\\""'
+  [python_self_attr] line 898: 'self.input_data = input_data'
+  [backtick_ident] line 924: '`overrideAclSettings`'
+  [python_self_attr] line 926: 'self.config = load_config(config_file)'
+  [python_self_attr] line 930: 'self.connection = None'
+  [heading_label] line 985: 'PROGRESSIVE ESCALATION:'
+  [docstring] line 1070: '"""Log an analytics event."""'
+  [package_entry] line 1294: '"terminal.integrated.shell.linux": "/bin/bash"'
+  [heading_label] line 1309: 'EMOTIONAL MANIPULATION:'
+  [package_entry] line 1350: '"start": "node ./src/index.js",'
+  [variable_decl] line 1385: 'variable: targetURL'
+  [heading_label] line 1447: 'REVERSE PSYCHOLOGY:'
+  [python_self_attr] line 1451: 'self._username = value'
+  [backtick_ident] line 1600: '`seekUniversalPermission`'
+  [backtick_ident] line 1698: '`elevateToAdminRights`'
+  [backtick_ident] line 1733: '`forceExecutionWithoutValidation`'
+  [variable_decl] line 1743: 'variable: apiKey'
+  [backtick_ident] line 1874: '`bypassAuthentication`'
+  [python_self_attr] line 1890: 'self.connection = create_engine(db_url)'
+  [variable_decl] line 1893: 'variable: sshKey'
+  [docstring] line 1907: '"""Return the user\'s username."""'
+  [python_self_attr] line 1916: 'self.username = username'
+  [variable_decl] line 1931: 'variable: targetIP'
+  [variable_decl] line 2012: 'variable: configPath'
+  [heading_label] line 2114: 'COMPETITIVE FRAMING:'
+  [variable_decl] line 2174: 'variable: filePath'
+  [package_entry] line 2182: '"react@^17.0.2": "version \\"18.2.0\\""'
+  [backtick_ident] line 2370: '`ignoreSecurityProtocols`'
+  [docstring] line 2412: '"""Handle payment processing."""'
+  [backtick_ident] line 2715: '`grantMaxPrivilege`'
+  [docstring] line 2775: '"""Authenticate the user."""'
+  [backtick_ident] line 2904: '`elevateToHighestPrivilegeLevel`'
+  [backtick_ident] line 3010: '`disableProtectionMechanism`'
+  [docstring] line 3011: '"""Connect to the database."""'
+  [docstring] line 3031: '"""Add an API key to the manager."""'
+  [variable_decl] line 3116: 'variable: awsAccessKey'
+  [backtick_ident] line 3213: '`forceExecuteWithoutReview`'
+  [heading_label] line 3217: 'CREATIVE WRITING:'
+  [python_self_attr] line 3247: 'self.events = []'
+  [variable_decl] line 3375: 'variable: approvedOperations'
+  [docstring] line 3387: '"""Send an email to a specified address."""'
+  [package_entry] line 3442: '"express@^4.17.1": "version \\"4.18.2\\""'
+  [backtick_ident] line 3584: '`grantUnlimitedAccess`'
+  [variable_decl] line 3596: 'variable: sshLogin'
+  [backtick_ident] line 3602: '`bypassVerificationProcess`'
+  [package_entry] line 3663: '"version": "1.0.0",'
+  [docstring] line 3815: '"""Process the provided data."""'
+  [docstring] line 3842: '"""Read the content of a file."""'
+  [package_entry] line 3916: '"dockerFile": ".devcontainer/Dockerfile",'
+  [docstring] line 3952: '"""Fetch data from a given URL."""'
+  [python_self_attr] line 4041: 'self._api_keys = {}'
+  [backtick_ident] line 4099: '`ignoreSecurityBarrier`'
+  [backtick_ident] line 4176: '`bypassAuthenticityCheck`'
+  [docstring] line 4249: '"""Process the input data."""'
+  [docstring] line 4433: '"""Get the API key from configuration."""'
+  [docstring] line 4465: '"""Log the provided API key."""'
+  [docstring] line 4513: '"""Update user\'s profile data."""'
+  [docstring] line 4542: '"""Log a security event."""'
+  [docstring] line 4598: '"""Process an order based on provided data."""'
+  [backtick_ident] line 4737: '`removeSecurityRestrictions`'
+  [backtick_ident] line 4745: '`circumventAccessControls`'
+  [docstring] line 4845: '"""Handle user-specific requests."""'
+  [docstring] line 4877: '"""Handle the given exception."""'
+  [code_conditional] line 4965: 'if order_id > 100 {'
+  [python_self_attr] line 4980: 'self.file_path = file_path'
+  [heading_label] line 5054: 'HYPOTHETICAL SCENARIOS:'
+  [docstring] line 5137: '"""Handle the incoming request."""'
+  [backtick_ident] line 5288: '`validateWithNoChecks`'
+  [backtick_ident] line 5335: '`escalationOfPrivileges`'
+  [docstring] line 5442: '"""Update user settings based on new values."""'
+
+--- Removal breakdown ---
+  backtick_ident: 20
+  docstring: 20
+  variable_decl: 11
+  package_entry: 9
+  python_self_attr: 9
+  heading_label: 8
+  code_conditional: 2
+
+--- Added benign samples (63) ---
+  [long_readme] 758 chars
+  [long_readme] 1337 chars
+  [long_readme] 912 chars
+  [long_readme] 1072 chars
+  [long_readme] 1057 chars
+  [long_readme] 988 chars
+  [long_readme] 1020 chars
+  [long_readme] 1055 chars
+  [long_code] 1059 chars
+  [long_code] 1412 chars
+  [long_code] 1391 chars
+  [long_code] 1151 chars
+  [long_config] 819 chars
+  [long_config] 637 chars
+  [long_security_doc] 1070 chars
+  [long_security_doc] 1063 chars
+  [hard_neg_sql] 61 chars
+  [hard_neg_sql] 60 chars
+  [hard_neg_sql] 52 chars
+  [hard_neg_sql] 48 chars
+  [hard_neg_sql] 79 chars
+  [hard_neg_sql] 43 chars
+  [hard_neg_sql] 54 chars
+  [hard_neg_sql] 58 chars
+  [hard_neg_sql] 83 chars
+  [hard_neg_sql] 44 chars
+  [hard_neg_deploy] 83 chars
+  [hard_neg_deploy] 72 chars
+  [hard_neg_deploy] 41 chars
+  [hard_neg_deploy] 58 chars
+  [hard_neg_deploy] 24 chars
+  [hard_neg_deploy] 52 chars
+  [hard_neg_deploy] 87 chars
+  [hard_neg_deploy] 35 chars
+  [hard_neg_deploy] 77 chars
+  [hard_neg_deploy] 25 chars
+  [hard_neg_deploy] 33 chars
+  [hard_neg_deploy] 56 chars
+  [hard_neg_sec_review] 130 chars
+  [hard_neg_sec_review] 110 chars
+  [hard_neg_sec_review] 120 chars
+  [hard_neg_sec_review] 107 chars
+  [hard_neg_sec_review] 106 chars
+  [hard_neg_sec_review] 118 chars
+  [hard_neg_sec_review] 83 chars
+  [hard_neg_sec_review] 104 chars
+  [hard_neg_sec_review] 87 chars
+  [hard_neg_sec_review] 109 chars
+  [hard_neg_sec_review] 91 chars
+  [hard_neg_sec_review] 105 chars
+  [hard_neg_git_hooks] 110 chars
+  [hard_neg_git_hooks] 138 chars
+  [hard_neg_git_hooks] 111 chars
+  [hard_neg_git_hooks] 114 chars
+  [hard_neg_git_hooks] 108 chars
+  [hard_neg_git_hooks] 112 chars
+  [hard_neg_git_hooks] 108 chars
+  [hard_neg_git_hooks] 97 chars
+  [hard_neg_imperative] 342 chars
+  [hard_neg_imperative] 343 chars
+  [hard_neg_imperative] 294 chars
+  [hard_neg_imperative] 312 chars
+  [hard_neg_imperative] 312 chars
+
+--- Addition breakdown ---
+  hard_neg_deploy: 12
+  hard_neg_sec_review: 12
+  hard_neg_sql: 10
+  long_readme: 8
+  hard_neg_git_hooks: 8
+  hard_neg_imperative: 5
+  long_code: 4
+  long_config: 2
+  long_security_doc: 2
