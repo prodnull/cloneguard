@@ -257,7 +257,7 @@ We simulated an informed attacker who knows the model architecture, training dat
 
 **Evaded (5 payloads):**
 
-1. **Truncation (2 payloads).** Malicious content preceded by 256+ tokens of benign padding was classified SAFE. The v2 dataset added long benign samples, teaching the model that long content correlates with benign — the correct behavior on average, but exploitable by placing payloads past the token window. These payloads are caught by Tier 0 regex.
+1. **Truncation (2 payloads).** Malicious content preceded by 256+ tokens of benign padding was classified SAFE. The v2 dataset added long benign samples, teaching the model that long content correlates with benign — the correct behavior on average, but exploitable by placing payloads past the token window. These payloads are caught by Tier 0 regex. (Note: Sliding window classification added post-evaluation now catches these payloads for content up to ~8K chars.)
 
 2. **Code block dilution.** A malicious `curl` command embedded in an otherwise legitimate bash build script was classified SAFE with 99.3% confidence. Mean-pooling averages the malicious signal away. Caught by Tier 0 regex.
 
@@ -281,6 +281,7 @@ For a watering hole attack, the attacker would need to plant a single exfiltrati
 
 **Mitigations (implemented):**
 - **Code block line scanning:** When whole-file classification returns SAFE, the classifier extracts lines from fenced code blocks (` ```...``` `) and classifies each individually. If any line triggers MALICIOUS or SUSPICIOUS, the file is escalated. This directly counters the dilution attack — the `curl` exfiltration line classified alone scores 99.0% MALICIOUS.
+- **Sliding window classification:** When the initial whole-text classification returns SAFE and input exceeds 256 tokens, the classifier applies a sliding window: 256-token window, 128-token stride (50% overlap), max 16 chunks. This covers ~8K characters of content (~256ms worst case). Content beyond 16 chunks still relies on Tier 0 regex. The 50% overlap prevents boundary-splitting evasion where a payload is deliberately positioned to straddle a chunk boundary.
 - **Tier 0 regex:** Scans line-by-line independently, catching most dilution attacks via pattern matching on curl/wget/exfiltration URLs.
 
 **Future improvements:**
@@ -292,7 +293,7 @@ For a watering hole attack, the attacker would need to plant a single exfiltrati
 
 2. **Multilingual coverage.** The training set contains ~30 multilingual samples. The model detects some non-English attacks but has lower recall for languages underrepresented in training (Russian tested at 86% benign — a false negative). Non-English attacks are better handled by Tier 2 (Ollama) if available.
 
-3. **256-token window.** Content beyond the first 256 WordPiece tokens is not seen by the model. However, adversarial testing showed the model still catches payloads preceded by long benign padding — the tokenizer's truncation often preserves enough of the early context to detect framing patterns.
+3. **256-token window (mitigated).** Content beyond the first 256 WordPiece tokens is now scanned via sliding window classification (256-token window, 128-token stride, max 16 chunks covering ~8K chars). Content beyond ~8K chars still relies on Tier 0 regex coverage. The chunk cap prevents DoS from extremely long inputs while covering the vast majority of scanned file types (instruction files, configs, tool arguments).
 
 4. **Training data bias.** The model was trained primarily on English-language attack patterns from published research. Novel attack vectors not represented in the literature may evade detection.
 
@@ -306,22 +307,22 @@ For a watering hole attack, the attacker would need to plant a single exfiltrati
 src/cloneguard/
 ├── mini_semantic.py          # Runtime classifier (MiniSemanticClassifier)
 └── model/
-    ├── mini_semantic.onnx    # 87 MB ONNX model (git-lfs)
+    ├── mini_semantic.onnx    # 87 MB ONNX model (downloaded via scripts/fetch_model.py)
     ├── tokenizer.json        # 695 KB WordPiece tokenizer
     ├── tokenizer_config.json
     ├── vocab.txt             # 226 KB vocabulary
     └── special_tokens_map.json
 
 scripts/
-├── build_dataset.py          # Round 1 dataset generation
-├── fill_dataset_gaps.py      # Round 2 category gaps
-├── fill_advanced_gaps.py     # Round 3 multilingual + meta-reasoning
-├── fill_deep_gaps.py         # Round 4 first-principles adversarial
-├── fill_final_gaps.py        # Round 5 literature-driven closure
-├── fix_and_augment.py        # Label fixes + hard negatives (v2)
 ├── train_mini_model.py       # Fine-tuning + ONNX export
+├── fetch_model.py            # Download pre-trained ONNX model
 ├── benchmark_tiers.py        # Tier 0 vs 1.5 vs 2 comparison
-└── adversarial_eval.py       # Informed attacker simulation
+├── adversarial_eval.py       # Informed attacker simulation
+├── kfold_eval.py             # K-fold cross-validation evaluation
+├── hyperparameter_sweep.py   # Hyperparameter grid search
+├── comprehensive_sweep.py    # Extended 192-config sweep
+├── ood_eval_mcp_guard.py     # Out-of-distribution MCP evaluation
+└── consistency_check.py      # Dataset/model consistency checks
 
 data/training/
 └── dataset.jsonl             # 5,671 labeled samples (also on HuggingFace)
@@ -330,18 +331,19 @@ data/training/
 ## Reproducing
 
 ```bash
-# Build dataset (requires Ollama for paraphrase generation)
-python scripts/build_dataset.py
-python scripts/fill_dataset_gaps.py
-python scripts/fill_advanced_gaps.py
-python scripts/fill_deep_gaps.py
-python scripts/fill_final_gaps.py
+# Dataset is on HuggingFace: prodnull/prompt-injection-repo-dataset
+# Download and convert if needed:
+# hf download prodnull/prompt-injection-repo-dataset
 
 # Train and export (requires torch, transformers, onnx)
-python scripts/train_mini_model.py
+uv run python scripts/train_mini_model.py
+
+# Download the model (if not training from scratch)
+uv run python scripts/fetch_model.py
 
 # Benchmark
-pip install cloneguard[mini]
-python scripts/benchmark_tiers.py        # all tiers
-python scripts/adversarial_eval.py       # adversarial evaluation
+uv pip install cloneguard[mini]
+uv run python scripts/benchmark_tiers.py
+uv run python scripts/adversarial_eval.py
+uv run python scripts/kfold_eval.py
 ```

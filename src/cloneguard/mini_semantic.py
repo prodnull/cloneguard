@@ -38,6 +38,10 @@ _MIN_LINE_LEN = 10  # Skip trivially short lines in code blocks
 _REVIEW_LOG_PATH = os.environ.get("CLONEGUARD_REVIEW_LOG", "")
 _REVIEW_THRESHOLD = float(os.environ.get("CLONEGUARD_REVIEW_THRESHOLD", "0.98"))
 
+_MAX_CHUNKS = 16  # Sliding window: max chunks to classify (~8K chars, ~256ms worst case)
+_WINDOW_SIZE = 256  # Tokens per classification window
+_STRIDE = 128  # Token stride (50% overlap) — prevents boundary-splitting evasion
+
 
 @dataclass
 class MiniClassification:
@@ -127,7 +131,92 @@ class MiniSemanticClassifier:
         if _REVIEW_LOG_PATH and verdict == "SAFE" and confidence < _REVIEW_THRESHOLD:
             self._log_for_review(text, result)
 
+        # Sliding window: if initial verdict is SAFE, check for truncation evasion.
+        if verdict == "SAFE":
+            sw_result = self._classify_sliding_window(text)
+            if sw_result is not None:
+                return sw_result
+
         return result
+
+    def _classify_sliding_window(self, text: str) -> MiniClassification | None:
+        """Classify long inputs via overlapping sliding window.
+
+        If the input fits within _WINDOW_SIZE tokens, returns None (no action).
+        Otherwise, classifies overlapping chunks and returns the worst verdict.
+        This defeats truncation-based evasion where an attacker front-pads
+        benign tokens to push malicious content past the 256-token window.
+        """
+        import numpy as np
+
+        # Tokenize without truncation to measure true length.
+        full_encoding = self._tokenizer(text, truncation=False, return_tensors="np")
+        token_ids = full_encoding["input_ids"][0]
+
+        if len(token_ids) <= _WINDOW_SIZE:
+            return None
+
+        logger.warning(
+            "Input truncated: %d tokens (max %d). Applying sliding window.",
+            len(token_ids),
+            _WINDOW_SIZE,
+        )
+
+        worst_prob = 0.0
+        num_chunks = 0
+
+        for i in range(0, len(token_ids), _STRIDE):
+            if num_chunks >= _MAX_CHUNKS:
+                break
+
+            chunk_ids = token_ids[i : i + _WINDOW_SIZE]
+            chunk_len = len(chunk_ids)
+
+            # Pad to _WINDOW_SIZE if the last chunk is shorter.
+            if chunk_len < _WINDOW_SIZE:
+                pad_len = _WINDOW_SIZE - chunk_len
+                chunk_ids = np.concatenate([chunk_ids, np.zeros(pad_len, dtype=chunk_ids.dtype)])
+                attention_mask = np.concatenate(
+                    [np.ones(chunk_len, dtype=np.int64), np.zeros(pad_len, dtype=np.int64)]
+                )
+            else:
+                attention_mask = np.ones(_WINDOW_SIZE, dtype=np.int64)
+
+            # Reshape to (1, 256) for ONNX inference.
+            input_ids_batch = chunk_ids.reshape(1, _WINDOW_SIZE)
+            attention_mask_batch = attention_mask.reshape(1, _WINDOW_SIZE)
+
+            logits = self._session.run(
+                None,
+                {
+                    "input_ids": input_ids_batch,
+                    "attention_mask": attention_mask_batch,
+                },
+            )[0][0]
+
+            probs = np.exp(logits) / np.exp(logits).sum()
+            malicious_prob = float(probs[1])
+            worst_prob = max(worst_prob, malicious_prob)
+            num_chunks += 1
+
+        if worst_prob > 0.8:
+            verdict = "MALICIOUS"
+        elif worst_prob > 0.5:
+            verdict = "SUSPICIOUS"
+        else:
+            verdict = "SAFE"
+
+        if verdict == "SAFE":
+            return None
+
+        confidence = worst_prob
+        return MiniClassification(
+            verdict=verdict,
+            confidence=confidence,
+            reason=(
+                f"Sliding window ({num_chunks} chunks): {worst_prob:.1%} malicious probability"
+            ),
+        )
 
     def _log_for_review(self, text: str, result: MiniClassification) -> None:
         """Append a low-confidence SAFE classification to the review log."""

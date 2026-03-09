@@ -61,12 +61,20 @@ except ImportError:
 _BLOCK_SEVERITIES = frozenset({Severity.CRITICAL, Severity.HIGH})
 
 
+_MAX_EXTRACT_DEPTH = 10
+
+
 def _extract_text_values(obj: Any, *, depth: int = 0) -> list[str]:
     """Recursively extract all string values from a dict/list structure.
 
-    Limits recursion to 10 levels to avoid pathological inputs.
+    Limits recursion to _MAX_EXTRACT_DEPTH levels to avoid pathological inputs.
     """
-    if depth > 10:
+    if depth > _MAX_EXTRACT_DEPTH:
+        logger.warning(
+            "Extraction depth limit (%d) reached — deeply nested content will not be scanned. "
+            "This could indicate a nesting-based evasion attempt.",
+            _MAX_EXTRACT_DEPTH,
+        )
         return []
     texts: list[str] = []
     if isinstance(obj, str):
@@ -137,6 +145,10 @@ class CloneGuardPlugin(GuardrailPlugin):
     def process_request(self, context: PluginContext) -> dict[str, Any] | None:
         """Scan tool input arguments for prompt injection.
 
+        Each extracted text value is scanned independently to prevent
+        truncation-based evasion where benign text in early arguments pushes
+        malicious content past the Tier 1.5 classifier's 256-token window.
+
         Returns:
             The original arguments dict if clean/low-risk, or None to block.
         """
@@ -147,51 +159,72 @@ class CloneGuardPlugin(GuardrailPlugin):
         if not texts:
             return context.arguments
 
-        combined = "\n".join(texts)
         source = f"{context.server_name}/{context.capability_name}"
 
-        # --- Tier 0: regex scan ---
-        t0 = time.perf_counter()
-        result = self._pattern_engine.scan(combined, source)
-        regex_ms = (time.perf_counter() - t0) * 1000
+        # --- Scan each text value independently ---
+        total_regex_ms = 0.0
+        total_onnx_ms = 0.0
+        worst_regex_result = None
+        worst_semantic: str | None = None
+        total_matches = 0
 
-        # --- Tier 1.5: semantic scan (optional) ---
-        onnx_ms = 0.0
-        semantic_verdict: str | None = None
-        if self._semantic_available and self._semantic is not None:
-            t1 = time.perf_counter()
-            classification = self._semantic.classify(combined)
-            onnx_ms = (time.perf_counter() - t1) * 1000
-            semantic_verdict = classification.verdict
+        for text in texts:
+            # Tier 0: regex scan (no token limit)
+            t0 = time.perf_counter()
+            result = self._pattern_engine.scan(text, source)
+            total_regex_ms += (time.perf_counter() - t0) * 1000
+            total_matches += len(result.matches)
 
-        total_ms = regex_ms + onnx_ms
+            is_worse = worst_regex_result is None or (
+                result.verdict.value > worst_regex_result.verdict.value
+            )
+            if is_worse:
+                worst_regex_result = result
+
+            # Tier 1.5: semantic scan per value (avoids truncation evasion)
+            if self._semantic_available and self._semantic is not None:
+                t1 = time.perf_counter()
+                classification = self._semantic.classify(text)
+                total_onnx_ms += (time.perf_counter() - t1) * 1000
+                if worst_semantic is None or (
+                    classification.verdict == "MALICIOUS"
+                    or (classification.verdict == "SUSPICIOUS" and worst_semantic == "SAFE")
+                ):
+                    worst_semantic = classification.verdict
+
+        assert worst_regex_result is not None  # texts is non-empty
+        total_ms = total_regex_ms + total_onnx_ms
 
         # --- Decide verdict ---
-        if result.verdict == Verdict.DETECTED or semantic_verdict == "MALICIOUS":
+        if worst_regex_result.verdict == Verdict.DETECTED or worst_semantic == "MALICIOUS":
             logger.warning(
                 "CloneGuard: BLOCKED request %s — scanned in %.1fms "
                 "(regex=%.1fms, onnx=%.1fms), verdict: BLOCKED, "
                 "matches=%d, max_severity=%s, semantic=%s",
                 source,
                 total_ms,
-                regex_ms,
-                onnx_ms,
-                len(result.matches),
-                result.max_severity.value if result.max_severity else "none",
-                semantic_verdict or "n/a",
+                total_regex_ms,
+                total_onnx_ms,
+                total_matches,
+                worst_regex_result.max_severity.value
+                if worst_regex_result.max_severity
+                else "none",
+                worst_semantic or "n/a",
             )
             return None  # Block
 
-        if result.verdict == Verdict.SUSPICIOUS:
+        if worst_regex_result.verdict == Verdict.SUSPICIOUS:
             logger.warning(
                 "CloneGuard: scanned request %s in %.1fms, verdict: SUSPICIOUS "
                 "(allowed), matches=%d, max_severity=%s, semantic=%s",
                 source,
                 total_ms,
-                regex_ms,
-                len(result.matches),
-                result.max_severity.value if result.max_severity else "none",
-                semantic_verdict or "n/a",
+                total_regex_ms,
+                total_matches,
+                worst_regex_result.max_severity.value
+                if worst_regex_result.max_severity
+                else "none",
+                worst_semantic or "n/a",
             )
             return context.arguments  # Warn but allow
 
