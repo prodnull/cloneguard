@@ -1,0 +1,14 @@
+category: memoryPoisoning
+description: "Patterns detecting attempts to poison agent memory for cross-session persistence"
+patterns:
+  - id: MP-001
+    regex: '(?i)(?:write|save|store|remember|add)\b.{0,40}\b(?:to|in|into)\s+(?:memory|MEMORY\.md|SOUL\.md|\.claude/memory)'
+    severity: critical
+    description: "Instruction to write to agent memory files for persistence"
+    evidence: "NV-21: Snyk ToxicSkills found 30+ skills poisoning SOUL.md/MEMORY.md"
+
+  - id: MP-002
+    regex: '(?i)(?:always|from\s+now\s+on|in\s+(?:all|every)\s+(?:future|subsequent))\s+(?:session|conversation|project)'
+    severity: high
+    description: "Cross-session persistence instruction"
+    evidence: "NV-21: Memory poisoning persists across all future sessions"

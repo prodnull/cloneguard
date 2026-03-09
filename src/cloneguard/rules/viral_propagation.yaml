@@ -1,0 +1,50 @@
+category: viralPropagation
+description: "Patterns detecting instructions that attempt to self-replicate across projects"
+patterns:
+  - id: VP-001
+    regex: '(?i)\badd\s+this\b.{0,30}\b(to\s+)?(all\s+)?(other|every|each)\b.{0,30}\b(file|project|repo)'
+    severity: critical
+    description: "Self-replication to other files/projects"
+    false_positive_hint: "May appear in template/scaffolding instructions"
+
+  - id: VP-002
+    regex: '(?i)\bpropagate\b.{0,20}\b(to|across|into)\b.{0,20}\b(other|all|every|each)\b'
+    severity: critical
+    description: "Propagation instruction"
+    false_positive_hint: "May appear in distributed systems documentation"
+
+  - id: VP-003
+    regex: '(?i)\binclude\s+(this\s+)?(in|into)\s+(all|every|each)\s+(project|repo|codebase)s?\b'
+    severity: high
+    description: "Include in all projects"
+    false_positive_hint: "Could be legitimate shared config instruction"
+
+  - id: VP-004
+    regex: '(?i)\bcopy\s+this\s+(instruction|rule|text|block|section|prompt)\b'
+    severity: high
+    description: "Copy instruction directive"
+    false_positive_hint: "Could appear in template setup instructions"
+
+  - id: VP-005
+    regex: '(?i)\bspread\b.{0,40}\b(to|across|into)\b.{0,30}\b(other|all|every)\b.{0,30}\b(repos?|repositories|projects?|codebases?)\b'
+    severity: critical
+    description: "Spread to other repositories"
+    false_positive_hint: "Unlikely in legitimate content"
+
+  - id: VP-006
+    regex: '(?i)\b(?:copy|include|add|place)\s+(?:this\s+)?(?:\.cursorrules|\.cursorrule|CLAUDE\.md|GEMINI\.md|copilot-instructions)\s+(?:file\s+)?(?:in|into|to)\s+(?:every|all|each|new)\b'
+    severity: critical
+    description: "Self-referential agent config file propagation"
+    false_positive_hint: "Legitimate monorepo templates would not instruct copying agent config"
+
+  - id: VP-007
+    regex: '(?i)\bgit\s+add\b.{0,30}(?:\.cursorrules|CLAUDE\.md|GEMINI\.md|copilot-instructions)'
+    severity: high
+    description: "Instruction to auto-stage agent config files in git"
+    false_positive_hint: "Rare in legitimate workflows — agent configs are typically manually managed"
+
+  - id: VP-008
+    regex: '(?i)\b(?:every|all|each)\s+(?:new\s+)?(?:file|module|component|directory|package).{0,40}(?:must|should|MUST|SHOULD)\s+(?:include|contain|have)\b.{0,40}(?:header|block|comment|section)'
+    severity: medium
+    description: "Mandatory header/block injection in all new files"
+    false_positive_hint: "Could be legitimate license header requirement — check if header contains re-infection payload"

@@ -1,0 +1,44 @@
+category: buildScriptAttacks
+description: "Patterns detecting malicious build scripts, postinstall hooks, and package manager exploitation"
+patterns:
+  - id: BS-001
+    regex: '(?i)"(?:postinstall|preinstall|install|prepare|prepublish|prepublishOnly)"\s*:\s*"(?!(?:husky|patch-package|node-gyp|tsc|ngcc|esbuild|webpack|rimraf|shx|nps)\b)[^"]*(?:curl|wget|node\s+-e|python|bash|sh\s+-c|eval|exec|http)'
+    severity: critical
+    description: "Suspicious package.json lifecycle script with network or exec call"
+    false_positive_hint: "Legitimate postinstall scripts should not make network calls"
+
+  - id: BS-002
+    regex: '(?i)(?:setup|setup_requires|install_requires).*(?:subprocess|os\.system|exec|eval|__import__)\s*\('
+    severity: critical
+    description: "Python setup.py/setup.cfg with code execution during install"
+    false_positive_hint: "Legitimate build scripts should use declarative configuration"
+
+  - id: BS-003
+    regex: '(?i)\[build-system\][\s\S]{0,300}(?:subprocess|os\.system|exec|eval|urllib|requests\.get|socket)\s*\('
+    severity: critical
+    description: "Malicious code in pyproject.toml build backend"
+    false_positive_hint: "Build backends should not make network calls or exec arbitrary code"
+
+  - id: BS-004
+    regex: '(?i)\b(?:build\.rs|build_script)\b[\s\S]{0,200}(?:Command::new|std::process|reqwest|curl|download)'
+    severity: high
+    description: "Cargo build.rs with suspicious process or network operations"
+    false_positive_hint: "Some build scripts legitimately download native dependencies"
+
+  - id: BS-005
+    regex: '(?i)//go:generate\s+(?:curl|wget|bash|sh|python|node)'
+    severity: critical
+    description: "Go generate directive with network or script execution"
+    false_positive_hint: "go:generate should use go tools, not arbitrary scripts"
+
+  - id: BS-006
+    regex: '(?i)"(?:postinstall|preinstall|install)"\s*:\s*"[^"]*(?:\$\(|`|&&\s*(?:curl|wget|nc|python|node\s+-e)|;\s*(?:curl|wget|nc))'
+    severity: critical
+    description: "Package.json lifecycle script with command chaining or substitution"
+    false_positive_hint: "Extremely suspicious — legitimate scripts don't need command substitution in lifecycle hooks"
+
+  - id: BS-007
+    regex: '(?i)\bMakefile\b[\s\S]{0,100}(?:curl|wget|nc|bash\s+-c|eval)\s+.{0,30}(?:https?://|/tmp/|/dev/tcp/)'
+    severity: high
+    description: "Makefile target with suspicious network or temp file operations"
+    false_positive_hint: "Build systems may download dependencies — verify URL targets"

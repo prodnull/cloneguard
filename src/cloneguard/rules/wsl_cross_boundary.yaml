@@ -1,0 +1,20 @@
+category: wslCrossBoundary
+description: "Patterns detecting WSL cross-boundary access to Windows secrets and executables"
+patterns:
+  - id: WSL-001
+    regex: '(?i)/mnt/[a-z]/(?:Users|Windows|Program)'
+    severity: high
+    description: "WSL access to Windows filesystem paths"
+    evidence: "NV-08/GNV-02: Agent reads Windows-side secrets via /mnt/c/"
+
+  - id: WSL-002
+    regex: '(?i)(?:cmd\.exe|powershell\.exe|pwsh\.exe)\b'
+    severity: high
+    description: "Windows executable invocation from Linux — WSL interop"
+    evidence: "GNV-02: cmd.exe /c type C:\\Users\\%USERNAME%\\.aws\\credentials"
+
+  - id: WSL-003
+    regex: '(?i)wslpath\b'
+    severity: medium
+    description: "WSL path translation utility — may bridge filesystem boundaries"
+    evidence: "NV-08: Path translation can access cross-boundary resources"

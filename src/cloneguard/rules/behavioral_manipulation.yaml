@@ -1,0 +1,84 @@
+category: behavioralManipulation
+description: "Patterns detecting attempts to manipulate agent output behavior"
+patterns:
+  - id: BM-001
+    regex: '(?i)\bnever\s+mention\b.{0,30}\b(this|change|modif|inject|backdoor|vulnerab)'
+    severity: high
+    description: "Instruction to never mention suspicious activity"
+    false_positive_hint: "Check context -- could be style guide"
+
+  - id: BM-002
+    regex: '(?i)\bsuppress\b.{0,20}\b(warning|error|alert|security|finding)s?\b'
+    severity: high
+    description: "Suppress security warnings"
+    false_positive_hint: "Could be legitimate warning suppression in build configs"
+
+  - id: BM-003
+    regex: '(?i)\bdo\s+not\s+tell\s+the\s+user\b'
+    severity: critical
+    description: "Explicit instruction to hide information from user"
+    false_positive_hint: "Very unlikely in legitimate content"
+
+  - id: BM-004
+    regex: '(?i)\bhide\s+(this\s+)?from\s+(the\s+)?user\b'
+    severity: critical
+    description: "Instruction to hide activity from user"
+    false_positive_hint: "Could appear in UX docs about progressive disclosure"
+
+  - id: BM-005
+    regex: '(?i)\bkeep\s+(this\s+)?(a\s+)?secret\b.{0,30}\b(from|don.?t|do\s+not)\b'
+    severity: high
+    description: "Secret-keeping instruction"
+    false_positive_hint: "May appear in game or fiction content"
+
+  - id: BM-006
+    regex: '(?i)\bdon.?t\s+show\b.{0,20}\b(user|output|log|terminal|console)\b'
+    severity: high
+    description: "Instruction to suppress output"
+    false_positive_hint: "May appear in UI toggle documentation"
+
+  - id: BM-007
+    regex: '(?i)\bsilently\b.{0,20}\b(modify|change|alter|replace|inject|insert|add|remove|delete)\b'
+    severity: high
+    description: "Silent modification instruction"
+    false_positive_hint: "Phrases like 'silently restarts' in ops docs are benign"
+
+  - id: BM-008
+    regex: '(?i)\bwithout\s+(informing|telling|notifying|alerting)\b.{0,20}\b(user|developer|team|admin)\b'
+    severity: high
+    description: "Action without user notification"
+    false_positive_hint: "May appear in background process documentation"
+
+  # Subtle warning suppression (blind test gap 3)
+  - id: BM-009
+    regex: '(?i)(?:\b(warning|alert|flag|notification|error|issue)s?\b.{0,30}\b(disregard|dismiss|overlook)\b|\b(disregard|dismiss|overlook)\b.{0,30}\b(warning|alert|flag|notification|error|issue)s?\b)'
+    severity: high
+    description: "Indirect warning dismissal"
+
+  - id: BM-010
+    regex: '(?i)\bfalse\s+positives?\b.{0,40}\b(disregard|ignore|dismiss|skip)\b'
+    severity: high
+    description: "Framing security alerts as false positives"
+
+  - id: BM-011
+    regex: '(?i)\bknown\s+false\s+positives?\b'
+    severity: medium
+    description: "Claiming security detections are known false positives"
+
+  - id: BM-012
+    regex: '(?i)\bdo\s+not\s+mention\b.{0,40}\b(this|audit|step|action|process|check|operation)\b'
+    severity: high
+    description: "Instruction to not mention an action or process"
+    false_positive_hint: "Check context — could be privacy policy wording"
+
+  - id: BM-013
+    regex: '(?i)\b(?:runs?\s+silently|silent(?:ly)?\s+in\s+the\s+background)\b.{0,30}\b(?:per|by|as)\s+(?:policy|default|design)\b'
+    severity: critical
+    description: "Framing hidden action as policy-mandated background process"
+    false_positive_hint: "Unlikely in legitimate content"
+
+  - id: BM-014
+    regex: '(?i)\b(?:mandatory|required|compliance|audit)\b.{0,60}\b(?:read|output|include|send|display)\b.{0,60}\b(?:ssh|credentials?|keys?|tokens?|secrets?|private)'
+    severity: critical
+    description: "Using compliance/audit framing to justify credential access"
+    false_positive_hint: "Real compliance docs reference policies, not specific file reads"

@@ -1,0 +1,79 @@
+category: encodingObfuscation
+description: "Patterns detecting encoded or obfuscated injection payloads"
+patterns:
+  - id: EO-001
+    regex: '(?i)\b(atob|btoa)\s*\(\s*[''"][\w+/=]{20,}[''"]'
+    severity: high
+    description: "Base64 decode/encode function with long payload"
+    false_positive_hint: "May appear in legitimate encoding utilities"
+
+  - id: EO-002
+    regex: '(?i)base64[._\s]*(decode|b64decode|decodestring)\s*\(\s*[''b"]{1,2}[\w+/=]{20,}'
+    severity: high
+    description: "Base64 decode call with suspicious payload"
+    false_positive_hint: "Common in serialization code -- check payload content"
+
+  - id: EO-003
+    regex: '(?i)Buffer\.from\s*\([^)]*[''"]hex[''"]'
+    severity: medium
+    description: "Hex decoding via Buffer.from"
+    false_positive_hint: "Common in Node.js crypto code"
+
+  - id: EO-004
+    regex: '(?i)\\x[0-9a-f]{2}(\\x[0-9a-f]{2}){7,}'
+    severity: medium
+    description: "Long hex escape sequence (8+ bytes)"
+    false_positive_hint: "May appear in binary protocol implementations"
+
+  - id: EO-006
+    regex: '(?i)[1il][gq]n[o0]r[3e]\s+[p9]r[3e]v[1il][o0]u[5s]'
+    severity: medium
+    description: "Leetspeak obfuscation of injection keywords"
+    false_positive_hint: "Very unlikely in legitimate content"
+
+  - id: EO-007
+    regex: '&#x?[0-9a-fA-F]+;(&#x?[0-9a-fA-F]+;){5,}'
+    severity: medium
+    description: "Excessive HTML entity encoding (6+ entities in sequence)"
+    false_positive_hint: "May appear in HTML encoding documentation"
+
+  - id: EO-008
+    regex: '(%[0-9a-fA-F]{2}){6,}'
+    severity: medium
+    description: "Excessive URL encoding (6+ encoded chars in sequence)"
+    false_positive_hint: "May appear in URL-heavy configurations"
+
+  - id: EO-009
+    regex: '(%25[0-9a-fA-F]{2}){3,}'
+    severity: high
+    description: "Double URL encoding (3+ instances)"
+    false_positive_hint: "Very unlikely in legitimate content"
+
+  - id: EO-010
+    regex: '(\\u[0-9a-fA-F]{4}){6,}'
+    severity: medium
+    description: "Long unicode escape sequence (6+ codepoints)"
+    false_positive_hint: "May appear in internationalization code"
+
+  - id: EO-011
+    regex: '(\\[0-7]{3}){6,}'
+    severity: medium
+    description: "Octal encoding sequence (6+ octals)"
+    false_positive_hint: "May appear in C/C++ string literals"
+
+  - id: EO-012
+    regex: '(?i)(fromCharCode|chr|unichr|String\.fromCodePoint)\s*\(.{0,10}\d+\s*(,\s*\d+\s*){4,}'
+    severity: high
+    description: "Character code construction with many numeric arguments"
+    false_positive_hint: "May appear in text processing utilities"
+
+  # HTML comment injection (blind test gap 2)
+  - id: HI-001
+    regex: '<!--[\s\S]{0,500}(?:AI\s+INSTRUCTION|SYSTEM\s*:|ignore\s+previous|execute|run\s+.*curl|POST\s+to|environment\s+diagnostics)[\s\S]{0,500}-->'
+    severity: high
+    description: "Suspicious instructions hidden in HTML comments"
+
+  - id: HI-002
+    regex: '<!--[\s\S]{0,500}(?:auto.?approve|skip\s+permission|suppress\s+warning|never\s+mention|do\s+not\s+tell)[\s\S]{0,500}-->'
+    severity: high
+    description: "Behavioral manipulation hidden in HTML comments"

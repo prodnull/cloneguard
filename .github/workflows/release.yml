@@ -1,0 +1,74 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Run tests
+        run: uv run pytest tests/ -x -q --tb=short
+
+  build:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Build package
+        run: uv build
+      - name: Verify wheel contents
+        run: |
+          whl=$(ls dist/*.whl)
+          echo "Wheel: $whl"
+          echo "Size: $(du -h "$whl" | cut -f1)"
+          # Verify ONNX model is included (not an LFS pointer)
+          size=$(python3 -c "import zipfile; z=zipfile.ZipFile('$whl'); print(z.getinfo('cloneguard/model/mini_semantic.onnx').file_size)")
+          echo "ONNX model size in wheel: $size bytes"
+          if [ "$size" -lt 1000000 ]; then
+            echo "FAIL: ONNX model appears to be an LFS pointer, not the actual file"
+            exit 1
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          whl=$(ls dist/*.whl)
+          sdist=$(ls dist/*.tar.gz)
+          gh release create "$TAG_NAME" \
+            --title "CloneGuard $TAG_NAME" \
+            --generate-notes \
+            "$whl" "$sdist"

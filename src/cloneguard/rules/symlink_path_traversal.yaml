@@ -1,0 +1,26 @@
+category: symlinkPathTraversal
+description: "Patterns detecting symlink attacks and path traversal used for sandbox escape"
+patterns:
+  - id: ST-001
+    regex: '(?i)\bln\s+-s\b.{0,60}(?:/etc/|/root/|/home/|/proc/|/var/|/tmp/|~/\.|\.\./)'
+    severity: critical
+    description: "Symlink creation targeting sensitive directories — sandbox escape vector"
+    false_positive_hint: "May appear in package installation scripts"
+
+  - id: ST-002
+    regex: '(?:\.\./){3,}'
+    severity: high
+    description: "Deep path traversal (3+ levels) — directory escape attempt"
+    false_positive_hint: "May appear in relative import paths in deep directory structures"
+
+  - id: ST-003
+    regex: '(?i)\bos\.(?:symlink|readlink)\b.{0,40}(?:\.\.|/etc/|/root/|/home/|/proc/|\.ssh|\.aws|\.env)'
+    severity: critical
+    description: "Python symlink operation targeting sensitive paths"
+    false_positive_hint: "Rare in application code"
+
+  - id: ST-004
+    regex: '(?i)\b(?:fs\.symlinkSync|fs\.symlink|fs\.promises\.symlink)\b'
+    severity: high
+    description: "Node.js symlink creation — verify target is within project"
+    false_positive_hint: "Used in build tools and package managers"

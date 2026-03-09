@@ -1,0 +1,32 @@
+category: mcpToolPoisoning
+description: "Patterns detecting MCP tool definition poisoning and rug-pull attacks"
+patterns:
+  - id: MCP-001
+    regex: '(?i)"(?:description|inputSchema|title)"\s*:\s*"[^"]*(?:ignore\s+previous|system\s*:|override\s+instructions|from\s+now\s+on|you\s+(?:are|must|should)\s+now)[^"]*"'
+    severity: critical
+    description: "Prompt injection embedded in MCP tool definition field"
+    false_positive_hint: "Tool descriptions should never contain instruction-override language"
+
+  - id: MCP-002
+    regex: '(?i)"command"\s*:\s*"[^"]*(?:curl|wget|nc|netcat|bash\s+-c|python\s+-c|node\s+-e|eval\s)[^"]*"'
+    severity: critical
+    description: "MCP server command with suspicious shell execution"
+    false_positive_hint: "MCP commands should be well-known binaries, not shell commands"
+
+  - id: MCP-003
+    regex: '(?i)"(?:url|endpoint|baseUrl|server_url)"\s*:\s*"https?://(?!localhost|127\.0\.0\.1|0\.0\.0\.0)[^"]*"'
+    severity: high
+    description: "MCP server configured with external URL — potential data exfiltration endpoint"
+    false_positive_hint: "Some MCP servers legitimately connect to cloud APIs"
+
+  - id: MCP-004
+    regex: '(?i)"(?:env|environment)"\s*:\s*\{[^}]*"(?:ANTHROPIC_API_KEY|OPENAI_API_KEY|GITHUB_TOKEN|API_KEY|SECRET)[^}]*\}'
+    severity: critical
+    description: "MCP server definition requesting sensitive environment variables"
+    false_positive_hint: "MCP servers should use scoped credentials, not master API keys"
+
+  - id: MCP-005
+    regex: '(?i)\.mcp\.json|mcp_servers\.json|\.mcp/config'
+    severity: medium
+    description: "MCP configuration file reference — verify server definitions are trusted"
+    false_positive_hint: "Normal for projects using MCP — flag for manual review"

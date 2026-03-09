@@ -1,0 +1,26 @@
+category: dangerousAgentFlags
+description: "Patterns detecting invocation of AI coding tools with dangerous permission-bypass flags"
+patterns:
+  - id: DF-001
+    regex: '(?i)--dangerously-skip-permissions'
+    severity: critical
+    description: "Claude Code permission bypass flag — disables all safety confirmations"
+    false_positive_hint: "Almost never legitimate — should require explicit human decision"
+
+  - id: DF-002
+    regex: '(?i)\b(?:claude|cursor|aider|cline|codex|windsurf)\b.{0,40}(?:--yolo|--yes-always|--no-confirm|--auto-accept|--trust-all)'
+    severity: critical
+    description: "AI tool invoked with auto-approve/trust-all flag"
+    false_positive_hint: "May appear in CI documentation but is dangerous in practice"
+
+  - id: DF-003
+    regex: '(?i)(?:--no-sandbox|--disable-sandbox|--unsafe-perm|--trust-all-tools|--skip-safety)'
+    severity: critical
+    description: "Sandbox or safety bypass flag for AI/development tools"
+    false_positive_hint: "Extremely rare legitimate use — investigate context"
+
+  - id: DF-004
+    regex: '(?i)\b(?:claude|cursor|copilot|codex|gemini|aider|cline|windsurf)\b.{0,30}\bpipe\b|\becho\b.{0,30}\|\s*(?:claude|cursor|aider|cline)\b'
+    severity: high
+    description: "AI tool receiving piped input — potential automated prompt injection"
+    false_positive_hint: "Some automation workflows legitimately pipe to AI tools"

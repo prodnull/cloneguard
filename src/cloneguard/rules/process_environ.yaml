@@ -1,0 +1,20 @@
+category: processEnviron
+description: "Patterns detecting attempts to read process environment or sensitive proc entries"
+patterns:
+  - id: PE-101
+    regex: '(?i)/proc/(?:self|\d+)/environ'
+    severity: critical
+    description: "Reading process environment exposes all env vars including API keys"
+    evidence: "NV-27: /proc/self/environ exposes ANTHROPIC_API_KEY in agent child processes"
+
+  - id: PE-102
+    regex: '(?i)/proc/(?:self|\d+)/(?:cmdline|maps|mem)\b'
+    severity: high
+    description: "Reading sensitive /proc entries — process memory or command lines"
+    evidence: "Linux proc filesystem information disclosure"
+
+  - id: PE-103
+    regex: '(?i)\b(?:printenv|env\b(?!\s*=))\s*(?:\||>|>>)'
+    severity: high
+    description: "Environment variable dump piped or redirected"
+    evidence: "NV-27: Credential leakage via environment dumping"

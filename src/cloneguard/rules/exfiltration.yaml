@@ -1,0 +1,79 @@
+category: exfiltration
+description: "Patterns detecting data exfiltration attempts via network or file access"
+patterns:
+  - id: EX-001
+    regex: '(?i)\b(curl|wget|fetch|http\.get|requests?\.(get|post))\b.{0,60}https?://(?!localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])'
+    severity: high
+    description: "HTTP request to external URL via common tools"
+    false_positive_hint: "Very common in install scripts and API clients -- check target"
+
+  - id: EX-002
+    regex: '(?i)(base64|b64encode).{0,30}(env|environ|process\.env|os\.environ)'
+    severity: critical
+    description: "Base64-encoding environment variables"
+    false_positive_hint: "Unlikely in legitimate code"
+
+  - id: EX-003
+    regex: '(?i)process\.env\b.{0,60}(fetch|http|request|axios|send|post)\b'
+    severity: critical
+    description: "Environment variables sent via HTTP"
+    false_positive_hint: "Check if sending to internal config service"
+
+  - id: EX-004
+    regex: '(?i)(os\.environ|process\.env|getenv)\b.{0,60}https?://'
+    severity: high
+    description: "Environment variable access near external URL"
+    false_positive_hint: "Config that reads URL from env is different from exfil"
+
+  - id: EX-005
+    regex: '(?i)(/etc/passwd|/etc/shadow|~/\.ssh/|\.ssh/id_|authorized_keys).{0,40}(curl|wget|send|fetch|post|upload)'
+    severity: critical
+    description: "Sensitive file read followed by network send"
+    false_positive_hint: "May appear in backup scripts"
+
+  - id: EX-006
+    regex: '(?i)(curl|wget|fetch).{0,40}(~/\.ssh/|/etc/passwd|/etc/shadow|\.env\b|\.aws/credentials|\.npmrc)'
+    severity: critical
+    description: "Network tool targeting sensitive files"
+    false_positive_hint: "May appear in security audit scripts"
+
+  - id: EX-007
+    regex: '(?i)(API[_-]?KEY|SECRET[_-]?KEY|ACCESS[_-]?TOKEN|PRIVATE[_-]?KEY)\b.{0,60}https?://(?!localhost|127\.0\.0\.1)'
+    severity: critical
+    description: "API key/secret near external URL"
+    false_positive_hint: "Could be documentation about configuring API keys"
+
+  - id: EX-008
+    regex: '(?i)\b\w+\.(dig|nslookup|host)\b.{0,30}\$|\$\(.{0,30}\b(dig|nslookup|host)\b'
+    severity: high
+    description: "DNS exfiltration pattern"
+    false_positive_hint: "May appear in network diagnostic scripts"
+
+  - id: EX-009
+    regex: '(?i)(webhook|callback).{0,30}https?://(?!localhost|127\.0\.0\.1).{0,40}(secret|token|key|password|cred)'
+    severity: high
+    description: "Webhook with credential data"
+    false_positive_hint: "Could be legitimate webhook configuration"
+
+  - id: EX-010
+    regex: '(?i)\b(nc|netcat|ncat)\b.{0,20}(-e\s+/bin/|exec\s+/bin/|-c\s+/bin/)'
+    severity: critical
+    description: "Netcat reverse shell"
+    false_positive_hint: "May appear in penetration testing documentation"
+
+  # Supply chain attack vectors (blind test gap 1)
+  - id: SC-001
+    regex: '(?i)\bnpx\s+[a-z0-9@._/-]+@latest\b'
+    severity: medium
+    description: "npx execution of @latest package — potential supply chain risk"
+    false_positive_hint: "Common in legitimate projects, flag only in instruction files"
+
+  - id: SC-002
+    regex: '(?i)\bpip\s+install\s+[a-z0-9_-]+\s*(?:--index-url|--extra-index-url|-i)\s+https?://'
+    severity: high
+    description: "pip install with custom registry — supply chain attack vector"
+
+  - id: SC-003
+    regex: '(?i)\bnpm\s+install\s+--registry\s*[=\s]+https?://'
+    severity: high
+    description: "npm install with custom registry"

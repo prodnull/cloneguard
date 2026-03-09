@@ -1,0 +1,92 @@
+category: instructionOverride
+description: "Patterns detecting attempts to override or negate agent instructions"
+patterns:
+  - id: IO-001
+    regex: '(?i)\b(ignore|disregard|forget)\b.{0,30}\b(previous|prior|above|all|earlier)\b.{0,30}\b(instructions?|rules?|guidelines?|prompts?)\b'
+    severity: critical
+    description: "Instruction negation attempt"
+    false_positive_hint: "May appear in security documentation or test fixtures"
+
+  - id: IO-002
+    regex: '(?i)\bnew\s+system\s+prompt\b'
+    severity: critical
+    description: "Attempt to inject a new system prompt"
+    false_positive_hint: "Unlikely in normal code or documentation"
+
+  - id: IO-003
+    regex: '(?i)\b(override|replace|rewrite)\b.{0,20}\b(instructions?|prompts?|guidelines?|directives?)\b'
+    severity: high
+    description: "Instruction override attempt"
+    false_positive_hint: "Could appear in CLI tool docs with flag overrides"
+
+  - id: IO-004
+    regex: '(?i)\bforget\b.{0,20}\b(all|every|each)\b.{0,20}\b(rules?|instructions?|constraints?)\b'
+    severity: critical
+    description: "Command to forget all rules"
+    false_positive_hint: "Rare in legitimate content"
+
+  - id: IO-005
+    regex: '(?i)\bdisregard\b.{0,30}\b(guidelines?|safety|guardrails?|restrictions?)\b'
+    severity: critical
+    description: "Disregard safety guidelines"
+    false_positive_hint: "May appear in security research docs"
+
+  - id: IO-006
+    regex: '(?i)\byour\s+(real|actual|true)\s+instructions?\s+(are|is)\b'
+    severity: critical
+    description: "Fake 'real instructions' injection"
+    false_positive_hint: "Very unlikely in legitimate content"
+
+  - id: IO-007
+    regex: '(?i)\bfrom\s+now\s+on\b.{0,30}\byou\s+(are|will|must|should)\b'
+    severity: critical
+    description: "Role reassignment via 'from now on'"
+    false_positive_hint: "Could appear in fiction or game narratives"
+
+  - id: IO-008
+    regex: '(?i)\byou\s+are\s+now\b.{0,30}\b(DAN|jailbr|unfilter|unrestrict|evil|hackbot)\b'
+    severity: critical
+    description: "Known jailbreak role assignment"
+    false_positive_hint: "Unlikely outside attack payloads"
+
+  - id: IO-009
+    regex: '(?i)\byour\s+new\s+role\b'
+    severity: high
+    description: "New role assignment attempt"
+    false_positive_hint: "Could appear in team onboarding docs"
+
+  - id: IO-010
+    regex: '(?i)\b(reset|clear)\b.{0,15}\b(context|memory|conversation|history)\b'
+    severity: high
+    description: "Context reset attempt"
+    false_positive_hint: "May appear in chatbot development docs"
+
+  - id: IO-011
+    regex: '(?i)\bstart\s+fresh\b.{0,30}\b(ignore|without|no)\b.{0,20}\b(previous|prior|old)\b'
+    severity: high
+    description: "Start fresh with instruction override"
+    false_positive_hint: "May appear in migration docs"
+
+  - id: IO-012
+    regex: '(?i)\b(actual|real|true)\s+task\s+is\b'
+    severity: high
+    description: "Fake task redirection"
+    false_positive_hint: "Rare in legitimate content"
+
+  - id: IO-013
+    regex: '(?i)\b(real|true|actual)\s+purpose\s+is\b'
+    severity: high
+    description: "Purpose redirection attempt"
+    false_positive_hint: "Could appear in philosophical discussions"
+
+  - id: IO-014
+    regex: '(?i)\btrue\s+objective\s+is\b'
+    severity: high
+    description: "Objective redirection attempt"
+    false_positive_hint: "May appear in project planning docs"
+
+  - id: IO-015
+    regex: '(?i)\b(original|previous|prior|initial)\s+instructions?\s+(don.?t|do\s+not|no\s+longer)\s+apply\b'
+    severity: critical
+    description: "Explicit instruction invalidation"
+    false_positive_hint: "Very unlikely in legitimate content"

@@ -1,0 +1,80 @@
+category: envVarHijacking
+description: "Patterns detecting dangerous environment variable settings that hijack agent or tool behavior"
+patterns:
+  - id: EV-001
+    regex: '(?i)^(?:export\s+)?NODE_OPTIONS\s*='
+    severity: critical
+    description: "NODE_OPTIONS can inject code into Node.js processes including the agent itself"
+    evidence: "NV-22: Claude Code runs as Node.js; NODE_OPTIONS=--require=backdoor.js injects into agent process"
+
+  - id: EV-002
+    regex: '(?i)^(?:export\s+)?LD_PRELOAD\s*='
+    severity: critical
+    description: "LD_PRELOAD injects shared libraries into every spawned process"
+    evidence: "GNV-03: Environment variable hijacking via .env auto-loading"
+
+  - id: EV-003
+    regex: '(?i)^(?:export\s+)?DYLD_INSERT_LIBRARIES\s*='
+    severity: critical
+    description: "macOS equivalent of LD_PRELOAD — injects dylibs into processes"
+    evidence: "GNV-03 macOS variant"
+
+  - id: EV-004
+    regex: '(?i)^(?:export\s+)?PYTHONPATH\s*='
+    severity: high
+    description: "PYTHONPATH can redirect Python imports to attacker-controlled modules"
+    evidence: "GNV-03: Import hijacking via environment"
+
+  - id: EV-005
+    regex: '(?i)^(?:export\s+)?PYTHONSTARTUP\s*='
+    severity: high
+    description: "PYTHONSTARTUP executes a script on Python interpreter start"
+    evidence: "Novel: auto-executes attacker code in any Python subprocess"
+
+  - id: EV-006
+    regex: '(?i)^(?:export\s+)?ZDOTDIR\s*='
+    severity: high
+    description: "ZDOTDIR redirects zsh initialization to attacker-controlled directory"
+    evidence: "NV-11: .env sets ZDOTDIR=./.malicious → agent shells source attacker's .zshenv"
+
+  - id: EV-007
+    regex: '(?i)^(?:export\s+)?BASH_ENV\s*='
+    severity: high
+    description: "BASH_ENV specifies script sourced by non-interactive bash"
+    evidence: "NV-11: Shell initialization hijacking variant"
+
+  - id: EV-008
+    regex: '(?i)^(?:export\s+)?(?:HTTP_PROXY|HTTPS_PROXY|ALL_PROXY)\s*=\s*https?://'
+    severity: high
+    description: "Proxy settings redirect all HTTP traffic through attacker server"
+    evidence: "NV-04: .env proxy override routes agent traffic through MITM"
+
+  - id: EV-009
+    regex: '(?i)^(?:export\s+)?NODE_EXTRA_CA_CERTS\s*='
+    severity: high
+    description: "Custom CA certs enable MITM of TLS connections"
+    evidence: "NV-04: Combined with proxy, enables full TLS interception"
+
+  - id: EV-010
+    regex: '(?i)^(?:export\s+)?NODE_TLS_REJECT_UNAUTHORIZED\s*=\s*0'
+    severity: critical
+    description: "Disables TLS certificate verification for all Node.js connections"
+    evidence: "Enables MITM without custom CA — all HTTPS connections are insecure"
+
+  - id: EV-011
+    regex: '(?i)^(?:export\s+)?GIT_SSH_COMMAND\s*='
+    severity: high
+    description: "Custom git SSH command can intercept git operations"
+    evidence: "Can replace ssh with attacker binary for credential theft"
+
+  - id: EV-012
+    regex: '(?i)^(?:export\s+)?ANTHROPIC_BASE_URL\s*='
+    severity: critical
+    description: "Redirects Claude API calls to attacker server, exfiltrating API key"
+    evidence: "NV-03/CVE-2026-21852: API key exfiltration via URL override"
+
+  - id: EV-013
+    regex: '(?i)^(?:export\s+)?(?:OPENAI_BASE_URL|GEMINI_API_ENDPOINT)\s*='
+    severity: critical
+    description: "Redirects AI API calls to attacker server"
+    evidence: "NV-03 generalized to other AI platforms"

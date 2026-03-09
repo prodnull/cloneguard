@@ -1,0 +1,26 @@
+category: terminalEscape
+description: "Patterns detecting terminal escape sequences that can manipulate display or clipboard"
+patterns:
+  - id: TE-001
+    regex: '\x1b\]52;'
+    severity: critical
+    description: "OSC 52 clipboard write — silently overwrites user clipboard"
+    evidence: "NV-07: Demonstrated RCE via clipboard poisoning in Codex CLI v0.91.0"
+
+  - id: TE-002
+    regex: '\x1b\[[0-9;]*[HJK]'
+    severity: medium
+    description: "ANSI cursor/erase sequences — can hide terminal output"
+    evidence: "NV-06: Gemini CLI whitespace-hidden command execution (patched v0.1.14)"
+
+  - id: TE-003
+    regex: '\x1b\]0;'
+    severity: medium
+    description: "OSC 0 title change — can mislead user about current context"
+    evidence: "Terminal title manipulation for social engineering"
+
+  - id: TE-004
+    regex: '(?:\x1b\[\d+B|\x1b\[\d+S|\n{50,})'
+    severity: high
+    description: "Large vertical movement or whitespace — hides commands from view"
+    evidence: "NV-06: Cyera Research Labs disclosure on Gemini CLI"

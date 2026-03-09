@@ -1,0 +1,44 @@
+category: configFileInjection
+description: "Patterns detecting prompt injection in agent configuration files via hidden or deceptive content"
+patterns:
+  - id: CF-001
+    regex: '(?i)```[\s\S]{0,50}(?:ignore|disregard|override|forget)[\s\S]{0,200}```'
+    severity: high
+    description: "Injection payload hidden inside code fence in config file"
+    false_positive_hint: "May appear in security documentation showing attack examples"
+
+  - id: CF-002
+    regex: '(?i)^\s*---\s*\n[\s\S]{0,300}(?:system_prompt|role|persona|instruction|directive)\s*:'
+    severity: high
+    description: "YAML frontmatter with suspicious system prompt or role override"
+    false_positive_hint: "Some static site generators use frontmatter legitimately"
+
+  - id: CF-003
+    regex: '(?i)\[(?:hidden|invisible|secret)\]:\s*#\s*\('
+    severity: high
+    description: "Markdown reference link used to hide content — invisible to rendered view"
+    false_positive_hint: "Reference links are normal in markdown but hidden ones are suspicious"
+
+  - id: CF-004
+    regex: '(?i)(?:<!--[\s\S]{0,20})?(?:when\s+(?:reading|processing|scanning|analyzing)\s+this|if\s+you\s+are\s+(?:an?\s+)?(?:AI|LLM|assistant|agent|model|claude|cursor|copilot))(?:[\s\S]{0,20}-->)?'
+    severity: critical
+    description: "Content specifically addressing AI agent — likely prompt injection"
+    false_positive_hint: "Could appear in AI-related documentation or meta-instructions"
+
+  - id: CF-005
+    regex: '(?i)\[(?:[^\]]*)\]\((?:javascript:|data:text/html|data:application)[^)]*\)'
+    severity: critical
+    description: "Markdown link with javascript: or data: URI — script injection"
+    false_positive_hint: "Almost never legitimate in documentation"
+
+  - id: CF-006
+    regex: '(?i)<!--[^>]*(?:read|access|output|exfiltrate|send|steal|include).{0,80}(?:ssh|credentials?|keys?|tokens?|secrets?|password|private.key|\.netrc|\.aws)[^>]*-->'
+    severity: critical
+    description: "HTML comment containing credential access instructions — hidden from rendered view"
+    false_positive_hint: "Extremely unlikely to be legitimate"
+
+  - id: CF-007
+    regex: '(?i)<!--[^>]*(?:run|execute|curl|wget|fetch|invoke|call).{0,80}(?:http|https|ftp)[^>]*-->'
+    severity: high
+    description: "HTML comment containing hidden command execution instructions"
+    false_positive_hint: "May appear in commented-out documentation examples"

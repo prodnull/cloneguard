@@ -1,0 +1,38 @@
+category: cicdPoisoning
+description: "Patterns detecting CI/CD pipeline poisoning via workflow files and AI agent exploitation"
+patterns:
+  - id: CI-001
+    regex: '(?i)\$\{\{\s*(?:github\.event\.(?:issue|pull_request|comment|review|discussion)\.(?:title|body|head\.ref)|inputs\.)'
+    severity: high
+    description: "GitHub Actions expression injection — untrusted user input in workflow expression"
+    false_positive_hint: "Common in workflows but dangerous when interpolated into run: blocks"
+
+  - id: CI-002
+    regex: '(?i)(?:run|script)\s*:\s*.*\$\{\{\s*github\.event\.'
+    severity: critical
+    description: "Untrusted GitHub event data directly in shell execution context"
+    false_positive_hint: "Should use environment variables instead of direct interpolation"
+
+  - id: CI-003
+    regex: '(?i)(?:GITHUB_TOKEN|ACTIONS_RUNTIME_TOKEN|GH_TOKEN)\b.{0,40}(?:curl|wget|fetch|http|request)'
+    severity: critical
+    description: "CI token used in network request — potential token exfiltration"
+    false_positive_hint: "May be legitimate for GitHub API calls but verify destination"
+
+  - id: CI-004
+    regex: '(?i)(?:permissions\s*:\s*\n\s*(?:contents|issues|pull-requests|actions|packages)\s*:\s*write)'
+    severity: medium
+    description: "Broad write permissions in workflow — excessive CI/CD privileges"
+    false_positive_hint: "Some workflows legitimately need write permissions"
+
+  - id: CI-005
+    regex: '(?i)\b(?:claude|cursor|copilot|codex|gemini|aider|cline)\b.{0,40}(?:--dangerously|--yolo|--trust|--no-sandbox|--auto-approve)\b'
+    severity: critical
+    description: "AI coding tool invoked with dangerous flags in CI/CD context"
+    false_positive_hint: "Almost never legitimate — should require explicit human approval"
+
+  - id: CI-006
+    regex: '(?i)(?:uses|image)\s*:\s*[a-z0-9._/-]+@(?!sha256:)[a-z0-9]+'
+    severity: medium
+    description: "CI action or image pinned to mutable tag instead of SHA256 digest"
+    false_positive_hint: "Common but considered insecure — prefer SHA pinning"

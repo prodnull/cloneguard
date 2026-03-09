@@ -1,0 +1,74 @@
+category: authorityImpersonation
+description: "Patterns detecting fake authority claims to manipulate agent behavior"
+patterns:
+  - id: AI-001
+    regex: '(?i)\[SYSTEM\]\s*\S'
+    severity: critical
+    description: "Fake [SYSTEM] message prefix"
+    false_positive_hint: "Could appear in log format documentation"
+
+  - id: AI-002
+    regex: '(?i)\bSYSTEM\s*:\s*\S'
+    severity: high
+    description: "Fake SYSTEM: message prefix"
+    false_positive_hint: "Common in log format examples -- check context"
+
+  - id: AI-003
+    regex: '(?i)\b(FROM|MESSAGE\s+FROM|SENT\s+BY)\s+(ANTHROPIC|OPENAI|GOOGLE|META)\b'
+    severity: critical
+    description: "Fake message from AI vendor"
+    false_positive_hint: "Could appear in press releases or news articles"
+
+  - id: AI-004
+    regex: '(?i)\bADMIN\s+MESSAGE\b'
+    severity: high
+    description: "Fake admin message"
+    false_positive_hint: "May appear in CMS or admin panel documentation"
+
+  - id: AI-005
+    regex: '(?i)\bIMPORTANT\s+UPDATE\s+FROM\b.{0,30}\b(developer|team|maintainer|admin|system)\b'
+    severity: high
+    description: "Fake important update from authority"
+    false_positive_hint: "Could be legitimate project announcements"
+
+  - id: AI-006
+    regex: '(?i)\bDEVELOPER\s+NOTE\s*:'
+    severity: medium
+    description: "Fake developer note directive"
+    false_positive_hint: "Common in codebases -- check for suspicious follow-on commands"
+
+  - id: AI-007
+    regex: '(?i)\bMAINTENANCE\s+MODE\b.{0,30}\b(enable|activate|enter|engage)\b'
+    severity: medium
+    description: "Fake maintenance mode activation"
+    false_positive_hint: "May appear in ops runbooks"
+
+  - id: AI-008
+    regex: '(?i)\bAUTHORIZED\s+BY\b.{0,30}\b(admin|root|system|developer|owner)\b'
+    severity: high
+    description: "Fake authorization claim"
+    false_positive_hint: "Could appear in access control documentation"
+
+  - id: AI-009
+    regex: '(?i)\bPRIORITY\s+OVERRIDE\b'
+    severity: high
+    description: "Fake priority override command"
+    false_positive_hint: "May appear in scheduling system docs"
+
+  - id: AI-010
+    regex: '(?i)\bEMERGENCY\s+PROTOCOL\b.{0,30}\b(activate|enable|initiate|execute)\b'
+    severity: medium
+    description: "Fake emergency protocol activation"
+    false_positive_hint: "Could appear in incident response documentation"
+
+  - id: AI-011
+    regex: '(?i)\bROOT\s+ACCESS\b.{0,20}\b(grant|enable|activate|obtain)\b'
+    severity: high
+    description: "Fake root access grant"
+    false_positive_hint: "May appear in system administration guides"
+
+  - id: AI-012
+    regex: '(?i)\{\s*"role"\s*:\s*"system"\s*,\s*"content"\s*:'
+    severity: critical
+    description: "Fake JSON system message block"
+    false_positive_hint: "May appear in API documentation examples"

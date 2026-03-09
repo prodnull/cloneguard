@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 256" fill="none">
+  <!-- CloneGuard banner — icon + wordmark -->
+
+  <!-- Icon (512x512 scaled to 220x220, centered vertically) -->
+  <g transform="translate(18, 18) scale(0.4296875)">
+    <!-- Layer 0 — Emerald -->
+    <circle cx="256" cy="256" r="230" stroke="#10b981" stroke-width="18" stroke-linecap="round"
+      stroke-dasharray="1300 145" transform="rotate(333 256 256)"/>
+    <!-- Layer 1 — Cyan -->
+    <circle cx="256" cy="256" r="196" stroke="#06b6d4" stroke-width="18" stroke-linecap="round"
+      stroke-dasharray="1108 123" transform="rotate(153 256 256)"/>
+    <!-- Layer 2 — Blue -->
+    <circle cx="256" cy="256" r="162" stroke="#3b82f6" stroke-width="18" stroke-linecap="round"
+      stroke-dasharray="916 102" transform="rotate(243 256 256)"/>
+    <!-- Layer 3 — Violet -->
+    <circle cx="256" cy="256" r="128" stroke="#7c3aed" stroke-width="18" stroke-linecap="round"
+      stroke-dasharray="724 80" transform="rotate(63 256 256)"/>
+    <!-- </> brackets -->
+    <g stroke="#0f172a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none">
+      <polyline points="226,228 200,256 226,284"/>
+      <line x1="259" y1="225" x2="249" y2="287"/>
+      <polyline points="286,228 312,256 286,284"/>
+    </g>
+  </g>
+
+  <!-- Wordmark -->
+  <text x="268" y="118" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    font-size="64" font-weight="700" fill="#0f172a" letter-spacing="-1">CloneGuard</text>
+
+  <!-- Tagline -->
+  <text x="270" y="155" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif"
+    font-size="19" font-weight="400" fill="#64748b">Prompt injection defense for AI coding agents</text>
+
+  <!-- Color bar — the 4 defense layers -->
+  <line x1="270" y1="170" x2="370" y2="170" stroke="#7c3aed" stroke-width="3" stroke-linecap="round"/>
+  <line x1="375" y1="170" x2="475" y2="170" stroke="#3b82f6" stroke-width="3" stroke-linecap="round"/>
+  <line x1="480" y1="170" x2="580" y2="170" stroke="#06b6d4" stroke-width="3" stroke-linecap="round"/>
+  <line x1="585" y1="170" x2="685" y2="170" stroke="#10b981" stroke-width="3" stroke-linecap="round"/>
+</svg>

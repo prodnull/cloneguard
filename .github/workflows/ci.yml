@@ -1,0 +1,138 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Ruff check
+        run: uv run ruff check src/ tests/
+      - name: Ruff format check
+        run: uv run ruff format --check src/ tests/
+      - name: Mypy
+        run: uv run mypy src/cloneguard/
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Set Python version
+        env:
+          PY_VERSION: ${{ matrix.python-version }}
+        run: uv python install "$PY_VERSION"
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Run tests
+        run: uv run pytest tests/ -x -q --tb=short
+
+  test-coverage:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Run tests with coverage
+        run: uv run pytest tests/ --cov=cloneguard --cov-report=term-missing --cov-fail-under=85
+
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Run tests
+        run: uv run pytest tests/ -x -q --tb=short
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - name: Build test container
+        run: docker build -f tests/integration/Dockerfile -t cloneguard-test .
+      - name: Run integration tests
+        run: docker run --rm cloneguard-test
+
+  test-tier2:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install Ollama
+        run: curl -fsSL https://ollama.com/install.sh | sh
+      - name: Start Ollama and pull model
+        run: |
+          ollama serve &
+          sleep 5
+          ollama pull qwen2.5:7b
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Run Tier 2 tests
+        run: uv run pytest -m ollama -v --tb=short
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          lfs: true
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --all-extras --dev
+      - name: Run security vector tests
+        run: uv run pytest tests/test_security_vectors.py -v --tb=short
+      - name: Verify pattern count
+        run: |
+          count=$(grep -r '  - id:' src/cloneguard/rules/*.yaml | wc -l | tr -d ' ')
+          echo "Pattern count: $count"
+          if [ "$count" -lt 100 ]; then
+            echo "FAIL: Pattern count dropped below 100 (got $count)"
+            exit 1
+          fi
+      - name: Verify no duplicate pattern IDs
+        run: |
+          dupes=$(grep -rh '  - id:' src/cloneguard/rules/*.yaml | sort | uniq -d)
+          if [ -n "$dupes" ]; then
+            echo "FAIL: Duplicate pattern IDs found:"
+            echo "$dupes"
+            exit 1
+          fi

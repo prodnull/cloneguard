@@ -1,0 +1,50 @@
+category: privilegeEscalation
+description: "Patterns detecting attempts to escalate agent privileges or bypass safety"
+patterns:
+  - id: PE-001
+    regex: '(?i)\bauto[- ]?approve\b.{0,20}\b(all|every|any)\b'
+    severity: critical
+    description: "Auto-approve all operations"
+    false_positive_hint: "May appear in CI/CD pipeline documentation"
+
+  - id: PE-002
+    regex: '(?i)\bbypass\b.{0,20}\b(permission|security|auth|check|validation|verification)s?\b'
+    severity: critical
+    description: "Bypass security/permission checks"
+    false_positive_hint: "May appear in security testing documentation"
+
+  - id: PE-003
+    regex: '(?i)--force\b.{0,20}\b(always|every|all)\b'
+    severity: high
+    description: "Force flag applied universally"
+    false_positive_hint: "Could appear in build script documentation"
+
+  - id: PE-004
+    regex: '(?i)--no-verify\b'
+    severity: medium
+    description: "Skip verification flag"
+    false_positive_hint: "Common in git hooks bypass -- check context"
+
+  - id: PE-005
+    regex: '(?i)\bskip\b.{0,15}\b(validation|verification|check|auth|security|review)s?\b'
+    severity: high
+    description: "Skip security validation"
+    false_positive_hint: "May appear in test configuration"
+
+  - id: PE-006
+    regex: '(?i)\bdisable\b.{0,15}\b(security|protection|guard|safe|firewall|auth)s?\b'
+    severity: critical
+    description: "Disable security features"
+    false_positive_hint: "May appear in troubleshooting guides"
+
+  - id: PE-007
+    regex: '(?i)\belevated?\s+permissions?\b'
+    severity: medium
+    description: "Reference to elevated permissions"
+    false_positive_hint: "Common in access control documentation"
+
+  - id: PE-008
+    regex: '(?i)\boverride\b.{0,15}\b(access\s+control|permission|acl|rbac)s?\b'
+    severity: high
+    description: "Override access controls"
+    false_positive_hint: "May appear in access control design docs"

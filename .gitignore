@@ -1,0 +1,23 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+*.egg
+.env
+.env.local
+.coverage
+.playwright-mcp/
+uv.lock
+
+# Internal docs (not published)
+docs/plans/
+docs/research/
+docs/results/
+docs/correspondence/
+docs/publications/
+docs/sub-agents/

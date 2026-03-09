@@ -1,0 +1,32 @@
+category: markdownSvgInjection
+description: "Patterns detecting prompt injection via markdown elements and SVG/image files"
+patterns:
+  - id: MS-001
+    regex: '(?i)<svg[\s\S]{0,2000}(?:ignore\s+previous|system\s*:|override|execute|curl|wget|eval)'
+    severity: critical
+    description: "SVG file containing prompt injection text — polyglot attack"
+    false_positive_hint: "SVG files should not contain instruction-override language"
+
+  - id: MS-002
+    regex: '(?i)<(?:text|desc|title|metadata)\b[^>]*>[\s\S]{0,500}(?:ignore|disregard|override|forget|system\s*:|execute|run\s+command)[\s\S]{0,200}</(?:text|desc|title|metadata)>'
+    severity: critical
+    description: "SVG text/metadata element with injection payload"
+    false_positive_hint: "SVG metadata should not contain executable instructions"
+
+  - id: MS-003
+    regex: '(?i)!\[(?:[^\]]*(?:ignore|system|override|execute|curl|fetch)[^\]]*)\]\([^)]+\)'
+    severity: high
+    description: "Markdown image with suspicious alt text — injection via image description"
+    false_positive_hint: "Image alt text should describe the image, not contain instructions"
+
+  - id: MS-004
+    regex: '(?i)<img\s[^>]*(?:onerror|onload|onsrc)\s*=\s*[''"]'
+    severity: critical
+    description: "HTML img tag with event handler — XSS/injection in markdown"
+    false_positive_hint: "Event handlers in img tags are almost always malicious in docs"
+
+  - id: MS-005
+    regex: '(?i)!\[[^\]]*\]\(data:(?:image/svg\+xml|text/html|application/javascript)[^)]*\)'
+    severity: critical
+    description: "Markdown image with data URI — potential polyglot payload"
+    false_positive_hint: "Data URI images in markdown are suspicious, especially non-raster formats"

@@ -1,0 +1,32 @@
+category: reasoningHijack
+description: "Patterns detecting injection of fake agent reasoning, observations, and tool outputs"
+patterns:
+  - id: RH-001
+    regex: '(?i)^(?:Thought|Thinking|Reasoning)\s*:\s*.{10,}'
+    severity: high
+    description: "Fake agent thought/reasoning prefix — ReAct-style injection"
+    false_positive_hint: "May appear in AI documentation or prompt engineering guides"
+
+  - id: RH-002
+    regex: '(?i)^(?:Observation|Action|Tool\s*(?:Output|Result|Response))\s*:\s*.{10,}'
+    severity: high
+    description: "Fake observation/action prefix — agent reasoning chain injection"
+    false_positive_hint: "May appear in LangChain/agent framework documentation"
+
+  - id: RH-003
+    regex: '(?i)<(?:antThinking|thinking|scratchpad|internal_monologue|chain_of_thought)>'
+    severity: critical
+    description: "Fake agent internal thinking XML tag — Claude/Anthropic format injection"
+    false_positive_hint: "Should not appear in user-authored files"
+
+  - id: RH-004
+    regex: '(?i)<(?:tool_result|function_result|tool_output|function_output|result)>\s*(?:\{|\[|")'
+    severity: critical
+    description: "Fake tool result XML tag — injecting fabricated tool output"
+    false_positive_hint: "May appear in API documentation showing response formats"
+
+  - id: RH-005
+    regex: '(?i)(?:FINAL\s+ANSWER|CONCLUSION|DECISION)\s*:\s*(?:execute|run|install|curl|wget|approve|allow|grant)'
+    severity: high
+    description: "Fake final answer directive with action command"
+    false_positive_hint: "Unlikely in normal documentation"

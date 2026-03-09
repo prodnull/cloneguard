@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <!-- CloneGuard — 4 defense layers protecting code -->
+
+  <!-- Layer 0: Pre-execution wrapper (outermost) — Emerald -->
+  <circle cx="256" cy="256" r="230" stroke="#10b981" stroke-width="18" stroke-linecap="round"
+    stroke-dasharray="1300 145" transform="rotate(333 256 256)"/>
+
+  <!-- Layer 1: InstructionsLoaded hook — Cyan -->
+  <circle cx="256" cy="256" r="196" stroke="#06b6d4" stroke-width="18" stroke-linecap="round"
+    stroke-dasharray="1108 123" transform="rotate(153 256 256)"/>
+
+  <!-- Layer 2: PostToolUse hook — Blue -->
+  <circle cx="256" cy="256" r="162" stroke="#3b82f6" stroke-width="18" stroke-linecap="round"
+    stroke-dasharray="916 102" transform="rotate(243 256 256)"/>
+
+  <!-- Layer 3: PreToolUse hook (innermost) — Violet -->
+  <circle cx="256" cy="256" r="128" stroke="#7c3aed" stroke-width="18" stroke-linecap="round"
+    stroke-dasharray="724 80" transform="rotate(63 256 256)"/>
+
+  <!-- Center: </> code brackets -->
+  <g stroke="#0f172a" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <polyline points="226,228 200,256 226,284"/>
+    <line x1="259" y1="225" x2="249" y2="287"/>
+    <polyline points="286,228 312,256 286,284"/>
+  </g>
+</svg>
