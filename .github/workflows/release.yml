@@ -8,18 +8,21 @@ on:
 permissions:
   contents: write
 
+env:
+  HF_TOKEN: ${{ secrets.HF_TOKEN }}
+
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --all-extras --dev
+      - name: Fetch ONNX model
+        run: uv run python scripts/fetch_model.py
       - name: Run tests
         run: uv run pytest tests/ -x -q --tb=short
 
@@ -28,11 +31,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          lfs: true
       - uses: astral-sh/setup-uv@v5
         with:
           enable-cache: true
+      - name: Fetch ONNX model
+        run: python3 scripts/fetch_model.py
       - name: Build package
         run: uv build
       - name: Verify wheel contents
@@ -40,11 +43,11 @@ jobs:
           whl=$(ls dist/*.whl)
           echo "Wheel: $whl"
           echo "Size: $(du -h "$whl" | cut -f1)"
-          # Verify ONNX model is included (not an LFS pointer)
+          # Verify ONNX model is included and not truncated
           size=$(python3 -c "import zipfile; z=zipfile.ZipFile('$whl'); print(z.getinfo('cloneguard/model/mini_semantic.onnx').file_size)")
           echo "ONNX model size in wheel: $size bytes"
           if [ "$size" -lt 1000000 ]; then
-            echo "FAIL: ONNX model appears to be an LFS pointer, not the actual file"
+            echo "FAIL: ONNX model missing or truncated in wheel"
             exit 1
           fi
       - uses: actions/upload-artifact@v4

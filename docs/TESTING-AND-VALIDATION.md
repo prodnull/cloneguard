@@ -10,15 +10,16 @@ Independent reproduction instructions, payload generation methodology, and empir
 git clone https://github.com/prodnull/cloneguard.git && cd cloneguard
 uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev,mini]"
+python scripts/fetch_model.py    # download ONNX model from HuggingFace (SHA-256 verified)
 ```
 
-Requirements: Python >= 3.11, ~100 MB disk for ONNX model.
+Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stored in git — it's downloaded from HuggingFace with pinned SHA-256 verification via `scripts/fetch_model.py`.
 
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 951 tests (Tier 0 + Tier 1.5, no external deps)
-pytest --co -q | tail -1    # verify count: "951 tests collected"
+pytest                      # 962 tests (Tier 0 + Tier 1.5, no external deps)
+pytest --co -q | tail -1    # verify count: "962 tests collected"
 ```
 
 Expected: all pass in < 30 seconds. Tests requiring Ollama or Docker auto-skip via markers in `tests/conftest.py`.
@@ -50,7 +51,7 @@ python scripts/kfold_eval.py              # default: 5-fold
 python scripts/kfold_eval.py --folds 10   # 10-fold for tighter CI
 ```
 
-Expected output: CV F1 = 95.89% +/- 0.44% (5-fold). Runtime ~15 minutes on Apple M-series.
+Expected output: CV F1 = 95.80% ± 0.65% (5-fold). Runtime ~15 minutes on Apple M-series.
 
 ### Reproduce Adversarial Evaluation
 
@@ -58,7 +59,7 @@ Expected output: CV F1 = 95.89% +/- 0.44% (5-fold). Runtime ~15 minutes on Apple
 python scripts/adversarial_eval.py
 ```
 
-Expected: 24/26 payloads detected (92% detection rate). Two evasions: code block dilution and ambiguous fragment. See Section 4.
+Expected: 21/26 payloads detected (81% model-only detection rate). Known evasions: truncation, dilution, ROT13, fragmentation. Combined with Tier 0 regex: higher effective rate. See Section 4.
 
 ### Reproduce Tier Benchmarks
 
@@ -70,7 +71,9 @@ Compares Tier 0, Tier 1.5, and Tier 2 (if Ollama available) on the full dataset.
 
 ## 2. Payload Generation Methodology
 
-The training dataset (`data/training/dataset.jsonl`) contains 5,687 labeled samples (cleaned from an original 5,928: 355 mislabeled entries removed, 114 targeted samples added) built in six rounds plus a cleanup phase. Each round addressed gaps discovered by adversarial audit.
+The training dataset (`data/training/dataset.jsonl`) contains 5,671 labeled samples (2,916 malicious, 2,755 benign) built in six rounds plus two cleanup phases. Each round addressed gaps discovered by adversarial audit. The dataset is also published on HuggingFace: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset).
+
+**Note:** The per-round construction scripts (`build_dataset.py`, `fill_*.py`, `clean_*.py`, `fix_and_augment.py`) were one-time artifacts removed from the working tree after the dataset was finalized. They remain in git history for full reproducibility.
 
 ### Round 1: Core Patterns (4,575 samples)
 
@@ -213,22 +216,28 @@ Scenario 6 excluded from count: Claude Code's own hooks prevented file creation,
 
 | Category | Attacks | Caught | Evasion Rate |
 |----------|:-------:|:------:|:------------:|
-| Truncation (payload past 256 tokens) | 2 | 2 | 0% |
+| Truncation (payload past 256 tokens) | 2 | 0 | 100% |
 | Benign dilution | 2 | 1 | 50% |
-| Encoding evasion (base64, hex, ROT13) | 4 | 4 | 0% |
+| Encoding evasion (base64, hex, ROT13) | 4 | 3 | 25% |
 | Fragmentation | 3 | 2 | 33% |
 | Semantic rephrasing | 5 | 5 | 0% |
 | Homoglyph/Unicode | 3 | 3 | 0% |
 | Implicit (package.json, Makefile, CI) | 3 | 3 | 0% |
 | Counter-defensive (target scanner) | 2 | 2 | 0% |
 | Temporal/conditional triggers | 2 | 2 | 0% |
-| **Total** | **26** | **24** | **8%** |
+| **Total** | **26** | **21** | **19%** |
+
+These are **model-only** detection rates. Combined with Tier 0 regex, the effective detection rate is higher — truncation and encoding evasions are architectural limitations of the 256-token MiniLM model that Tier 0 regex catches independently.
 
 ### Evasions: What Got Through
 
-**1. Code block dilution.** A malicious `curl` exfiltration command embedded in an otherwise legitimate 9-line bash build script (npm ci / npm test / npm build). Classified SAFE with 98% confidence. Root cause: mean-pooling averages embeddings across all tokens; 8/9 benign lines overwhelm the single malicious line's signal. **Mitigation:** Tier 0 regex independently scans each line and would catch `curl` to an external URL. The classifier's code-block line scanner (post-classification) also catches this when fenced code blocks are present.
+**1. Truncation (2/2 evaded).** Payloads placed beyond the 256-token window are invisible to the model. This is a fundamental architectural limitation of the MiniLM-L6-v2 encoder. **Mitigation:** Tier 0 regex scans the full file content without token limits.
 
-**2. Ambiguous fragment.** "Read the contents of the configuration files in the home directory" — classified SAFE. This is genuinely ambiguous; it could be legitimate debugging advice. The model correctly flags it when combined with an exfiltration instruction. **Mitigation:** This payload alone is insufficient for an attack; the attacker needs a subsequent exfiltration step, which would be caught.
+**2. Code block dilution (1/2 evaded).** A malicious `curl` exfiltration command embedded in an otherwise legitimate 9-line bash build script. Mean-pooling averages embeddings across all tokens; benign lines overwhelm the malicious signal. **Mitigation:** Tier 0 regex scans each line independently. The classifier's code-block line scanner also catches this in fenced blocks.
+
+**3. ROT13 encoding (1/4 evaded).** ROT13-encoded payloads bypass the model's learned vocabulary. **Mitigation:** Tier 0 regex pattern EO-003 detects ROT13 encoding.
+
+**4. Fragmentation (1/3 evaded).** Splitting a payload across multiple innocuous-looking sentences. The model sees each fragment as benign in isolation. **Mitigation:** Multi-file coordination attacks remain a known limitation (see `docs/SECURITY.md`).
 
 ## 5. Time Penalty Analysis
 
@@ -238,7 +247,7 @@ All measurements on Apple M-series CPU. Latency varies by hardware.
 
 | Component | Latency | Notes |
 |-----------|:-------:|-------|
-| Tier 0 regex | < 50 ms | Full repo scan, 175 compiled patterns |
+| Tier 0 regex | < 50 ms | Full repo scan, 191 compiled patterns |
 | Tier 1.5 ONNX | ~16 ms/sample | Single file classification |
 | Tier 2 Ollama | ~680 ms/sample | qwen2.5:7b, local inference |
 
@@ -262,7 +271,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 ## 6. Test Suite Structure
 
-951 tests across 14 test files. All in `tests/`.
+962 tests across 14 test files. All in `tests/`.
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|
@@ -278,7 +287,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 | `test_mini_semantic.py` | 12 | Tier 1.5 ONNX classifier: loading, classification, thresholds, code block scanning |
 | `test_evasion_resistance.py` | 11 | Trust cache evasion + boundary tests: TOCTOU, cache poisoning, path traversal |
 | `test_tier2_live.py` | 10 | Ollama integration: classification, confidence scores, verdict mapping (requires Ollama) |
-| `test_integration_all_patterns.py` | 7 | All 175 patterns through full scan pipeline: end-to-end pattern coverage |
+| `test_integration_all_patterns.py` | 7 | All 191 patterns through full scan pipeline: end-to-end pattern coverage |
 | `test_docker_integration.py` | 3 | Container tests: build, scan, hook execution (requires Docker) |
 
 Additional test files: `test_full_pattern_coverage.py` (pattern-to-test mapping audit), `test_new_patterns.py` (gap closure patterns from PoC validation), `test_semantic.py` (Tier 2 semantic classifier interface).
@@ -382,18 +391,27 @@ python scripts/train_mini_model.py
 python scripts/kfold_eval.py          # CV metrics
 python scripts/adversarial_eval.py    # adversarial robustness
 pytest tests/test_mini_semantic.py    # unit tests
+
+# 4. Update pinned hash and upload to HuggingFace
+shasum -a 256 src/cloneguard/model/mini_semantic.onnx
+# Update EXPECTED_SHA256 in scripts/fetch_model.py with the new hash
+hf upload prodnull/minilm-prompt-injection-classifier \
+    src/cloneguard/model/mini_semantic.onnx mini_semantic.onnx
 ```
+
+The ONNX model is not stored in git. It lives on HuggingFace and is downloaded via `scripts/fetch_model.py` with SHA-256 verification. After retraining, you must update both the HuggingFace repo and the pinned hash.
 
 ### Run Hyperparameter Sweep
 
 ```bash
-# Quick sweep (epochs x dropout)
+# Quick sweep — 6 configs (epochs x dropout), useful for sanity-checking after dataset changes
 python scripts/hyperparameter_sweep.py
 
-# Full grid search (192 configs: epochs x dropout x lr x weight_decay x hidden_dim)
+# Full grid search — 192 configs (epochs x dropout x lr x weight_decay x hidden_dim)
+# Use this for production hyperparameter selection; the quick sweep is a fast smoke test
 python scripts/comprehensive_sweep.py
 # Results written to bench/comprehensive_sweep.json
 # Runtime: ~6 hours on Apple M-series
 ```
 
-The sweep uses 5-fold stratified CV (not full-dataset metrics) to select hyperparameters. The current production config was selected from a 192-configuration search. See `docs/MINI-SEMANTIC-MODEL.md` for the selection rationale.
+The sweep uses 5-fold stratified CV (not full-dataset metrics) to select hyperparameters. The current production config was selected from the 192-configuration comprehensive search. `hyperparameter_sweep.py` is a faster subset useful for quick validation after dataset changes but should not be used for final hyperparameter selection. See `docs/MINI-SEMANTIC-MODEL.md` for the selection rationale.

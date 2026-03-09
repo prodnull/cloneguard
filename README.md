@@ -243,6 +243,7 @@ git clone https://github.com/prodnull/cloneguard.git
 cd cloneguard
 uv venv .venv && source .venv/bin/activate
 uv pip install -e ".[dev,mini]"
+python scripts/fetch_model.py    # download ONNX model (SHA-256 verified)
 pytest
 ```
 

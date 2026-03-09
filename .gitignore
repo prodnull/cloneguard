@@ -14,6 +14,9 @@ build/
 .playwright-mcp/
 uv.lock
 
+# ONNX model — downloaded via scripts/fetch_model.py, not tracked in git
+src/cloneguard/model/mini_semantic.onnx
+
 # Internal docs (not published)
 docs/plans/
 docs/research/
