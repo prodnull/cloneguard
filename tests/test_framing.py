@@ -182,6 +182,9 @@ def _check_secure_allowlisted(line: str) -> bool:
                  r"element|chip|key|key\s+exchange|random|erase)\b",
                  line, re.IGNORECASE):
         return True
+    # "Secure development lifecycle" / "secure development" — describing a venue/domain
+    if re.search(r"\bsecure\s+development\b", line, re.IGNORECASE):
+        return True
     # "security" in general noun usage (not a performance claim about CloneGuard)
     if re.search(r"\bsecurity\b", line, re.IGNORECASE) and not re.search(
         r"\bCloneGuard\b|\bTier\s+\d|\bthe\s+model\b|\bthe\s+classifier\b|"
