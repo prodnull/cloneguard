@@ -13,7 +13,7 @@ This milestone hardens Tier 1.5 against white-box adversarial attacks through ad
 - Decimal phases: Urgent insertions if needed (marked INSERTED)
 
 - [x] **Phase 1: Transferability Gate** - Empirically validate that white-box adversarial examples against MiniLM do not transfer effectively to DeBERTa (hard gate: >40% = pivot) (completed 2026-03-10)
-- [ ] **Phase 2: Adversarial Hardening** - Harden MiniLM via adversarial data augmentation + FreeLB embedding AT, add Mahalanobis anomaly detector, re-benchmark
+- [x] **Phase 2: Adversarial Hardening** - Harden MiniLM via adversarial data augmentation + FreeLB embedding AT, add Mahalanobis anomaly detector, re-benchmark (completed 2026-03-10)
 - [ ] **Phase 3: Adversarial Benchmark and Publication** - Run full hardened pipeline benchmark with adaptive attacks, publish results with honest framing
 
 ## Phase Details
@@ -45,7 +45,7 @@ Plans:
   2. Clean accuracy (5-fold CV) does not drop below 94.5% (currently 95.51% ± 0.53%)
   3. Mahalanobis detector flags ≥60% of successful adversarial examples at ≤5% FPR on the 234-sample benign eval set
   4. Combined pipeline latency (Tier 0 + hardened Tier 1.5 + Mahalanobis) under 25ms per sample on Apple M-series CPU
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 02-01-PLAN.md — Create PWWS augmentation script + FreeLB training modifications + dual-output ONNX export
@@ -83,5 +83,5 @@ The following phases from the original roadmap were replaced after the Phase 1 g
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Transferability Gate | 2/2 | Complete (PIVOT) | 2026-03-10 |
-| 2. Adversarial Hardening | 2/3 | In Progress|  |
+| 2. Adversarial Hardening | 3/3 | Complete   | 2026-03-10 |
 | 3. Adversarial Benchmark and Publication | 0/TBD | Not started | - |

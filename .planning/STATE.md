@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-02-PLAN.md
-last_updated: "2026-03-10T18:31:50.643Z"
+stopped_at: Completed 02-03-PLAN.md — Mahalanobis integration done, awaiting Task 4 human review checkpoint
+last_updated: "2026-03-10T20:06:36.494Z"
 last_activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 5
-  completed_plans: 4
+  completed_plans: 5
   percent: 33
 ---
 
@@ -50,6 +50,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 01-transferability-gate P02 | ~90min | 2 tasks | 2 files |
 | Phase 02-deberta-training-and-onnx-export P01 | 8 | 2 tasks | 4 files |
 | Phase 02-deberta-training-and-onnx-export P02 | ~4h | 3 tasks | 7 files |
+| Phase 02-deberta-training-and-onnx-export P03 | 65min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 02-deberta-training-and-onnx-export]: ASR gate triggered after round 2: benchmark ASR 20.0% < 35% threshold; round 3 skipped per plan
 - [Phase 02-deberta-training-and-onnx-export]: 5-fold CV accuracy 94.51% meets >=94.5% success criterion on v4 augmented dataset (6,472 samples)
 - [Phase 02-deberta-training-and-onnx-export]: PWWS generation success rate declined 65.7% -> 31.7% across rounds, confirming model hardened against PWWS attacks
+- [Phase 02-deberta-training-and-onnx-export]: Mahalanobis scoring applied only in single-chunk classify() path, not sliding window: calibration domain (single-chunk) must match inference domain
+- [Phase 02-deberta-training-and-onnx-export]: Mahalanobis detection rate 2.7% (plan target 60%): benign/malicious CLS distributions overlap substantially (means 17.59 vs 17.21); single-layer CLS has limited OOD discriminative power
+- [Phase 02-deberta-training-and-onnx-export]: Min 100-char gate for Mahalanobis: short inputs OOD by MiniLM padding artifact, not adversarial content
 
 ### Pending Todos
 
@@ -91,6 +95,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T18:31:10.626Z
-Stopped at: Completed 02-02-PLAN.md
+Last session: 2026-03-10T20:06:36.492Z
+Stopped at: Completed 02-03-PLAN.md — Mahalanobis integration done, awaiting Task 4 human review checkpoint
 Resume file: None
