@@ -37,6 +37,7 @@ class ScanReport:
     repo_path: Path
     file_results: list[FileResult] = field(default_factory=list)
     yolo_mode: bool = False
+    _active_tiers: str = ""
 
     @property
     def exit_code(self) -> int:
@@ -56,7 +57,7 @@ class ScanReport:
         lines.append(f"Scanning {self.repo_path}...")
 
         # Surface active tiers so users know what's running
-        if hasattr(self, "_active_tiers") and self._active_tiers:
+        if self._active_tiers:
             lines.append(f"Active tiers: {self._active_tiers}")
         lines.append("")
 
@@ -424,7 +425,7 @@ class RepoScanner:
                 kwargs["model"] = self._tier2_model
             classifier = SemanticClassifier(**kwargs)
             if not classifier.is_available():
-                if not hasattr(report, "_active_tiers"):
+                if not report._active_tiers:
                     report._active_tiers = "Tier 0 (regex) only — semantic scanning unavailable"
                 return
             sem_result = classifier.classify_files(file_contents)
