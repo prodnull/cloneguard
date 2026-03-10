@@ -21,18 +21,18 @@ model-index:
           type: text-classification
           name: Prompt Injection Detection
         metrics:
-          - name: F1 (5-fold CV)
+          - name: F1 (5-fold CV, v3)
             type: f1
-            value: 0.9580
-          - name: Accuracy (5-fold CV)
+            value: 0.9551
+          - name: Accuracy (5-fold CV, v3)
             type: accuracy
-            value: 0.9570
-          - name: Precision (5-fold CV)
+            value: 0.9571
+          - name: Precision (5-fold CV, v3)
             type: precision
-            value: 0.9623
-          - name: Recall (5-fold CV)
+            value: 0.9579
+          - name: Recall (5-fold CV, v3)
             type: recall
-            value: 0.9537
+            value: 0.9525
 ---
 
 # CloneGuard Mini Semantic Classifier v3
@@ -52,7 +52,7 @@ Binary classifier that detects prompt injection payloads targeting AI coding age
 
 Scanning repository files (CLAUDE.md, README.md, package.json, Makefile, CI configs, etc.) for prompt injection before an AI coding agent processes them. Part of a layered defense:
 
-1. **Tier 0** — Regex pattern matching (191 rules, <1 ms)
+1. **Tier 0** — Regex pattern matching (193 rules, <1 ms)
 2. **Tier 1.5** — This model (semantic classification, ~16 ms)
 3. **Tier 2** — Ollama LLM fallback (~680 ms)
 
@@ -98,7 +98,18 @@ When combined with Tier 0 regex (193 patterns), the tiers compensate for each ot
 
 **FPR (production mode, held-out eval):** 0-33% depending on content type. Best: config/env (0%), worst: agent instructions (33%), workflows (24%).
 
-### Cross-Validated Metrics (v2 dataset, 5,671 samples)
+### Cross-Validated Metrics (v3 augmented dataset, 6,340 samples)
+
+5-fold stratified cross-validation on the augmented dataset:
+
+| Metric | Value |
+|--------|:-----:|
+| F1 | 95.51% ± 0.53% |
+| Accuracy | 95.71% ± 0.53% |
+| Precision | 95.79% ± 1.55% |
+| Recall | 95.25% ± 1.21% |
+
+### Cross-Validated Metrics (v2 original dataset, 5,671 samples)
 
 5-fold stratified cross-validation on the original dataset:
 
