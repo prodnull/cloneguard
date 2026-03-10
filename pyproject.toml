@@ -1,6 +1,6 @@
 [project]
 name = "cloneguard"
-version = "0.2.2"
+version = "0.2.3"
 description = "Raises the cost of prompt injection attacks against AI coding agents"
 readme = "README.md"
 license = "Apache-2.0"

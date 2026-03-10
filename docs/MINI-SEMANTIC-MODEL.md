@@ -50,14 +50,14 @@ Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) 
 
 ### Cross-Validated Metrics (Primary)
 
-5-fold stratified cross-validation — the honest generalization estimate:
+5-fold stratified cross-validation on v3 augmented dataset (6,340 samples) — the honest generalization estimate:
 
 | Metric | Tier 0 (Regex) | Tier 1.5 (ONNX, 5-fold CV) | Tier 2 (Ollama) |
 |--------|:-:|:-:|:-:|
-| **Accuracy** | 54.91% | **95.70% ± 0.66%** | 69.50% |
-| **Precision** | 91.33% | **96.23% ± 0.79%** | 93.33% |
-| **Recall** | 23.26% | **95.37% ± 0.93%** | 42.00% |
-| **F1 Score** | 37.08% | **95.80% ± 0.65%** | 57.93% |
+| **Accuracy** | 54.91% | **95.71% ± 0.53%** | 69.50% |
+| **Precision** | 91.33% | **95.79% ± 1.55%** | 93.33% |
+| **Recall** | 23.26% | **95.25% ± 1.21%** | 42.00% |
+| **F1 Score** | 37.08% | **95.51% ± 0.53%** | 57.93% |
 | **Speed** | 0.1 ms | 16 ms | 682 ms |
 
 Hyperparameters were selected via comprehensive grid search (192 configurations, 2-phase screening + validation). See `bench/comprehensive_sweep.json`.
@@ -265,10 +265,10 @@ Confidence is reported as the probability of the predicted class (malicious_prob
 
 | Metric | Value |
 |--------|:-----:|
-| Cross-validated F1 | 95.80% ± 0.65% |
-| Cross-validated accuracy | 95.70% ± 0.66% |
-| Cross-validated precision | 96.23% ± 0.79% |
-| Cross-validated recall | 95.37% ± 0.93% |
+| Cross-validated F1 (v2) | 95.80% ± 0.65% |
+| Cross-validated accuracy (v2) | 95.70% ± 0.66% |
+| Cross-validated precision (v2) | 96.23% ± 0.79% |
+| Cross-validated recall (v2) | 95.37% ± 0.93% |
 
 **v3 model 5-fold cross-validation (6,340 samples):**
 
