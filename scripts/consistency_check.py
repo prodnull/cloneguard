@@ -163,14 +163,19 @@ def check_dataset_count() -> None:
     """
     print("Checking dataset count consistency...")
 
-    dataset_path = ROOT / "data" / "training" / "dataset.jsonl"
-    if not dataset_path.exists():
-        print("  Skipped: dataset.jsonl not found")
-        return
+    # Check both original and augmented datasets — docs may reference either.
+    dataset_counts: set[int] = set()
+    for name in ["dataset.jsonl", "dataset_augmented_r2.jsonl"]:
+        dataset_path = ROOT / "data" / "training" / name
+        if dataset_path.exists():
+            with open(dataset_path) as f:
+                count = sum(1 for _ in f)
+            dataset_counts.add(count)
+            print(f"  {name}: {count} samples")
 
-    with open(dataset_path) as f:
-        actual = sum(1 for _ in f)
-    print(f"  Actual samples: {actual}")
+    if not dataset_counts:
+        print("  Skipped: no dataset files found")
+        return
 
     files_to_check = [
         "README.md",
@@ -194,8 +199,8 @@ def check_dataset_count() -> None:
                 continue
             for m in re.finditer(r"([\d,]+)\s+(?:labeled\s+)?samples", line):
                 claimed = int(m.group(1).replace(",", ""))
-                if claimed != actual and claimed > 1000:
-                    error(f"{relpath}: claims {claimed} samples but actual is {actual}")
+                if claimed not in dataset_counts and claimed > 1000:
+                    error(f"{relpath}: claims {claimed} samples but datasets have {dataset_counts}")
 
 
 def check_model_hash() -> None:
