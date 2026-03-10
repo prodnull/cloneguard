@@ -224,9 +224,7 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
                     f"BLOCKED: Semantic classifier flagged {path} — {t15_reason}"
                 )
             elif t15_verdict == "SUSPICIOUS":
-                warnings.append(
-                    f"WARNING: Semantic classifier flagged {path} — {t15_reason}"
-                )
+                warnings.append(f"WARNING: Semantic classifier flagged {path} — {t15_reason}")
                 _session_trust[path] = content_sha
             else:
                 _session_trust[path] = content_sha
@@ -287,14 +285,12 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                 t15_verdict, t15_reason = _classify_with_tier15(content, file_path)
                 if t15_verdict == "MALICIOUS":
                     print(
-                        f"BLOCKED: Semantic classifier flagged write to {file_path}"
-                        f" — {t15_reason}"
+                        f"BLOCKED: Semantic classifier flagged write to {file_path} — {t15_reason}"
                     )
                     return 2
                 elif t15_verdict == "SUSPICIOUS":
                     print(
-                        f"WARNING: Semantic classifier flagged write to {file_path}"
-                        f" — {t15_reason}"
+                        f"WARNING: Semantic classifier flagged write to {file_path} — {t15_reason}"
                     )
 
     # --- 3. Block allowlist manipulation via Bash ---
