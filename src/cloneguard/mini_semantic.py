@@ -221,7 +221,6 @@ class MiniSemanticClassifier:
         )
 
         worst_prob = 0.0
-        worst_anomaly_score = 0.0
         num_chunks = 0
 
         for i in range(0, len(token_ids), _STRIDE):
@@ -254,11 +253,13 @@ class MiniSemanticClassifier:
             )
             logits = chunk_outputs[0][0]
 
-            # Extract CLS embedding and score Mahalanobis if available.
-            if self._mahalanobis is not None and len(chunk_outputs) > 1:
-                cls_emb = chunk_outputs[1][0]
-                chunk_anomaly = self._mahalanobis.score(cls_emb)
-                worst_anomaly_score = max(worst_anomaly_score, chunk_anomaly)
+            # NOTE: Mahalanobis scoring is NOT applied per-chunk in the sliding
+            # window. The threshold was calibrated on single-chunk (256-token)
+            # embeddings. Scoring multiple chunks from the same document and
+            # taking the worst would inflate false positive rates substantially
+            # (one OOD chunk in a long benign document would flag the whole
+            # document). Mahalanobis runs once at the classify() level on the
+            # first 256 tokens, before the sliding window is invoked.
 
             probs = np.exp(logits) / np.exp(logits).sum()
             malicious_prob = float(probs[1])
@@ -272,16 +273,7 @@ class MiniSemanticClassifier:
         else:
             verdict = "SAFE"
 
-        # Defense-in-depth: SAFE + anomalous worst chunk CLS -> SUSPICIOUS.
-        # Compare pre-computed score directly against threshold (avoids calling
-        # score() again on a 1-element array that would produce wrong distances).
-        anomaly_flagged = (
-            self._mahalanobis is not None and worst_anomaly_score > self._mahalanobis.threshold
-        )
-        if anomaly_flagged and verdict == "SAFE":
-            verdict = "SUSPICIOUS"
-
-        if verdict == "SAFE" and not anomaly_flagged:
+        if verdict == "SAFE":
             return None
 
         confidence = worst_prob
@@ -291,8 +283,8 @@ class MiniSemanticClassifier:
             reason=(
                 f"Sliding window ({num_chunks} chunks): {worst_prob:.1%} malicious probability"
             ),
-            anomaly_score=worst_anomaly_score,
-            anomaly_flagged=anomaly_flagged,
+            # anomaly_score and anomaly_flagged are not set here — see classify()
+            # for the single-chunk Mahalanobis scoring applied before sliding window.
         )
 
     def _log_for_review(self, text: str, result: MiniClassification) -> None:
