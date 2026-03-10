@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: "Checkpoint: Task 3 of 02-02-PLAN.md — awaiting human review of hardening results"
-last_updated: "2026-03-10T18:22:36.898Z"
+stopped_at: Completed 02-02-PLAN.md
+last_updated: "2026-03-10T18:31:50.643Z"
 last_activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 progress:
   total_phases: 3
@@ -49,6 +49,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 01-transferability-gate P01 | 8 | 2 tasks | 2 files |
 | Phase 01-transferability-gate P02 | ~90min | 2 tasks | 2 files |
 | Phase 02-deberta-training-and-onnx-export P01 | 8 | 2 tasks | 4 files |
+| Phase 02-deberta-training-and-onnx-export P02 | ~4h | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - [Phase 02-01]: MiniLMOnnxWrapper copied in generate_pwws_augmentation.py (not imported) — .venv-transfer and .venv have incompatible installed packages, deliberate isolation
 - [Phase 02-deberta-training-and-onnx-export]: ASR gate triggered after round 2: benchmark ASR 20.0% < 35% threshold; round 3 skipped
 - [Phase 02-deberta-training-and-onnx-export]: 5-fold CV accuracy 94.51% meets >=94.5% success criterion on v4 augmented dataset (6,472 samples)
+- [Phase 02-deberta-training-and-onnx-export]: ASR gate triggered after round 2: benchmark ASR 20.0% < 35% threshold; round 3 skipped per plan
+- [Phase 02-deberta-training-and-onnx-export]: 5-fold CV accuracy 94.51% meets >=94.5% success criterion on v4 augmented dataset (6,472 samples)
+- [Phase 02-deberta-training-and-onnx-export]: PWWS generation success rate declined 65.7% -> 31.7% across rounds, confirming model hardened against PWWS attacks
 
 ### Pending Todos
 
@@ -87,6 +91,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T18:22:31.068Z
-Stopped at: Checkpoint: Task 3 of 02-02-PLAN.md — awaiting human review of hardening results
+Last session: 2026-03-10T18:31:10.626Z
+Stopped at: Completed 02-02-PLAN.md
 Resume file: None

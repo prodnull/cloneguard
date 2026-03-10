@@ -67,7 +67,7 @@ completed: 2026-03-10
 - **Duration:** ~4h total (dominated by PWWS generation: 2x ~90min rounds)
 - **Started:** 2026-03-10T17:36:08Z
 - **Completed:** 2026-03-10T~22:00Z (estimated)
-- **Tasks:** 2 auto + 1 checkpoint (pending human review)
+- **Tasks:** 2 auto + 1 checkpoint (human-verified, approved 2026-03-10)
 - **Files modified:** 6 (4 new data files, 2 script fixes)
 
 ## Accomplishments
@@ -91,7 +91,7 @@ completed: 2026-03-10
 
 1. **Task 1: Round 1 PWWS + FreeLB retrain** — `c06b2ff` (feat)
 2. **Task 2: Round 2 + ASR gate + v4 ONNX + fetch_model.py** — `831c671` (feat)
-3. **Task 3: Human review checkpoint** — pending
+3. **Task 3: Human review checkpoint** — approved (user verified hardening results)
 
 ## Files Created/Modified
 
@@ -147,12 +147,20 @@ None — all tooling runs locally in existing venvs.
 
 - v4 hardened ONNX is the production model for Plan 02-03 (Mahalanobis anomaly detector)
 - `cls_embedding` output [1] from the v4 ONNX is ready for Mahalanobis detector training
-- Task 3 checkpoint (human review) must be approved before closing Plan 02
+- v4 ONNX dual-output verified: `[logits, cls_embedding]` — Plan 02-03 can consume immediately
 - Phase 3 (benchmark + publication) will measure adaptive attacks against v4; expect some circumvention
 
-## Self-Check: PENDING
+## Self-Check: PASSED
 
-Awaiting Task 3 checkpoint approval.
+- data/training/pwws_adversarial_r1.jsonl: FOUND
+- data/training/pwws_adversarial_r2.jsonl: FOUND
+- data/training/dataset_v4_r1.jsonl: FOUND
+- data/training/dataset_v4_r2.jsonl: FOUND
+- scripts/fetch_model.py: FOUND
+- scripts/kfold_eval.py: FOUND
+- tests/test_mini_semantic.py: FOUND
+- Commit c06b2ff: FOUND
+- Commit 831c671: FOUND
 
 ---
 *Phase: 02-deberta-training-and-onnx-export*
