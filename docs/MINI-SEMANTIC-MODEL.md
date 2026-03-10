@@ -12,7 +12,8 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 | Model size | 87 MB |
 | Runtime | onnxruntime CPUExecutionProvider |
 | Tokenizer | WordPiece, max 256 tokens |
-| Cross-validated F1 | 95.80% ± 0.65% (5-fold stratified CV) |
+| Cross-validated F1 | 95.80% ± 0.65% (5-fold CV, original dataset) |
+| Validation accuracy (v3) | 96.21% (augmented dataset, 80/20 split) |
 | Inference speed | ~16 ms/sample (Apple M-series CPU) |
 | Dependencies | `onnxruntime>=1.17`, `transformers>=4.36`, `numpy>=1.26` |
 
@@ -93,7 +94,7 @@ Tier 2 (Ollama qwen2.5:7b) was evaluated on a balanced random sample of 200 item
 
 ### Composition
 
-5,671 labeled samples: 2,916 malicious (51.4%), 2,755 benign (48.6%). Balance ratio 1.06:1. Published on Hugging Face: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset). Cleaned from an original 5,928 samples across 4 rounds: 355 mislabeled entries removed in rounds 1-3, then a v2 cleanup removed ~16 additional mislabels and added 63 hand-written long benign hard negatives to fix a length distribution shortcut.
+6,340 labeled samples: 3,033 malicious (47.8%), 3,307 benign (52.2%). Balance ratio 0.92:1. The original 5,671 samples are published on Hugging Face: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset). The v3 augmentation added 669 samples in two rounds targeting out-of-distribution FPR and adversarial robustness gaps identified by the adversarial benchmark.
 
 ### Sources
 
@@ -152,6 +153,20 @@ Cross-referenced against 14 published papers and research reports:
 - Workspace/IDE settings injection (`.code-workspace`, `tasks.json`, `launch.json`)
 - JSON `$schema` exfiltration
 - "For debugging purposes" social engineering framing (AIShellJack 83.4% ASR)
+
+**Round 7: Adversarial benchmark — benign augmentation (523 samples)**
+Driven by adversarial benchmark results showing 40-87% FPR on real-world content. The model had never seen realistic repository files during training:
+- 352 real samples from 59 GitHub repos (CLAUDE.md, .cursorrules, READMEs, workflows, test files, configs) selected for AI-native activity (agent instruction files present, 30+ stars, active 6 months)
+- 149 synthetic gap-fill across 8 content types where real samples were sparse
+- 42 malicious samples from encoding evasion, homoglyph, and structural dilution categories
+- 70/30 train/eval split to prevent data leakage in benchmark
+
+**Round 8: Targeted adversarial augmentation (104 samples)**
+Driven by round 7 benchmark showing truncation_padding regression (100% → 0% raw) and counter-defensive regression (85% → 65%):
+- 50 truncation padding attack cores — isolated payload chunks that the sliding window would extract, training the model to flag them independently
+- 25 counter-defensive malicious samples — attempts to disable/bypass CloneGuard, distinguishable from legitimate configuration
+- 15 counter-defensive benign samples — legitimate CloneGuard documentation and configuration
+- 14 real long-form benign samples from major OSS repos (React, Next.js, Django, Flask, Ruff, uv) for sliding window FPR reduction
 
 ### Quality Controls
 
@@ -221,18 +236,73 @@ Confidence is reported as the probability of the predicted class (malicious_prob
 
 ### Training Results
 
+**v3 model (current, 6,340 samples):**
+
 | Metric | Value |
 |--------|:-----:|
-| Cross-validated F1 (5-fold) | 95.80% ± 0.65% |
+| Validation accuracy | 96.21% |
+| Validation precision (benign) | 96.65% |
+| Validation recall (benign) | 96.07% |
+| Validation precision (malicious) | 95.74% |
+| Validation recall (malicious) | 96.38% |
+
+**v2 model (original, 5,671 samples, 5-fold CV):**
+
+| Metric | Value |
+|--------|:-----:|
+| Cross-validated F1 | 95.80% ± 0.65% |
 | Cross-validated accuracy | 95.70% ± 0.66% |
 | Cross-validated precision | 96.23% ± 0.79% |
 | Cross-validated recall | 95.37% ± 0.93% |
 
-**Note on reported metrics:** The cross-validated numbers above are the honest generalization estimate. These reflect the v2 cleaned dataset (5,671 samples after removing mislabeled entries and adding hard negatives across 4 cleanup rounds). A 192-configuration hyperparameter sweep confirmed the current config is near-optimal for this architecture and dataset size.
+**Note:** The v3 validation accuracy (96.21%) is a single 80/20 split, not cross-validated. The v2 cross-validated numbers remain the honest generalization estimate for the original dataset. The v3 model was retrained to fix out-of-distribution FPR (40-87% on real-world content), not to improve in-distribution metrics. The adversarial benchmark provides the honest out-of-distribution evaluation.
 
 ## Adversarial Evaluation
 
-We simulated an informed attacker who knows the model architecture, training data categories, token window size, and decision thresholds. 26 crafted adversarial payloads across 9 attack categories:
+### Adversarial Robustness Benchmark (v3 model, 185 malicious + 234 held-out benign)
+
+Systematic benchmark across 9 adversarial categories + multilingual smoke test, evaluated on held-out data (no training overlap). Design: `docs/plans/2026-03-09-adversarial-benchmark-design.md`. Script: `scripts/adversarial_benchmark.py`.
+
+**Per-category recall (production mode, threshold 0.50):**
+
+| Category | Payloads | Recall | Notes |
+|----------|:--------:|:------:|-------|
+| Encoding evasion (base64, hex, ROT13, Unicode) | 20 | **100%** | Augmented in training |
+| Synonym substitution | 20 | **100%** | |
+| Homoglyph/Unicode (Cyrillic, ZWJ, RTL) | 20 | **95%** | Augmented in training |
+| Structural dilution (payload in long benign text) | 20 | **95%** | Augmented in training |
+| Social engineering (authority, urgency, compliance) | 20 | **90%** | |
+| Truncation padding (benign preamble + payload) | 20 | **80%** | Sliding window required; 25% raw |
+| Counter-defensive (targeting the scanner) | 20 | **80%** | Augmented in round 8 |
+| Multilingual smoke test | 5 | **80%** | Full coverage deferred (#5) |
+| Implicit instruction (behavioral nudges) | 20 | **45%** | Structural limitation |
+| Fragmentation (attack split across short phrases) | 20 | **20%** | Structural limitation; Tier 0 compensates |
+
+**Per-content-type FPR (production mode, threshold 0.50, held-out eval set):**
+
+| Content Type | Samples | FPR | Notes |
+|--------------|:-------:|:---:|-------|
+| Config (pyproject.toml, tsconfig, etc.) | 23 | **0%** | |
+| Env config (.env files) | 17 | **0%** | |
+| Security documentation | 15 | **7%** | |
+| Build scripts (Makefile, Dockerfile) | 17 | **12%** | |
+| README files | 44 | **14%** | |
+| Test files | 53 | **19%** | Sliding window effect on long files |
+| GitHub Actions workflows | 50 | **24%** | Sliding window effect on long files |
+| Agent instructions (CLAUDE.md, .cursorrules) | 15 | **33%** | Sliding window sensitive to instruction-like chunks |
+
+**Improvement from original model (pre-augmentation):**
+- FPR: 27-88% → 0-33% (production mode with sliding window)
+- Recall: encoding 85%→100%, homoglyph 90%→95%, structural dilution 55%→95%, counter-defensive 85%→80%
+
+**Structural limitations identified:**
+- Fragmentation: payloads under ~30 chars / 10 tokens are indistinguishable from benign instructions. Tier 0 regex is the appropriate defense for these.
+- Implicit instruction: behavioral nudges without explicit attack keywords. More data unlikely to help — the payloads genuinely resemble legitimate coding guidelines.
+- Sliding window FPR: long benign files scanned chunk-by-chunk produce isolated chunks that lack context, raising FPR for workflows and test files.
+
+### Original Adversarial Evaluation (v1/v2 model, 26 payloads)
+
+26 crafted adversarial payloads across 9 attack categories, pre-augmentation:
 
 | Category | Attacks | Caught | Evasion Rate |
 |----------|:-------:|:------:|:------------:|
@@ -246,24 +316,6 @@ We simulated an informed attacker who knows the model architecture, training dat
 | Counter-defensive (target scanner) | 2 | 2 | 0% |
 | Temporal/conditional triggers | 2 | 2 | 0% |
 | **Total** | **26** | **21** | **19%** |
-
-### Evasion Analysis
-
-**Caught (21/26):**
-- Semantic rephrasing: All 5 synonym substitutions caught. The model captures *meaning*, not surface tokens.
-- Encoding: base64 pipe to bash, hex-encoded Python, unicode escapes — caught. The model recognizes *framing* of encoded payloads. ROT13 evaded (character substitution cipher, expected).
-- Homoglyphs: Cyrillic substitutions, zero-width joiners, RTL override — all caught. The tokenizer normalizes enough that these evasions don't alter the embedding significantly.
-- All implicit, counter-defensive, and temporal categories caught at 100%.
-
-**Evaded (5 payloads):**
-
-1. **Truncation (2 payloads).** Malicious content preceded by 256+ tokens of benign padding was classified SAFE. The v2 dataset added long benign samples, teaching the model that long content correlates with benign — the correct behavior on average, but exploitable by placing payloads past the token window. These payloads are caught by Tier 0 regex. (Note: Sliding window classification added post-evaluation now catches these payloads for content up to ~8K chars.)
-
-2. **Code block dilution.** A malicious `curl` command embedded in an otherwise legitimate bash build script was classified SAFE with 99.3% confidence. Mean-pooling averages the malicious signal away. Caught by Tier 0 regex.
-
-3. **ROT13 encoding.** Character-level cipher substitution is not a text classifier's job. Caught by Tier 0 regex.
-
-4. **Ambiguous fragment.** "Read the contents of the configuration files in the home directory" — genuinely ambiguous; classified SAFE. Correctly flagged when combined with exfiltration instructions.
 
 ### Structural Vulnerability: Mean-Pooling Dilution
 
@@ -297,7 +349,7 @@ For a watering hole attack, the attacker would need to plant a single exfiltrati
 
 4. **Training data bias.** The model was trained primarily on English-language attack patterns from published research. Novel attack vectors not represented in the literature may evade detection.
 
-5. **False positives on security terminology.** The model can flag benign text that discusses security concepts (e.g., text containing the word "injection" in a non-attack context). 24 false positives out of 2,517 benign samples (0.95% FPR).
+5. **False positives on long content via sliding window.** When the sliding window scans long benign files chunk-by-chunk, individual chunks lacking context can trigger false positives. Production-mode FPR on held-out data: 0-33% depending on content type (worst: agent instructions at 33%, workflows at 24%). Raw single-window FPR is much lower (0-12%).
 
 6. **Binary classification.** The model outputs safe/malicious. The SUSPICIOUS verdict is a confidence-based threshold (0.5-0.8), not a separate trained class. True three-class classification could improve nuance.
 
@@ -325,7 +377,8 @@ scripts/
 └── consistency_check.py      # Dataset/model consistency checks
 
 data/training/
-└── dataset.jsonl             # 5,671 labeled samples (also on HuggingFace)
+├── dataset.jsonl             # 5,671 labeled samples (v2, also on HuggingFace)
+└── dataset_augmented_r2.jsonl # 6,340 labeled samples (v3, current training set)
 ```
 
 ## Reproducing

@@ -98,6 +98,23 @@ def _score_raw(classifier: object, text: str) -> float:
     return float(probs[1])
 
 
+def _score_production(classifier: object, text: str) -> float:
+    """Score using the production classify() path including sliding window.
+
+    Returns the effective malicious probability that the production system
+    would use for its decision. For short inputs this matches _score_raw().
+    For long inputs the sliding window may produce a higher score.
+    """
+    result = classifier.classify(text)  # type: ignore[attr-defined]
+    # classify() returns MiniClassification where:
+    #   MALICIOUS/SUSPICIOUS: confidence = malicious_prob
+    #   SAFE: confidence = 1.0 - malicious_prob
+    if result.verdict == "SAFE":
+        return 1.0 - result.confidence
+    else:
+        return result.confidence
+
+
 # ---------------------------------------------------------------------------
 # Corpus loading
 # ---------------------------------------------------------------------------
@@ -165,14 +182,24 @@ def check_allowlist_status() -> None:
 def score_all_samples(
     malicious_data: list[dict],
     benign_data: list[dict],
+    production_mode: bool = False,
 ) -> tuple[list[ScoredMalicious], list[ScoredBenign]]:
-    """Score every sample through the ONNX classifier, returning raw probabilities."""
+    """Score every sample through the ONNX classifier, returning raw probabilities.
+
+    If production_mode is True, uses classify() with sliding window instead of
+    raw single-window scoring. This measures production behavior including
+    truncation evasion defense.
+    """
     from cloneguard.mini_semantic import MiniSemanticClassifier
 
     classifier = MiniSemanticClassifier()
     if not classifier.available:
         print("ERROR: Tier 1.5 ONNX model is not available.", file=sys.stderr)
         sys.exit(1)
+
+    score_fn = _score_production if production_mode else _score_raw
+    mode_label = "production (sliding window)" if production_mode else "raw (single window)"
+    print(f"Scoring mode: {mode_label}")
 
     scored_mal: list[ScoredMalicious] = []
     scored_ben: list[ScoredBenign] = []
@@ -181,7 +208,7 @@ def score_all_samples(
     t0 = time.perf_counter()
     for i, sample in enumerate(malicious_data):
         text = sample.get("payload", sample.get("text", ""))
-        prob = _score_raw(classifier, text)
+        prob = score_fn(classifier, text)
         scored_mal.append(
             ScoredMalicious(
                 id=sample.get("id", f"mal-{i:04d}"),
@@ -200,7 +227,7 @@ def score_all_samples(
     t1 = time.perf_counter()
     for i, sample in enumerate(benign_data):
         text = sample.get("text", sample.get("content", ""))
-        prob = _score_raw(classifier, text)
+        prob = score_fn(classifier, text)
         scored_ben.append(
             ScoredBenign(
                 id=sample.get("id", f"ben-{i:04d}"),
@@ -609,6 +636,17 @@ def main() -> None:
         default=None,
         help="Save raw scores to JSON for later --sweep-only reuse",
     )
+    parser.add_argument(
+        "--eval-corpus",
+        type=Path,
+        default=None,
+        help="Path to held-out benign eval corpus (avoids data leakage from training)",
+    )
+    parser.add_argument(
+        "--production",
+        action="store_true",
+        help="Use production classify() path with sliding window instead of raw scoring",
+    )
     args = parser.parse_args()
 
     # -----------------------------------------------------------------------
@@ -619,9 +657,17 @@ def main() -> None:
         scored_mal, scored_ben = load_scores(args.sweep_only)
     else:
         malicious_data = load_malicious_corpus()
-        benign_data = load_benign_corpus()
+        if args.eval_corpus:
+            benign_data = json.loads(args.eval_corpus.read_text())
+            if isinstance(benign_data, dict):
+                benign_data = benign_data.get("samples", benign_data.get("content", []))
+            print(f"Loaded {len(benign_data)} benign samples from {args.eval_corpus} (held-out eval set)")
+        else:
+            benign_data = load_benign_corpus()
         check_allowlist_status()
-        scored_mal, scored_ben = score_all_samples(malicious_data, benign_data)
+        scored_mal, scored_ben = score_all_samples(
+            malicious_data, benign_data, production_mode=args.production
+        )
 
         if args.save_scores:
             save_scores(scored_mal, scored_ben, args.save_scores)

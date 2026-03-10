@@ -15,7 +15,7 @@ metrics:
   - recall
 pipeline_tag: text-classification
 model-index:
-  - name: cloneguard-mini-semantic-v1
+  - name: cloneguard-mini-semantic-v3
     results:
       - task:
           type: text-classification
@@ -35,9 +35,9 @@ model-index:
             value: 0.9537
 ---
 
-# CloneGuard Mini Semantic Classifier v1
+# CloneGuard Mini Semantic Classifier v3
 
-Fine-tuned [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) for detecting prompt injection attacks in AI coding agent configuration files.
+Fine-tuned [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) for detecting prompt injection attacks in AI coding agent configuration files. v3 adds 669 augmentation samples targeting out-of-distribution FPR and adversarial robustness.
 
 ## Model Description
 
@@ -58,7 +58,7 @@ Scanning repository files (CLAUDE.md, README.md, package.json, Makefile, CI conf
 
 ## Training Data
 
-5,671 labeled samples (2,916 malicious, 2,755 benign) built in 6 rounds from 14+ published research sources including:
+6,340 labeled samples (3,033 malicious, 3,307 benign) built in 8 rounds from 14+ published research sources and 59 real GitHub repositories. Rounds 7-8 added 669 samples to fix out-of-distribution FPR (40-87% → 0-33%) identified by the adversarial benchmark. Sources include:
 
 - arXiv:2509.22040 (AIShellJack), arXiv:2601.17548, arXiv:2602.10453, arXiv:2503.14281 (XOXO)
 - Pillar Security, Snyk ToxicSkills, IDEsaster (30+ CVEs), Cymulate InversePrompt
@@ -68,37 +68,41 @@ Attack categories: instruction override, credential harvesting, exfiltration, be
 
 ## Evaluation
 
-### Cross-Validated Metrics (Primary)
+### Adversarial Robustness Benchmark (Primary, v3)
 
-5-fold stratified cross-validation — the honest generalization estimate:
+185 adversarial payloads (9 categories + multilingual smoke) evaluated against 234 held-out benign samples. No training data overlap.
+
+**Recall (production mode, threshold 0.50):**
+
+| Category | Recall |
+|----------|:------:|
+| Encoding evasion | 100% |
+| Synonym substitution | 100% |
+| Homoglyph/Unicode | 95% |
+| Structural dilution | 95% |
+| Social engineering | 90% |
+| Truncation padding | 80% (requires sliding window) |
+| Counter-defensive | 80% |
+| Implicit instruction | 45% (structural limitation) |
+| Fragmentation | 20% (structural limitation; Tier 0 compensates) |
+
+**FPR (production mode, held-out eval):** 0-33% depending on content type. Best: config/env (0%), worst: agent instructions (33%), workflows (24%).
+
+### Cross-Validated Metrics (v2 dataset, 5,671 samples)
+
+5-fold stratified cross-validation on the original dataset:
 
 | Metric | Value |
 |--------|:-----:|
-| Accuracy | 95.70% ± 0.66% |
 | F1 | 95.80% ± 0.65% |
+| Accuracy | 95.70% ± 0.66% |
 | Precision | 96.23% ± 0.79% |
 | Recall | 95.37% ± 0.93% |
-
-### Full-Dataset Evaluation (Reference Only)
-
-These numbers include training samples and overstate generalization by ~3pp:
-
-| Metric | Value |
-|--------|:-----:|
-| Accuracy | 98.97% |
-| F1 | 99.08% |
-| Precision | 99.19% |
-| Recall | 98.98% |
-| False Positive Rate | 1.04% |
-
-**Adversarial evaluation** (26 crafted attacks by informed attacker): 81% model-only detection rate. Known evasions: truncation, dilution in long code blocks, ROT13, fragmentation. Combined with Tier 0 regex: higher effective rate.
-
-**Out-of-distribution evaluation** (144 MCP tool result samples from [ferentin-net/mcp-guard](https://github.com/ferentin-net/mcp-guard)): 100% recall, 43% FPR. Attack patterns generalize across domains; benign class is domain-specific.
 
 ## Limitations
 
 - **Multilingual:** Limited non-English training data (~30 samples). Lower recall for non-English attacks.
-- **256-token window:** Content beyond 256 WordPiece tokens is truncated.
+- **256-token window:** Content beyond 256 WordPiece tokens scanned via sliding window (256-token, 128-stride, max 16 chunks). Long benign files may produce false positives from context-free chunks.
 - **Mean-pooling dilution:** Mitigated by line-level code block scanning, but non-fenced prose dilution remains theoretical risk.
 - **Training bias:** Primarily English-language attacks from published research. Novel vectors may evade.
 - **Binary classification:** SUSPICIOUS is threshold-based (0.5-0.8), not a trained class.

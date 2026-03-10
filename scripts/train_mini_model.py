@@ -26,7 +26,7 @@ from transformers import AutoModel, AutoTokenizer, get_linear_schedule_with_warm
 # Paths
 # ---------------------------------------------------------------------------
 ROOT = Path(__file__).resolve().parent.parent
-DATASET_PATH = ROOT / "data" / "training" / "dataset.jsonl"
+DATASET_PATH_DEFAULT = ROOT / "data" / "training" / "dataset.jsonl"
 MODEL_DIR = ROOT / "src" / "cloneguard" / "model"
 ONNX_PATH = MODEL_DIR / "mini_semantic.onnx"
 BASE_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
@@ -248,6 +248,13 @@ def verify_onnx(model_cpu: nn.Module, tokenizer) -> None:
 # ---------------------------------------------------------------------------
 
 def main() -> None:
+    import argparse
+    parser = argparse.ArgumentParser(description="Train Tier 1.5 classifier")
+    parser.add_argument("--dataset", type=Path, default=DATASET_PATH_DEFAULT,
+                        help="Path to JSONL training dataset")
+    args = parser.parse_args()
+    dataset_path = args.dataset
+
     torch.manual_seed(SEED)
     np.random.seed(SEED)
 
@@ -255,8 +262,8 @@ def main() -> None:
     print(f"Device: {device}")
 
     # Load data -----------------------------------------------------------
-    print(f"Loading dataset from {DATASET_PATH} ...")
-    texts, labels = load_dataset(DATASET_PATH)
+    print(f"Loading dataset from {dataset_path} ...")
+    texts, labels = load_dataset(dataset_path)
     print(f"  Total samples: {len(texts)}  (malicious={sum(labels)}, benign={len(labels)-sum(labels)})")
 
     train_texts, val_texts, train_labels, val_labels = train_test_split(

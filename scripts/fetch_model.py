@@ -23,9 +23,9 @@ from pathlib import Path
 MODEL_DIR = Path(__file__).resolve().parent.parent / "src" / "cloneguard" / "model"
 ONNX_PATH = MODEL_DIR / "mini_semantic.onnx"
 
-# Pinned SHA-256 of the current production model (v2, trained on 5,671 samples).
+# Pinned SHA-256 of the current production model (v3, trained on 6,340 samples).
 # Update this hash after retraining: shasum -a 256 src/cloneguard/model/mini_semantic.onnx
-EXPECTED_SHA256 = "a04beb8bc4c83712d1d9d5756342a5ff8ea275244104f23712fef49149928a3c"
+EXPECTED_SHA256 = "a9fa4f35a1d3261065f36426828f178242940e77e4fe2e208ad2f5410892374f"
 
 # HuggingFace direct download URL (resolve endpoint, follows to CDN).
 HF_REPO = "prodnull/minilm-prompt-injection-classifier"
