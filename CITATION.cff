@@ -13,7 +13,7 @@ authors:
 url: "https://github.com/prodnull/cloneguard"
 repository-code: "https://github.com/prodnull/cloneguard"
 license: "Apache-2.0"
-version: "0.2.0"
+version: "0.2.1"
 date-released: "2026-03-09"
 keywords:
   - prompt-injection
