@@ -48,9 +48,9 @@ Plans:
 **Plans:** 3/3 plans complete
 
 Plans:
-- [ ] 02-01-PLAN.md — Create PWWS augmentation script + FreeLB training modifications + dual-output ONNX export
-- [ ] 02-02-PLAN.md — Execute 2-3 augmentation rounds with ASR gate, produce hardened v4 model
-- [ ] 02-03-PLAN.md — Mahalanobis detector + pipeline integration + benchmark + latency verification
+- [x] 02-01-PLAN.md — Create PWWS augmentation script + FreeLB training modifications + dual-output ONNX export
+- [x] 02-02-PLAN.md — Execute 2-3 augmentation rounds with ASR gate, produce hardened v4 model
+- [x] 02-03-PLAN.md — Mahalanobis detector + pipeline integration + benchmark + latency verification
 
 > **NOTE:** Success criteria are targets derived from literature projections (A2T, Yoo & Qi 2021; Lee et al. 2018; Yoo et al. 2022). If empirical results fall short, document actual improvement and proceed to Phase 3 with honest numbers. Do not cherry-pick thresholds post-hoc.
 
