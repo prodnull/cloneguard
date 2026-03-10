@@ -26,7 +26,11 @@ This milestone adds a second ONNX classifier (DeBERTa-v3-small) to the existing 
   2. Transfer rate to ProtectAI DeBERTa proxy model is measured and recorded as a numeric percentage with methodology documented
   3. Gate decision is made and documented: transfer rate at or below 40% = proceed to Phase 2; above 40% = pivot path documented and published regardless
   4. Results published honestly — transfer rate, attack method, proxy model identity, and limitations of proxy-vs-fine-tuned comparison all disclosed
-**Plans**: TBD
+**Plans:** 2 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Create isolated venv and transfer experiment script (ONNX wrapper, PWWS + TextFooler attacks, DeBERTa proxy scoring)
+- [ ] 01-02-PLAN.md — Run full experiment on 185 samples, produce gate decision, user review
 
 > **HARD GATE:** If transfer rate >40%, Phase 2 does not begin. Pivot options and published results replace the remainder of this milestone. Document and publish regardless of outcome.
 
@@ -73,7 +77,7 @@ This milestone adds a second ONNX classifier (DeBERTa-v3-small) to the existing 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Transferability Gate | 0/TBD | Not started | - |
+| 1. Transferability Gate | 0/2 | Planning complete | - |
 | 2. DeBERTa Training and ONNX Export | 0/TBD | Not started | - |
 | 3. Ensemble Integration | 0/TBD | Not started | - |
 | 4. Adversarial Benchmark and Publication | 0/TBD | Not started | - |
