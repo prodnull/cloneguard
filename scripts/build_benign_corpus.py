@@ -45,22 +45,46 @@ AGENT_MARKERS = [
 # Search queries designed to find repos with agent instruction files.
 # Each query targets a different ecosystem to diversify the corpus.
 SEARCH_QUERIES: list[dict[str, str]] = [
-    # AI/ML projects
+    # AI/ML projects with agent instructions
     {"query": "CLAUDE.md language:python stars:>100", "label": "ai-py"},
     {"query": "CLAUDE.md language:typescript stars:>100", "label": "ai-ts"},
     {"query": ".cursorrules in:path stars:>100", "label": "cursor"},
     {"query": "copilot-instructions in:path stars:>100", "label": "copilot"},
     {"query": "GEMINI.md in:path stars:>100", "label": "gemini"},
+    # Lower star threshold for agent-instruction repos
+    {"query": "CLAUDE.md language:python stars:>30", "label": "ai-py-30"},
+    {"query": "CLAUDE.md language:typescript stars:>30", "label": "ai-ts-30"},
+    {"query": ".cursorrules language:python stars:>30", "label": "cursor-py-30"},
+    {"query": ".cursorrules language:typescript stars:>30", "label": "cursor-ts-30"},
+    {"query": ".cursorrules language:go stars:>30", "label": "cursor-go-30"},
+    {"query": ".cursorrules language:rust stars:>30", "label": "cursor-rs-30"},
     # Developer tools
     {"query": "CLAUDE.md topic:developer-tools stars:>50", "label": "devtools"},
     {"query": ".cursorrules topic:cli stars:>50", "label": "cli-cursor"},
+    {"query": "CLAUDE.md topic:api stars:>50", "label": "api"},
     # Web frameworks
     {"query": "CLAUDE.md topic:web stars:>100", "label": "web"},
-    {"query": ".cursorrules topic:react stars:>100", "label": "react"},
+    {"query": ".cursorrules topic:react stars:>50", "label": "react"},
     {"query": ".cursorrules topic:nextjs stars:>50", "label": "nextjs"},
+    {"query": ".cursorrules topic:vue stars:>50", "label": "vue"},
+    {"query": ".cursorrules topic:svelte stars:>30", "label": "svelte"},
     # Security tooling
     {"query": "CLAUDE.md topic:security stars:>50", "label": "security"},
     {"query": ".cursorrules topic:security stars:>50", "label": "sec-cursor"},
+    # Infrastructure / DevOps
+    {"query": "CLAUDE.md topic:docker stars:>30", "label": "docker"},
+    {"query": ".cursorrules topic:kubernetes stars:>30", "label": "k8s"},
+    {"query": "CLAUDE.md topic:terraform stars:>30", "label": "terraform"},
+    # Data / ML
+    {"query": ".cursorrules topic:machine-learning stars:>50", "label": "ml"},
+    {"query": "CLAUDE.md topic:data-science stars:>30", "label": "datascience"},
+    # Mobile
+    {"query": ".cursorrules topic:flutter stars:>30", "label": "flutter"},
+    {"query": ".cursorrules topic:react-native stars:>30", "label": "rn"},
+    # Languages without agent files (broader diversity)
+    {"query": "CLAUDE.md language:go stars:>50", "label": "go"},
+    {"query": "CLAUDE.md language:rust stars:>50", "label": "rust"},
+    {"query": "CLAUDE.md language:java stars:>50", "label": "java"},
 ]
 
 # ─── File extraction rules ────────────────────────────────────────────────
