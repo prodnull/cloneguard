@@ -45,7 +45,12 @@ Plans:
   2. Clean accuracy (5-fold CV) does not drop below 94.5% (currently 95.51% ± 0.53%)
   3. Mahalanobis detector flags ≥60% of successful adversarial examples at ≤5% FPR on the 234-sample benign eval set
   4. Combined pipeline latency (Tier 0 + hardened Tier 1.5 + Mahalanobis) under 25ms per sample on Apple M-series CPU
-**Plans**: TBD
+**Plans:** 3 plans
+
+Plans:
+- [ ] 02-01-PLAN.md — Create PWWS augmentation script + FreeLB training modifications + dual-output ONNX export
+- [ ] 02-02-PLAN.md — Execute 2-3 augmentation rounds with ASR gate, produce hardened v4 model
+- [ ] 02-03-PLAN.md — Mahalanobis detector + pipeline integration + benchmark + latency verification
 
 > **NOTE:** Success criteria are targets derived from literature projections (A2T, Yoo & Qi 2021; Lee et al. 2018; Yoo et al. 2022). If empirical results fall short, document actual improvement and proceed to Phase 3 with honest numbers. Do not cherry-pick thresholds post-hoc.
 
@@ -78,5 +83,5 @@ The following phases from the original roadmap were replaced after the Phase 1 g
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Transferability Gate | 2/2 | Complete (PIVOT) | 2026-03-10 |
-| 2. Adversarial Hardening | 0/TBD | Not started | - |
+| 2. Adversarial Hardening | 0/3 | Planned | - |
 | 3. Adversarial Benchmark and Publication | 0/TBD | Not started | - |
