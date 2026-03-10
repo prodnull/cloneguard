@@ -14,8 +14,11 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 | Tokenizer | WordPiece, max 256 tokens |
 | Cross-validated F1 (v2) | 95.80% ± 0.65% (5-fold CV, original 5,671 samples) |
 | Cross-validated F1 (v3) | 95.51% ± 0.53% (5-fold CV, augmented 6,340 samples) |
+| Cross-validated accuracy (v4) | 94.51% ± 0.67% (5-fold CV, adversarially hardened 6,472 samples) |
+| Cross-validated F1 (v4) | 94.34% ± 0.77% (5-fold CV, adversarially hardened 6,472 samples) |
 | Validation accuracy (v3) | 96.21% (augmented dataset, 80/20 split) |
-| Inference speed | ~16 ms/sample (Apple M-series CPU) |
+| Inference speed | ~16 ms/sample (Apple M-series CPU); p95 16.61 ms |
+| ONNX outputs | logits (classification) + cls_embedding (Mahalanobis anomaly detection) |
 | Dependencies | `onnxruntime>=1.17`, `transformers>=4.36`, `numpy>=1.26` |
 
 ## Role in Detection Architecture
@@ -45,6 +48,72 @@ Tier 0 catches truncation (80%) and fragmentation (20%) attacks that the semanti
 Tier 1.5 is the primary semantic defense. It runs when `--tier2` is enabled (or automatically in the Layer 0 wrapper). If onnxruntime is not installed, the system falls back to Tier 2 (Ollama). If neither is available, only Tier 0 regex runs.
 
 Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) (`.whl` includes the ONNX model).
+
+## Adversarial Training (v4)
+
+### Method: PWWS Augmentation + FreeLB
+
+v4 applies two rounds of adversarial hardening to raise the cost of vocabulary-based
+evasion attacks (PWWS, TextFooler-style synonym substitution):
+
+**PWWS (Probability Weighted Word Saliency) augmentation:** For each sample the model
+currently classifies correctly, PWWS identifies the most influential tokens and substitutes
+them with semantically similar alternatives to flip the model's prediction. Successful
+adversarial examples are added to the training set.
+
+**FreeLB (Free Large-Batch) adversarial training:** During each training step, small
+l-infinity-norm perturbations are applied to the input embeddings (epsilon=0.1, K=3 PGD
+gradient accumulation steps). The model is trained to be consistent across perturbations
+near each sample, tightening the decision boundary.
+
+### Hardening Rounds
+
+| Round | PWWS gen ASR | Samples added | Benchmark ASR | Benchmark recall |
+|-------|:------------:|:-------------:|:-------------:|:----------------:|
+| Baseline (v3) | 65.7%\* | — | 20.0%† | 80.0% |
+| Round 1 | 65.7% | 88 | 24.9% | 75.1% |
+| Round 2 | 31.7% | 44 | **20.0%** | **80.0%** |
+| Final (v4) | — | — | **9.7%**‡ | **90.3%**‡ |
+
+\*v3 generation ASR estimated from round 1 starting conditions.
+†v3 benchmark ASR measured at round 2 start.
+‡v4 numbers from Phase 3 hardened benchmark (757-sample benign eval, full pipeline).
+
+Round 3 was skipped: ASR gate (≤35%) passed after round 2 (20.0%).
+
+PWWS generation ASR progression (65.7% → 31.7%) confirms hardening: the model learned
+to resist PWWS-style synonym substitution across two iterations.
+
+### Adversarial Robustness (v4)
+
+From the hardened benchmark (185 adversarial payloads, v4 model):
+
+| Metric | Value |
+|--------|:-----:|
+| Overall recall | 90.3% |
+| ASR (all categories) | 9.7% |
+| ASR (vocabulary attacks: encoding + synonym + homoglyph) | 0.0% |
+| Adaptive PWWS ASR (test-time, fresh adversary) | 20.3% (CI: 14.6%–27.5%) |
+| Latency p95 | 16.61 ms |
+
+The adaptive ASR (20.3%) is higher than the benchmark ASR (9.7%) because it measures a
+fresh PWWS adversary against the fully-trained v4 model, rather than the training-time
+measurement. See `docs/SECURITY.md` for full discussion.
+
+### Mahalanobis Anomaly Detection
+
+v4 exports cls_embedding as a second ONNX output, enabling Mahalanobis distance anomaly
+detection. The detector is calibrated on the training set (threshold 20.78, 99th percentile).
+
+Results on the adversarial corpus:
+- Detection rate: **2.7%** (5/185 samples)
+- FPR: **1.2%** (9/757 benign samples)
+- Distribution overlap: benign mean 17.59, malicious mean 17.21
+
+The detection rate did not meet the target (60%). PWWS adversarial examples preserve
+semantic similarity by construction — the CLS distributions do not separate sufficiently
+for Mahalanobis scoring to be effective. Applied only in single-chunk classify() path;
+calibration domain (single-chunk training samples) must match inference domain.
 
 ## Benchmark Results
 
@@ -109,7 +178,13 @@ Tier 2 (Ollama qwen2.5:7b) was evaluated on a balanced random sample of 200 item
 
 ### Composition
 
-6,340 labeled samples: 3,033 malicious (47.8%), 3,307 benign (52.2%). Balance ratio 0.92:1. The original 5,671 samples are published on Hugging Face: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset). The v3 augmentation added 669 samples in two rounds targeting out-of-distribution FPR and adversarial robustness gaps identified by the adversarial benchmark.
+**v4 (current): 6,472 labeled samples** — 3,165 malicious (48.9%), 3,307 benign (51.1%).
+v4 adds 132 PWWS adversarial samples (88 in round 1 + 44 in round 2) to the v3 base.
+The adversarial augmentation raised malicious recall while maintaining benign precision.
+
+v3: 6,340 samples (3,033 malicious / 3,307 benign). Balance ratio 0.92:1.
+
+The original 5,671 samples (v2) are published on Hugging Face: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset). The v3 augmentation added 669 samples in two rounds targeting out-of-distribution FPR and adversarial robustness gaps identified by the adversarial benchmark.
 
 ### Sources
 
@@ -251,7 +326,18 @@ Confidence is reported as the probability of the predicted class (malicious_prob
 
 ### Training Results
 
-**v3 model (current, 6,340 samples):**
+**v4 model (current, 6,472 samples — adversarially hardened):**
+
+| Metric | Value |
+|--------|:-----:|
+| Cross-validated accuracy | 94.51% ± 0.67% |
+| Cross-validated F1 | 94.34% ± 0.77% |
+| Cross-validated precision | 95.04% ± 1.20% |
+| Cross-validated recall | 93.68% ± 1.77% |
+| Cross-validated FPR | 4.69% ± 1.55% |
+| Validation accuracy (80/20 split) | 95.44% |
+
+**v3 model (6,340 samples):**
 
 | Metric | Value |
 |--------|:-----:|

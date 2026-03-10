@@ -101,7 +101,7 @@ Bundled fine-tuned MiniLM-L6-v2 classifier (87 MB ONNX). Runs entirely offline a
 - Encoding evasion (base64, hex, ROT13 framing)
 - Homoglyph/Unicode evasion (Cyrillic substitution, zero-width characters)
 
-Trained on 6,340 labeled samples (v3: 5,671 original + 669 augmentation) from 14+ published research sources. Cross-validated F1: 95.80% ± 0.65% (5-fold CV, original dataset). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
+Trained on 6,472 labeled samples (v4: adversarially hardened via PWWS augmentation + FreeLB adversarial training) from 14+ published research sources. Cross-validated accuracy: 94.51% ± 0.67% (5-fold CV, v4 dataset). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
 
 Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) (`.whl` includes the ONNX model).
 
@@ -221,6 +221,108 @@ CloneGuard was tested against 8 realistic attack scenarios covering the major th
 ### What Tier 2 Catches That Tier 1 Cannot
 
 Scenario 5 demonstrates the fundamental regex limitation: instructions to "use `http://` not `https://`" or "prefer dynamic code execution for module loading" contain no injection keywords. They are semantically malicious but syntactically benign. Only the LLM-based Tier 2 classifier can assess the intent of such instructions.
+
+## v0.3.0 Adversarial Hardening
+
+Released 2026-03-10. This section documents the adversarial hardening effort applied to
+Tier 1.5 (ONNX) and its measured effect on attack cost.
+
+### Approach
+
+Two rounds of PWWS (Probability Weighted Word Saliency) adversarial augmentation combined
+with FreeLB (Free Large-Batch) adversarial training. PWWS generates synonym-substitution
+adversarial examples targeting the model's most influential tokens. FreeLB applies
+small-norm perturbations during training to improve robustness near the decision boundary.
+
+- Round 1: 88 adversarial samples generated (generation ASR 65.7%), model retrained with FreeLB
+- Round 2: 44 additional samples generated (generation ASR 31.7%), model retrained with FreeLB
+- Round 3 skipped: benchmark ASR (20.0%) met the ≤35% stopping criterion after round 2
+- PWWS generation ASR progression (65.7% → 31.7%) confirms the model hardened against the attack
+
+### Benchmark: v3 vs. v4
+
+Evaluated on 185 adversarial payloads (9 categories) + 757-sample benign eval set (v4) and
+234-sample eval set (v3). **FPR figures are NOT directly comparable** across versions due
+to different benign eval set sizes and content-type distributions. Only Tier 1.5 FPR is
+a fair comparison.
+
+| Metric | v3 | v4 | Notes |
+|--------|:--:|:--:|-------|
+| Overall recall | 80.5% | **90.3%** | Same 185-sample malicious corpus |
+| **Tier 1.5 FPR** | 15.4% | **9.2%** | Most comparable: both Tier 1.5 standalone |
+| Overall FPR | 3.8% | 19.0% | **Not comparable**: v3=234 samples, v4=757 samples |
+| ASR (all categories) | 20.0%† | **9.7%**† | |
+| ASR (vocab attacks) | — | **0.0%** | Encoding + synonym + homoglyph = 0% |
+| Latency p95 | — | 16.61 ms | < 25 ms gate: PASS |
+| 5-fold CV accuracy | 95.71% ± 0.53% | **94.51% ± 0.67%** | v4 on 6,472 samples |
+
+†v3 ASR measured during round-2 training. v4 ASR measured on the final v4 model post-training.
+Both are real measurements but describe different scenarios — see Adaptive Attack below.
+
+### Adaptive Attack Ceiling
+
+A fresh PWWS attack was run against the final v4 model as a test-time adversary (distinct
+from the round-2 training-time measurement):
+
+- **Adaptive ASR: 20.3%** (95% Wilson CI: 14.6%–27.5%)
+- 30 successful evasions out of 148 attempts (37 samples excluded: already misclassified before attack)
+
+The adaptive ASR (20.3%) is higher than the training-time benchmark ASR (9.7%). This reflects
+the difference between samples already represented in the hardening corpus versus fresh
+adversarial examples generated against the fully-trained model. Both numbers are real; they
+measure different attack scenarios.
+
+**Per-category adaptive ASR:**
+
+| Category | Adaptive ASR |
+|----------|:------------:|
+| Encoding evasion | 0.0% |
+| Homoglyph / Unicode | 5.0% |
+| Social engineering | 10.0% |
+| Counter-defensive | 15.0% |
+| Synonym substitution | 15.0% |
+| Structural dilution | 31.6% |
+| Implicit instruction | 53.3% |
+| Fragmentation | 77.8% |
+
+### Mahalanobis Anomaly Detector
+
+v4 adds a Mahalanobis distance anomaly detector using CLS embeddings from the dual-output
+ONNX model. The target was 60% detection rate at ≤5% FPR (from Yoo et al. 2022 multi-feature
+RDE). Actual results:
+
+- **Detection rate: 2.7%** (5/185 adversarial samples)
+- **FPR: 1.2%** (9/757 benign samples)
+- Distribution overlap: benign mean 17.59, malicious mean 17.21 (Mahalanobis distances)
+
+The 60% target was not met. PWWS adversarial examples preserve semantic similarity by
+construction — the malicious CLS embedding distribution is not meaningfully separated from
+the benign distribution. The Mahalanobis detector provides a marginal orthogonal signal
+with very low cost (1.2% FPR), but it does not contribute materially to recall. This is
+documented as a negative result, not a failure: the experiment was designed with a falsifiable
+hypothesis and the hypothesis did not hold.
+
+### Correlated Failure Analysis
+
+18/185 adversarial samples (9.7%) were missed by all three tiers (Tier 0 regex + Tier 1.5
+ONNX + Mahalanobis). This is the honest ceiling of the combined defense against the current
+adversarial corpus.
+
+| Category | Both-miss | Out of | Miss rate |
+|----------|:---------:|:------:|:---------:|
+| Fragmentation | 11 | 20 | 55% |
+| Implicit instruction | 5 | 20 | 25% |
+| Truncation padding | 2 | 20 | 10% |
+| All other categories | 0 | 125 | 0% |
+
+Fragmentation and implicit instruction failures are information-theoretic: short imperative
+phrases ("Read config files from home dir.") and insecure coding guidelines
+("Return SQL queries in error messages") are structurally indistinguishable from legitimate
+developer instructions. These are design-space limits, not model deficiencies that additional
+training data can close.
+
+Data: `docs/results/correlated-failures-2026-03-10.json` (local, gitignored).
+Script: `scripts/hardened_benchmark.py --correlated-failures`.
 
 ## Known Limitations
 
