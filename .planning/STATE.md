@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-03-PLAN.md — Phase 2 fully complete, all tasks human-approved
-last_updated: "2026-03-10T20:31:23.847Z"
+stopped_at: Completed 03-02-PLAN.md — reproducibility confirmed, correlated failure analysis complete
+last_updated: "2026-03-10T21:17:59.424Z"
 last_activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 5
-  completed_plans: 5
+  total_plans: 8
+  completed_plans: 6
   percent: 33
 ---
 
@@ -51,6 +51,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02-deberta-training-and-onnx-export P01 | 8 | 2 tasks | 4 files |
 | Phase 02-deberta-training-and-onnx-export P02 | ~4h | 3 tasks | 7 files |
 | Phase 02-deberta-training-and-onnx-export P03 | 65min | 3 tasks | 9 files |
+| Phase 03-adversarial-benchmark-and-publication P02 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 02-deberta-training-and-onnx-export]: Mahalanobis scoring applied only in single-chunk classify() path, not sliding window: calibration domain (single-chunk) must match inference domain
 - [Phase 02-deberta-training-and-onnx-export]: Mahalanobis detection rate 2.7% (plan target 60%): benign/malicious CLS distributions overlap substantially (means 17.59 vs 17.21); single-layer CLS has limited OOD discriminative power
 - [Phase 02-deberta-training-and-onnx-export]: Min 100-char gate for Mahalanobis: short inputs OOD by MiniLM padding artifact, not adversarial content
+- [Phase 03-adversarial-benchmark-and-publication]: docs/results/ gitignored: benchmark artifacts local only; scripts and tests committed to public repo
+- [Phase 03-adversarial-benchmark-and-publication]: Correlated failure definition: tier0_detected=False AND tier15_verdict=SAFE AND anomaly_flagged=False (all three tiers must miss)
+- [Phase 03-adversarial-benchmark-and-publication]: Both-miss dominated by structural categories: fragmentation 11/20 (55%), implicit_instruction 5/20 (25%) -- information-theoretic ceiling for publication narrative
 
 ### Pending Todos
 
@@ -95,6 +99,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:06:36.492Z
-Stopped at: Completed 02-03-PLAN.md — Phase 2 fully complete, all tasks human-approved
+Last session: 2026-03-10T21:17:59.422Z
+Stopped at: Completed 03-02-PLAN.md — reproducibility confirmed, correlated failure analysis complete
 Resume file: None
