@@ -40,7 +40,6 @@ from train_mini_model import (
     BASE_MODEL,
     BATCH_SIZE,
     DATASET_PATH_DEFAULT,
-    LOG_EVERY,
     LR,
     MAX_SEQ_LEN,
     SEED,
@@ -50,7 +49,6 @@ from train_mini_model import (
     load_dataset,
     select_device,
 )
-
 from transformers import AutoTokenizer, get_linear_schedule_with_warmup
 
 
@@ -90,7 +88,7 @@ def train_one_fold(
             labels_b = batch["labels"].to(device)
 
             optimizer.zero_grad()
-            logits = model(ids, mask)
+            logits, _ = model(ids, mask)
             loss = criterion(logits, labels_b)
             loss.backward()
             optimizer.step()
@@ -113,7 +111,7 @@ def train_one_fold(
             ids = batch["input_ids"].to(device)
             mask = batch["attention_mask"].to(device)
             labels_b = batch["labels"].to(device)
-            logits = model(ids, mask)
+            logits, _ = model(ids, mask)
             probs = torch.softmax(logits, dim=1)
             preds = logits.argmax(dim=1)
             all_preds.extend(preds.cpu().numpy())
@@ -151,7 +149,9 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="K-fold cross-validation")
     parser.add_argument("--folds", type=int, default=5, help="Number of folds (default: 5)")
     parser.add_argument("--epochs", type=int, default=8, help="Epochs per fold (default: 8)")
-    parser.add_argument("--dataset", type=Path, default=DATASET_PATH_DEFAULT, help="Path to dataset JSONL")
+    parser.add_argument(
+        "--dataset", type=Path, default=DATASET_PATH_DEFAULT, help="Path to dataset JSONL"
+    )
     args = parser.parse_args()
 
     k = args.folds
@@ -168,7 +168,9 @@ def main() -> None:
     texts, labels = load_dataset(args.dataset)
     texts_arr = np.array(texts)
     labels_arr = np.array(labels)
-    print(f"Dataset: {len(texts)} samples ({sum(labels)} malicious, {len(labels) - sum(labels)} benign)")
+    n_mal = sum(labels)
+    n_ben = len(labels) - n_mal
+    print(f"Dataset: {len(texts)} samples ({n_mal} malicious, {n_ben} benign)")
 
     tokenizer = AutoTokenizer.from_pretrained(BASE_MODEL)
 
@@ -177,9 +179,9 @@ def main() -> None:
 
     t0 = time.time()
     for fold_idx, (train_idx, val_idx) in enumerate(skf.split(texts_arr, labels_arr), 1):
-        print(f"\n{'='*60}")
+        print(f"\n{'=' * 60}")
         print(f"Fold {fold_idx}/{k}  (train={len(train_idx)}, val={len(val_idx)})")
-        print(f"{'='*60}")
+        print(f"{'=' * 60}")
 
         train_texts = texts_arr[train_idx].tolist()
         train_labels = labels_arr[train_idx].tolist()
@@ -187,9 +189,14 @@ def main() -> None:
         val_labels = labels_arr[val_idx].tolist()
 
         result = train_one_fold(
-            train_texts, train_labels,
-            val_texts, val_labels,
-            tokenizer, device, epochs, fold_idx,
+            train_texts,
+            train_labels,
+            val_texts,
+            val_labels,
+            tokenizer,
+            device,
+            epochs,
+            fold_idx,
         )
         fold_results.append(result)
 
@@ -199,14 +206,16 @@ def main() -> None:
         print(f"    Precision: {result['precision']:.4f}")
         print(f"    Recall:    {result['recall']:.4f}")
         print(f"    FPR:       {result['fpr']:.4f}")
-        print(f"    Confusion: TP={result['tp']} FP={result['fp']} TN={result['tn']} FN={result['fn']}")
+        tp, fp = result["tp"], result["fp"]
+        tn, fn = result["tn"], result["fn"]
+        print(f"    Confusion: TP={tp} FP={fp} TN={tn} FN={fn}")
 
     elapsed = time.time() - t0
 
     # Aggregate
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"AGGREGATE ({k}-fold cross-validation)")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     metrics = ["accuracy", "f1", "precision", "recall", "fpr"]
     for m in metrics:
@@ -222,21 +231,21 @@ def main() -> None:
     total_fp = sum(r["fp"] for r in fold_results)
     total_tn = sum(r["tn"] for r in fold_results)
     total_fn = sum(r["fn"] for r in fold_results)
-    print(f"\n  Aggregate confusion matrix:")
+    print("\n  Aggregate confusion matrix:")
     print(f"    TP={total_tp}  FP={total_fp}")
     print(f"    FN={total_fn}  TN={total_tn}")
 
     # Comparison with reported numbers
-    print(f"\n{'='*60}")
-    print(f"OVERFITTING ASSESSMENT")
-    print(f"{'='*60}")
+    print(f"\n{'=' * 60}")
+    print("OVERFITTING ASSESSMENT")
+    print(f"{'=' * 60}")
     cv_f1 = np.mean([r["f1"] for r in fold_results])
     cv_acc = np.mean([r["accuracy"] for r in fold_results])
     print(f"  Cross-validated F1:       {cv_f1:.4f}")
     print(f"  Cross-validated accuracy: {cv_acc:.4f}")
-    print(f"  Reported full-dataset F1: 0.9908")
-    print(f"  Reported full-dataset acc: 0.9897")
-    print(f"  Single-split val acc:     0.9528")
+    print("  Reported full-dataset F1: 0.9908")
+    print("  Reported full-dataset acc: 0.9897")
+    print("  Single-split val acc:     0.9528")
     print()
     if cv_f1 > 0.97:
         print("  VERDICT: Model generalizes well. Full-dataset numbers are slightly")
@@ -248,26 +257,30 @@ def main() -> None:
         print("  VERDICT: Significant overfitting detected. Full-dataset numbers are")
         print("  unreliable. Cross-validated metrics should replace them in docs.")
 
-    print(f"\nTotal time: {elapsed:.0f}s ({elapsed/60:.1f} min)")
+    print(f"\nTotal time: {elapsed:.0f}s ({elapsed / 60:.1f} min)")
 
     # Save results
     results_dir = Path(__file__).resolve().parent.parent / "bench"
     results_dir.mkdir(exist_ok=True)
     results_path = results_dir / "kfold_results.json"
     with open(results_path, "w") as f:
-        json.dump({
-            "folds": k,
-            "epochs": epochs,
-            "seed": SEED,
-            "fold_results": fold_results,
-            "aggregate": {
-                m: {
-                    "mean": float(np.mean([r[m] for r in fold_results])),
-                    "std": float(np.std([r[m] for r in fold_results], ddof=1)),
-                }
-                for m in metrics
+        json.dump(
+            {
+                "folds": k,
+                "epochs": epochs,
+                "seed": SEED,
+                "fold_results": fold_results,
+                "aggregate": {
+                    m: {
+                        "mean": float(np.mean([r[m] for r in fold_results])),
+                        "std": float(np.std([r[m] for r in fold_results], ddof=1)),
+                    }
+                    for m in metrics
+                },
             },
-        }, f, indent=2)
+            f,
+            indent=2,
+        )
     print(f"Results saved to {results_path}")
 
 

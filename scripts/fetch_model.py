@@ -23,9 +23,9 @@ from pathlib import Path
 MODEL_DIR = Path(__file__).resolve().parent.parent / "src" / "cloneguard" / "model"
 ONNX_PATH = MODEL_DIR / "mini_semantic.onnx"
 
-# Pinned SHA-256 of the current production model (v3, trained on 6,340 samples).
+# Pinned SHA-256 of the current production model (v4, adversarially hardened — FreeLB + PWWS).
 # Update this hash after retraining: shasum -a 256 src/cloneguard/model/mini_semantic.onnx
-EXPECTED_SHA256 = "a9fa4f35a1d3261065f36426828f178242940e77e4fe2e208ad2f5410892374f"
+EXPECTED_SHA256 = "e7fb93add94c4eb3c7e094bc3ce466573aad3ac7433fbab29aa19a694c40edcf"
 
 # HuggingFace direct download URL (resolve endpoint, follows to CDN).
 HF_REPO = "prodnull/minilm-prompt-injection-classifier"
@@ -78,7 +78,9 @@ def download(path: Path) -> None:
     except urllib.error.HTTPError as e:
         if e.code == 401 or e.code == 403:
             print(f"AUTH ERROR ({e.code}): Set HF_TOKEN environment variable.")
-            print("  The model repo is gated. Get a token at https://huggingface.co/settings/tokens")
+            print(
+                "  The model repo is gated. Get a token at https://huggingface.co/settings/tokens"
+            )
             sys.exit(1)
         raise
     with resp_ctx as resp:
