@@ -10,7 +10,7 @@ This milestone adds a second ONNX classifier (DeBERTa-v3-small) to the existing 
 - Integer phases (1, 2, 3, 4): Planned milestone work for v0.3.0
 - Decimal phases: Urgent insertions if needed (marked INSERTED)
 
-- [ ] **Phase 1: Transferability Gate** - Empirically validate that white-box adversarial examples against MiniLM do not transfer effectively to DeBERTa (hard gate: >40% = pivot)
+- [x] **Phase 1: Transferability Gate** - Empirically validate that white-box adversarial examples against MiniLM do not transfer effectively to DeBERTa (hard gate: >40% = pivot) (completed 2026-03-10)
 - [ ] **Phase 2: DeBERTa Training and ONNX Export** - Fine-tune DeBERTa-v3-small on differentially augmented dataset and export to INT8 ONNX with automated sanity check
 - [ ] **Phase 3: Ensemble Integration** - Wire parallel-vote ensemble into hooks, scanner, and MCP plugin with four-state graceful degradation
 - [ ] **Phase 4: Adversarial Benchmark and Publication** - Run full ensemble adversarial benchmark (non-adaptive + adaptive attacks), publish results with honest framing
@@ -26,7 +26,7 @@ This milestone adds a second ONNX classifier (DeBERTa-v3-small) to the existing 
   2. Transfer rate to ProtectAI DeBERTa proxy model is measured and recorded as a numeric percentage with methodology documented
   3. Gate decision is made and documented: transfer rate at or below 40% = proceed to Phase 2; above 40% = pivot path documented and published regardless
   4. Results published honestly — transfer rate, attack method, proxy model identity, and limitations of proxy-vs-fine-tuned comparison all disclosed
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 01-01-PLAN.md — Create isolated venv and transfer experiment script (ONNX wrapper, PWWS + TextFooler attacks, DeBERTa proxy scoring)
@@ -77,7 +77,7 @@ Plans:
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Transferability Gate | 0/2 | Planning complete | - |
+| 1. Transferability Gate | 2/2 | Complete   | 2026-03-10 |
 | 2. DeBERTa Training and ONNX Export | 0/TBD | Not started | - |
 | 3. Ensemble Integration | 0/TBD | Not started | - |
 | 4. Adversarial Benchmark and Publication | 0/TBD | Not started | - |

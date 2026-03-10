@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-transferability-gate/01-01-PLAN.md
-last_updated: "2026-03-10T14:41:22.548Z"
+stopped_at: Completed 01-transferability-gate/01-02-PLAN.md
+last_updated: "2026-03-10T15:12:58.004Z"
 last_activity: 2026-03-10 — Roadmap created, milestone v0.3.0 initialized
 progress:
   total_phases: 4
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -47,6 +47,7 @@ Progress: [░░░░░░░░░░] 0%
 
 *Updated after each plan completion*
 | Phase 01-transferability-gate P01 | 8 | 2 tasks | 2 files |
+| Phase 01-transferability-gate P02 | ~90min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Recent decisions affecting current work:
 - [Phase 01-transferability-gate]: TextFooler-BERTScore: substituted BERTScore for UniversalSentenceEncoder to avoid TensorFlow dependency
 - [Phase 01-transferability-gate]: DeBERTa id2label loaded dynamically from model config (not hard-coded); verified: {0: SAFE, 1: INJECTION}
 - [Phase 01-transferability-gate]: Pre-filter corpus to MiniLM-detected samples (score > 0.5) for transfer rate measurement on detectable inputs
+- [Phase 01-transferability-gate]: PIVOT: ensemble (MiniLM + DeBERTa) abandoned — 58.0% transfer rate (CI: 47.5%–67.7%) exceeds 40% gate; failure is structural (fragmentation/implicit_instruction/truncation at 100% transfer), not model-specific
+- [Phase 01-transferability-gate]: TextFooler-BERTScore not executed (silent failure on sample 0); PWWS-only result is conservative — pivot is stronger, not weaker
 
 ### Pending Todos
 
@@ -76,6 +79,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T14:41:22.546Z
-Stopped at: Completed 01-transferability-gate/01-01-PLAN.md
+Last session: 2026-03-10T15:12:58.002Z
+Stopped at: Completed 01-transferability-gate/01-02-PLAN.md
 Resume file: None
