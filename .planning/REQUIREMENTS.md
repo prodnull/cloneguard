@@ -14,8 +14,8 @@
 
 ### Adversarial Hardening (Replaces Second Classifier + Ensemble)
 
-- [ ] **HARD-01**: Generate PWWS adversarial examples against MiniLM v3 using TextAttack, add to training set with correct labels, retrain (2-3 augmentation rounds)
-- [ ] **HARD-02**: Implement FreeLB embedding perturbation AT in `scripts/train_mini_model.py` training loop (configurable ε, K=3 PGD steps)
+- [x] **HARD-01**: Generate PWWS adversarial examples against MiniLM v3 using TextAttack, add to training set with correct labels, retrain (2-3 augmentation rounds)
+- [x] **HARD-02**: Implement FreeLB embedding perturbation AT in `scripts/train_mini_model.py` training loop (configurable ε, K=3 PGD steps)
 - [ ] **HARD-03**: Fit per-class Mahalanobis detector on MiniLM CLS embeddings from training data, integrate into scan pipeline (`mini_semantic.py` or new module) with configurable threshold
 - [ ] **HARD-04**: Re-run adversarial benchmark (185 malicious + 234 benign) with hardened pipeline, publish before/after comparison to `docs/results/`
 - [ ] **HARD-05**: Verify combined pipeline latency (Tier 0 + hardened Tier 1.5 + Mahalanobis) under 25ms per sample on Apple M-series CPU
@@ -67,8 +67,8 @@ The following requirements were part of the original ensemble plan and are super
 | XFER-01 | Phase 1 | Complete |
 | XFER-02 | Phase 1 | Complete |
 | XFER-03 | Phase 1 | Complete |
-| HARD-01 | Phase 2 | Pending |
-| HARD-02 | Phase 2 | Pending |
+| HARD-01 | Phase 2 | Complete |
+| HARD-02 | Phase 2 | Complete |
 | HARD-03 | Phase 2 | Pending |
 | HARD-04 | Phase 2 | Pending |
 | HARD-05 | Phase 2 | Pending |

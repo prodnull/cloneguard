@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-10T16:39:17.929Z"
+stopped_at: Completed 02-01-PLAN.md (PWWS augmentation + FreeLB + dual-output ONNX)
+last_updated: "2026-03-10T17:33:42.343Z"
 last_activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 progress:
   total_phases: 3
   completed_phases: 1
-  total_plans: 2
-  completed_plans: 2
+  total_plans: 5
+  completed_plans: 3
   percent: 33
 ---
 
@@ -48,6 +48,7 @@ Progress: [███░░░░░░░] 33%
 *Updated after each plan completion*
 | Phase 01-transferability-gate P01 | 8 | 2 tasks | 2 files |
 | Phase 01-transferability-gate P02 | ~90min | 2 tasks | 2 files |
+| Phase 02-deberta-training-and-onnx-export P01 | 8 | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -66,6 +67,9 @@ Recent decisions affecting current work:
 - [Phase 01-transferability-gate]: TextFooler-BERTScore not executed (silent failure on sample 0); PWWS-only result is conservative — pivot is stronger, not weaker
 - [Pivot]: 12 alternative defenses evaluated. Adversarial hardening (AT + Mahalanobis) selected over second classifier, certified defenses, randomized smoothing, ensemble diversity, and others. Survey: docs/results/pivot-alternatives-survey-2026-03-10.md
 - [Pivot]: Roadmap reduced from 4 phases to 3. Original Phases 2-4 (DeBERTa, ensemble, ensemble benchmark) → Phase 2 (adversarial hardening) + Phase 3 (benchmark + publication)
+- [Phase 02-01]: dynamo=False in torch.onnx.export — PyTorch 2.9 dynamo exporter fails to propagate dynamic batch axis through LayerNorm; TorchScript exporter handles opset 18 dynamic axes correctly
+- [Phase 02-01]: PromptInjectionClassifier.forward() returns (logits, cls_embedding) tuple — enables dual-output ONNX for Mahalanobis anomaly detection in Plan 02-03
+- [Phase 02-01]: MiniLMOnnxWrapper copied in generate_pwws_augmentation.py (not imported) — .venv-transfer and .venv have incompatible installed packages, deliberate isolation
 
 ### Pending Todos
 
@@ -81,6 +85,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T16:39:17.925Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-deberta-training-and-onnx-export/02-CONTEXT.md
+Last session: 2026-03-10T17:33:42.340Z
+Stopped at: Completed 02-01-PLAN.md (PWWS augmentation + FreeLB + dual-output ONNX)
+Resume file: None
