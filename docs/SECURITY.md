@@ -76,6 +76,20 @@ Gates dangerous operations before they execute:
 
 **YOLO mode escalation:** When `--dangerously-skip-permissions` is detected, MEDIUM findings are escalated to HIGH, increasing block probability.
 
+### Multi-Tier Pipeline Performance
+
+When Tier 1 (regex) and Tier 1.5 (ONNX) run together in production mode, the tiers compensate for each other's weaknesses. Evaluated on 185 adversarial payloads + 234 held-out benign samples:
+
+| Metric | Tier 0 alone | Tier 1.5 alone | Combined Pipeline |
+|--------|:------:|:--------:|:------:|
+| Recall | 31.9% | 78.4% | **80.5%** |
+| FPR | 9.8% | 15.4% | 22.2% |
+| False block rate | — | — | **3.8%** |
+| False warning rate | — | — | 18.4% |
+| Clean pass rate | — | — | 77.8% |
+
+Tier 0 catches truncation (80%) and fragmentation (20%) attacks that the semantic classifier misses. Tier 1.5 catches synonym substitution (100%) and encoding evasion (100%) that regex cannot touch. See `scripts/multitier_benchmark.py` for reproduction.
+
 ### Tier 1.5: Mini Semantic Model (ONNX)
 
 Bundled fine-tuned MiniLM-L6-v2 classifier (87 MB ONNX). Runs entirely offline at ~16 ms/sample. Catches what regex cannot:
@@ -87,7 +101,7 @@ Bundled fine-tuned MiniLM-L6-v2 classifier (87 MB ONNX). Runs entirely offline a
 - Encoding evasion (base64, hex, ROT13 framing)
 - Homoglyph/Unicode evasion (Cyrillic substitution, zero-width characters)
 
-Trained on 5,671 labeled samples from 14+ published research sources (v2 dataset: mislabels removed, long benign hard negatives added). Cross-validated F1: 95.80% ± 0.65% (5-fold CV). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
+Trained on 6,340 labeled samples (v3: 5,671 original + 669 augmentation) from 14+ published research sources. Cross-validated F1: 95.80% ± 0.65% (5-fold CV, original dataset). Hyperparameters selected via 192-configuration grid search. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md) for full model documentation.
 
 Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) (`.whl` includes the ONNX model).
 

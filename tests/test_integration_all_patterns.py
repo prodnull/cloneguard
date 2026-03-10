@@ -147,7 +147,7 @@ PAYLOADS: dict[str, tuple[str, str]] = {
     ),
     # CI-004: permissions:\s*\n\s*(?:contents|...) : write
     "CI-004": (
-        ".github/workflows/ci.yml",
+        "CLAUDE.md",
         "permissions:\n  contents: write",
     ),
     # CI-005: \b(?:claude|...)\b.{0,40}(?:--dangerously|--yolo|...)
@@ -157,7 +157,7 @@ PAYLOADS: dict[str, tuple[str, str]] = {
     ),
     # CI-006: (?:uses|image)\s*:\s*..@(?!sha256:)
     "CI-006": (
-        ".github/workflows/ci.yml",
+        "CLAUDE.md",
         "uses: actions/checkout@v4",
     ),
     # -- Dangerous Agent Flags (dangerous_agent_flags.yaml) --

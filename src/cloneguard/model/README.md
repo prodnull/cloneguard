@@ -68,7 +68,17 @@ Attack categories: instruction override, credential harvesting, exfiltration, be
 
 ## Evaluation
 
-### Adversarial Robustness Benchmark (Primary, v3)
+### Multi-Tier Pipeline (Primary, v3)
+
+When combined with Tier 0 regex (191 patterns), the tiers compensate for each other. Evaluated on 185 adversarial payloads + 234 held-out benign samples (production mode):
+
+| Metric | Tier 0 alone | Tier 1.5 alone | Combined Pipeline |
+|--------|:------:|:--------:|:------:|
+| Recall | 31.9% | 78.4% | **80.5%** |
+| False block rate | — | — | **3.8%** |
+| Clean pass rate | — | — | 77.8% |
+
+### Adversarial Robustness Benchmark (v3)
 
 185 adversarial payloads (9 categories + multilingual smoke) evaluated against 234 held-out benign samples. No training data overlap.
 

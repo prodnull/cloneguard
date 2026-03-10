@@ -61,6 +61,15 @@ python scripts/adversarial_eval.py
 
 Expected: 21/26 payloads detected (81% model-only detection rate). Known evasions: truncation, dilution, ROT13, fragmentation. Combined with Tier 0 regex: higher effective rate. See Section 4.
 
+### Reproduce Multi-Tier Pipeline Benchmark
+
+```bash
+# Combined Tier 0 + Tier 1.5 benchmark (production mode with sliding window)
+python scripts/multitier_benchmark.py --production --eval-corpus data/benchmark/benign_corpus_eval.json
+```
+
+Measures what each tier catches independently and the combined pipeline's production verdict (BLOCKED/WARNING/CLEAN). Expected: 80.5% union recall, 3.8% false block rate, 77.8% clean rate on held-out benign data.
+
 ### Reproduce Tier Benchmarks
 
 ```bash

@@ -123,7 +123,7 @@ class TestCI004:
     def test_broad_write_permissions(self, engine: PatternEngine) -> None:
         """CI-004: Broad write permissions in workflow."""
         payload = "permissions:\n  contents: write"
-        result = engine.scan(payload, ".github/workflows/ci.yml")
+        result = engine.scan(payload, "CLAUDE.md")
         assert any(m.pattern_id == "CI-004" for m in result.matches)
 
 

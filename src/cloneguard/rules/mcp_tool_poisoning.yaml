@@ -30,3 +30,4 @@ patterns:
     severity: medium
     description: "MCP configuration file reference — verify server definitions are trusted"
     false_positive_hint: "Normal for projects using MCP — flag for manual review"
+    modes: [strict]

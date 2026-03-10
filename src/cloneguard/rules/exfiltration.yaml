@@ -83,6 +83,7 @@ patterns:
     severity: medium
     description: "npx execution of @latest package — potential supply chain risk"
     false_positive_hint: "Common in legitimate projects, flag only in instruction files"
+    modes: [strict]
 
   - id: SC-002
     regex: '(?i)\bpip\s+install\s+[a-z0-9_-]+\s*(?:--index-url|--extra-index-url|-i)\s+https?://'

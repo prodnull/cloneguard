@@ -27,6 +27,20 @@ Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
   91% precision        96.2% precision (CV)       93% precision
 ```
 
+### Multi-Tier Pipeline Performance
+
+When Tier 0 and Tier 1.5 run together (production mode), they compensate for each other's weaknesses. Evaluated on 185 adversarial payloads + 234 held-out benign samples:
+
+| Metric | Tier 0 alone | Tier 1.5 alone | Combined Pipeline |
+|--------|:------:|:--------:|:------:|
+| Recall | 31.9% | 78.4% | **80.5%** |
+| FPR | 9.8% | 15.4% | 22.2% |
+| False block rate | — | — | **3.8%** |
+| False warning rate | — | — | 18.4% |
+| Clean pass rate | — | — | 77.8% |
+
+Tier 0 catches truncation (80%) and fragmentation (20%) attacks that the semantic classifier misses due to token-window limits. Tier 1.5 catches synonym substitution (100%) and encoding evasion (100%) that regex cannot touch. Script: `scripts/multitier_benchmark.py`.
+
 Tier 1.5 is the primary semantic defense. It runs when `--tier2` is enabled (or automatically in the Layer 0 wrapper). If onnxruntime is not installed, the system falls back to Tier 2 (Ollama). If neither is available, only Tier 0 regex runs.
 
 Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) (`.whl` includes the ONNX model).

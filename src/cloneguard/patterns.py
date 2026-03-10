@@ -95,6 +95,7 @@ class _CompiledRule:
     description: str
     compiled: re.Pattern[str]
     raw: dict[str, Any]
+    modes: frozenset[ScanMode] | None = None  # None = all modes
 
 
 class PatternEngine:
@@ -127,6 +128,9 @@ class PatternEngine:
         for pattern in data["patterns"]:
             severity = Severity(pattern["severity"])
             compiled = re.compile(pattern["regex"])
+            modes: frozenset[ScanMode] | None = None
+            if "modes" in pattern:
+                modes = frozenset(ScanMode(m) for m in pattern["modes"])
             rule = _CompiledRule(
                 pattern_id=pattern["id"],
                 category=category,
@@ -134,6 +138,7 @@ class PatternEngine:
                 description=pattern["description"],
                 compiled=compiled,
                 raw={**pattern, "category": category},
+                modes=modes,
             )
             self._compiled_rules.append(rule)
             self._raw_rules.append(rule.raw)
@@ -171,6 +176,9 @@ class PatternEngine:
         matches: list[PatternMatch] = []
 
         for rule in self._compiled_rules:
+            # Skip rules restricted to other scan modes
+            if rule.modes is not None and mode not in rule.modes:
+                continue
             for m in rule.compiled.finditer(content):
                 line_num = self._offset_to_line(line_offsets, m.start())
                 matched_text = m.group()

@@ -24,6 +24,7 @@ patterns:
     severity: medium
     description: "Broad write permissions in workflow — excessive CI/CD privileges"
     false_positive_hint: "Some workflows legitimately need write permissions"
+    modes: [strict]
 
   - id: CI-005
     regex: '(?i)\b(?:claude|cursor|copilot|codex|gemini|aider|cline)\b.{0,40}(?:--dangerously|--yolo|--trust|--no-sandbox|--auto-approve)\b'
@@ -36,3 +37,4 @@ patterns:
     severity: medium
     description: "CI action or image pinned to mutable tag instead of SHA256 digest"
     false_positive_hint: "Common but considered insecure — prefer SHA pinning"
+    modes: [strict]

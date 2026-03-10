@@ -58,7 +58,9 @@ Four defense layers, each running before the agent can act on injected content:
 | 2 | PostToolUse | Scans all tool output for injection |
 | 3 | PreToolUse | Gates writes, builds, and config changes |
 
-**Tier 0** uses 191 compiled regex patterns across 24 categories, completing in under 50ms. **Tier 1.5** (optional) adds a bundled ONNX classifier (fine-tuned MiniLM-L6-v2, 87 MB) with 95.8% cross-validated F1 — catches semantic attacks that regex misses, at ~16 ms/sample with no external dependencies. **Tier 2** falls back to Ollama LLM classification if the ONNX model is not installed.
+**Tier 0** uses 191 compiled regex patterns across 24 categories, completing in under 50ms. Patterns support scan-mode restrictions — CI hygiene and supply chain patterns only fire on agent instruction files (STRICT mode), eliminating false positives on regular code. **Tier 1.5** (optional) adds a bundled ONNX classifier (fine-tuned MiniLM-L6-v2, 87 MB) with 95.8% cross-validated F1 — catches semantic attacks that regex misses, at ~16 ms/sample with no external dependencies. **Tier 2** falls back to Ollama LLM classification if the ONNX model is not installed.
+
+The combined Tier 0 + Tier 1.5 pipeline achieves 80.5% union recall on adversarial payloads with a 3.8% false block rate (77.8% of benign files pass cleanly). Each tier compensates for the other's weaknesses: Tier 0 catches truncation and fragmentation attacks (80% recall) that the semantic classifier misses, while Tier 1.5 catches synonym substitution and encoding evasion (100% recall) that regex cannot touch.
 
 ## Install
 
@@ -161,9 +163,11 @@ When `--dangerously-skip-permissions` is detected, CloneGuard escalates scan str
 
 | Mode | Files | Behavior |
 |------|-------|----------|
-| STRICT | CLAUDE.md, .cursorrules, GEMINI.md, AGENTS.MD, .junie/guidelines.md | HIGH findings = BLOCKED |
-| STANDARD | README.md, package.json, Makefile | HIGH findings = WARNING |
+| STRICT | CLAUDE.md, .cursorrules, GEMINI.md, AGENTS.MD, .junie/guidelines.md | HIGH findings = BLOCKED; all patterns active |
+| STANDARD | README.md, package.json, Makefile | HIGH findings = WARNING; CI hygiene patterns suppressed |
 | LENIENT | Test files, fixtures | Severity downgraded |
+
+Some patterns (CI-004, CI-006, SC-001, MCP-005) are restricted to STRICT mode via the `modes` field — they detect CI security hygiene issues that are relevant in agent instruction files but produce excessive false positives on regular code and workflows.
 
 ### Empirical Validation
 
@@ -181,7 +185,16 @@ Dataset-level evaluation (5,671 samples, Tier 1.5 cross-validated):
 | Recall | 23.26% | **95.37% ± 0.93%** | 42.00% |
 | Precision | 91.33% | **96.23% ± 0.79%** | 93.33% |
 
-Out-of-distribution evaluation (144 MCP tool result samples, [independent source](https://github.com/ferentin-net/mcp-guard)): **100% recall, 43% FPR** — attack patterns generalize across domains; benign class is domain-specific. Adversarial evaluation (26 crafted evasion attacks by informed attacker): **81% model-only detection rate**. Full results in [`docs/MINI-SEMANTIC-MODEL.md`](docs/MINI-SEMANTIC-MODEL.md).
+Multi-tier pipeline benchmark (185 adversarial + 234 held-out benign, production mode):
+
+| Metric | Tier 0 alone | Tier 1.5 alone | Combined Pipeline |
+|--------|:------:|:--------:|:------:|
+| Recall | 31.9% | 78.4% | **80.5%** |
+| FPR | 9.8% | 15.4% | 22.2% |
+| False block rate | — | — | **3.8%** |
+| False warning rate | — | — | 18.4% |
+
+Out-of-distribution evaluation (144 MCP tool result samples, [independent source](https://github.com/ferentin-net/mcp-guard)): **100% recall, 43% FPR** — attack patterns generalize across domains; benign class is domain-specific. Full results in [`docs/MINI-SEMANTIC-MODEL.md`](docs/MINI-SEMANTIC-MODEL.md).
 
 Model and dataset published on Hugging Face: [`prodnull/minilm-prompt-injection-classifier`](https://huggingface.co/prodnull/minilm-prompt-injection-classifier) / [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset).
 
