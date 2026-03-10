@@ -70,7 +70,7 @@ Attack categories: instruction override, credential harvesting, exfiltration, be
 
 ### Multi-Tier Pipeline (Primary, v3)
 
-When combined with Tier 0 regex (191 patterns), the tiers compensate for each other. Evaluated on 185 adversarial payloads + 234 held-out benign samples (production mode):
+When combined with Tier 0 regex (193 patterns), the tiers compensate for each other. Evaluated on 185 adversarial payloads + 234 held-out benign samples (production mode):
 
 | Metric | Tier 0 alone | Tier 1.5 alone | Combined Pipeline |
 |--------|:------:|:--------:|:------:|

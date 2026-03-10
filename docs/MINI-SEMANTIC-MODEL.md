@@ -12,7 +12,8 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 | Model size | 87 MB |
 | Runtime | onnxruntime CPUExecutionProvider |
 | Tokenizer | WordPiece, max 256 tokens |
-| Cross-validated F1 | 95.80% ± 0.65% (5-fold CV, original dataset) |
+| Cross-validated F1 (v2) | 95.80% ± 0.65% (5-fold CV, original 5,671 samples) |
+| Cross-validated F1 (v3) | 95.51% ± 0.53% (5-fold CV, augmented 6,340 samples) |
 | Validation accuracy (v3) | 96.21% (augmented dataset, 80/20 split) |
 | Inference speed | ~16 ms/sample (Apple M-series CPU) |
 | Dependencies | `onnxruntime>=1.17`, `transformers>=4.36`, `numpy>=1.26` |
@@ -22,7 +23,7 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 ```
 Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
   <1 ms/file          ~16 ms/file               ~680 ms/file
-  191 patterns         semantic classifier        qwen2.5:7b LLM
+  193 patterns         semantic classifier        qwen2.5:7b LLM
   23% recall           95.4% recall (CV)          42% recall
   91% precision        96.2% precision (CV)       93% precision
 ```
@@ -269,7 +270,17 @@ Confidence is reported as the probability of the predicted class (malicious_prob
 | Cross-validated precision | 96.23% ± 0.79% |
 | Cross-validated recall | 95.37% ± 0.93% |
 
-**Note:** The v3 validation accuracy (96.21%) is a single 80/20 split, not cross-validated. The v2 cross-validated numbers remain the honest generalization estimate for the original dataset. The v3 model was retrained to fix out-of-distribution FPR (40-87% on real-world content), not to improve in-distribution metrics. The adversarial benchmark provides the honest out-of-distribution evaluation.
+**v3 model 5-fold cross-validation (6,340 samples):**
+
+| Metric | Value |
+|--------|:-----:|
+| Cross-validated F1 | 95.51% ± 0.53% |
+| Cross-validated accuracy | 95.71% ± 0.53% |
+| Cross-validated precision | 95.79% ± 1.55% |
+| Cross-validated recall | 95.25% ± 1.21% |
+| Cross-validated FPR | 3.87% ± 1.55% |
+
+The v3 augmentation (669 samples targeting OOD FPR and adversarial robustness) did not degrade generalization — v3 CV F1 (95.51%) is within the confidence interval of v2 CV F1 (95.80%). The adversarial benchmark provides the honest out-of-distribution evaluation.
 
 ## Adversarial Evaluation
 

@@ -13,7 +13,7 @@
   <a href="https://github.com/prodnull/cloneguard/releases/latest"><img src="https://img.shields.io/github/v/release/prodnull/cloneguard" alt="Release"></a>
   <a href="https://github.com/prodnull/cloneguard/blob/main/LICENSE"><img src="https://img.shields.io/github/license/prodnull/cloneguard" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python">
-  <img src="https://img.shields.io/badge/tests-968%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-978%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/F1-95.8%25%20(5--fold%20CV)-blue" alt="F1 Score">
   <a href="https://huggingface.co/prodnull/minilm-prompt-injection-classifier"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Model-yellow.svg" alt="HuggingFace Model"></a>
   <a href="https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Dataset-yellow.svg" alt="HuggingFace Dataset"></a>
@@ -58,7 +58,7 @@ Four defense layers, each running before the agent can act on injected content:
 | 2 | PostToolUse | Scans all tool output for injection |
 | 3 | PreToolUse | Gates writes, builds, and config changes |
 
-**Tier 0** uses 191 compiled regex patterns across 24 categories, completing in under 50ms. Patterns support scan-mode restrictions — CI hygiene and supply chain patterns only fire on agent instruction files (STRICT mode), eliminating false positives on regular code. **Tier 1.5** (optional) adds a bundled ONNX classifier (fine-tuned MiniLM-L6-v2, 87 MB) with 95.8% cross-validated F1 — catches semantic attacks that regex misses, at ~16 ms/sample with no external dependencies. **Tier 2** falls back to Ollama LLM classification if the ONNX model is not installed.
+**Tier 0** uses 193 compiled regex patterns across 24 categories, completing in under 50ms. Patterns support scan-mode restrictions — CI hygiene and supply chain patterns only fire on agent instruction files (STRICT mode), eliminating false positives on regular code. **Tier 1.5** (optional) adds a bundled ONNX classifier (fine-tuned MiniLM-L6-v2, 87 MB) with 95.8% cross-validated F1 — catches semantic attacks that regex misses, at ~16 ms/sample with no external dependencies. **Tier 2** falls back to Ollama LLM classification if the ONNX model is not installed.
 
 The combined Tier 0 + Tier 1.5 pipeline achieves 80.5% union recall on adversarial payloads with a 3.8% false block rate (77.8% of benign files pass cleanly). Each tier compensates for the other's weaknesses: Tier 0 catches truncation and fragmentation attacks (80% recall) that the semantic classifier misses, while Tier 1.5 catches synonym substitution and encoding evasion (100% recall) that regex cannot touch.
 
@@ -119,7 +119,7 @@ cloneguard --bypass
 
 ### Detection Tiers
 
-**Tier 0 (regex)** — 191 patterns across 24 categories. Fast (~50ms), catches known attack patterns. 91% precision but only 23% recall — evasion-prone to creative rewording.
+**Tier 0 (regex)** — 193 patterns across 24 categories. Fast (~50ms), catches known attack patterns. 91% precision but only 23% recall — evasion-prone to creative rewording.
 
 **Tier 1.5 (ONNX mini model)** — Bundled fine-tuned MiniLM-L6-v2 ([HuggingFace](https://huggingface.co/prodnull/minilm-prompt-injection-classifier)). 95.8% F1, 95.4% recall (5-fold cross-validated) at ~16 ms/sample. Catches semantic attacks: synonym substitution, social engineering, encoding evasion, homoglyphs, counter-defensive attacks. Hyperparameters selected via 192-configuration grid search. Install with `pip install cloneguard[mini]`. See [`docs/MINI-SEMANTIC-MODEL.md`](docs/MINI-SEMANTIC-MODEL.md).
 
@@ -200,7 +200,7 @@ Model and dataset published on Hugging Face: [`prodnull/minilm-prompt-injection-
 
 ## What It Detects
 
-**24 attack categories, 191 patterns** — cross-validated against [Mindgard's AI IDE vulnerability taxonomy](https://github.com/Mindgard/ai-ide-vuln-patterns) (20/22 patterns covered):
+**24 attack categories, 193 patterns** — cross-validated against [Mindgard's AI IDE vulnerability taxonomy](https://github.com/Mindgard/ai-ide-vuln-patterns) (20/22 patterns covered):
 
 - Instruction override (IO) — "ignore all previous instructions"
 - Authority impersonation (AI) — fake system messages, developer notes
@@ -267,7 +267,7 @@ pytest
 ```bash
 pytest                                   # all tests (951)
 pytest tests/test_security_vectors.py    # security proof tests
-pytest tests/test_integration_all_patterns.py  # all 191 patterns through full pipeline
+pytest tests/test_integration_all_patterns.py  # all 193 patterns through full pipeline
 pytest tests/test_evasion_resistance.py  # trust cache + evasion boundary tests
 pytest -m ollama                         # Tier 2 live tests (requires Ollama)
 pytest -m docker                         # container integration tests (requires Docker)
