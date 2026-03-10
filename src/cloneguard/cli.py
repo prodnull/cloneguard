@@ -137,6 +137,18 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
         "--trust-cache", action="store_true", help="Set up trust cache directory"
     )
 
+    # cloneguard hook-check --event <EventName>
+    # Called by Claude Code hook configuration. Reads JSON from stdin,
+    # dispatches to the appropriate hook handler in hooks.py.
+    hook_parser = subparsers.add_parser(
+        "hook-check", help="Hook handler entry point (called by agent hook config)"
+    )
+    hook_parser.add_argument(
+        "--event",
+        required=True,
+        help="Hook event name (InstructionsLoaded, PreToolUse, PostToolUse)",
+    )
+
     return parser.parse_known_args(argv)
 
 
@@ -423,6 +435,12 @@ def main(argv: list[str] | None = None) -> None:
     if args.command == "init":
         scope = "global" if args.global_scope else "project"
         handle_init(scope=scope, trust_cache=args.trust_cache)
+        return
+
+    if args.command == "hook-check":
+        from cloneguard.hooks import main as hooks_main
+
+        hooks_main()
         return
 
     # Default: wrap claude

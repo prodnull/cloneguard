@@ -26,6 +26,8 @@ from cloneguard.patterns import PatternEngine, PatternMatch, ScanMode, Severity,
 
 # Singleton engine — loaded once per process lifetime.
 _engine: PatternEngine | None = None
+_mini_classifier: Any = None  # MiniSemanticClassifier (lazy-loaded)
+_mini_attempted: bool = False
 
 
 def _get_engine() -> PatternEngine:
@@ -33,6 +35,34 @@ def _get_engine() -> PatternEngine:
     if _engine is None:
         _engine = PatternEngine()
     return _engine
+
+
+def _get_mini_classifier() -> Any:
+    """Lazy-load Tier 1.5 mini semantic classifier. Returns None if unavailable."""
+    global _mini_classifier, _mini_attempted  # noqa: PLW0603
+    if _mini_attempted:
+        return _mini_classifier
+    _mini_attempted = True
+    try:
+        from cloneguard.mini_semantic import MiniSemanticClassifier
+
+        classifier = MiniSemanticClassifier()
+        if classifier.available:
+            _mini_classifier = classifier
+    except ImportError:
+        pass
+    return _mini_classifier
+
+
+def _classify_with_tier15(content: str, source: str) -> tuple[str | None, str]:
+    """Run Tier 1.5 classification on content. Returns (verdict, reason) or (None, '')."""
+    classifier = _get_mini_classifier()
+    if classifier is None:
+        return None, ""
+    result = classifier.classify(content)
+    if result.verdict != "SAFE":
+        return result.verdict, f"Tier 1.5: {result.reason}"
+    return None, ""
 
 
 # In-memory session trust — reset each session (process lifetime).
@@ -185,11 +215,21 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
                 result.matches, path
             )
             warnings.append(warning)
-            # Trust it (user will see the warning in context)
             _session_trust[path] = content_sha
         else:
-            # CLEAN — trust
-            _session_trust[path] = content_sha
+            # Tier 0 clean — run Tier 1.5 semantic check
+            t15_verdict, t15_reason = _classify_with_tier15(content, path)
+            if t15_verdict == "MALICIOUS":
+                blocked_reasons.append(
+                    f"BLOCKED: Semantic classifier flagged {path} — {t15_reason}"
+                )
+            elif t15_verdict == "SUSPICIOUS":
+                warnings.append(
+                    f"WARNING: Semantic classifier flagged {path} — {t15_reason}"
+                )
+                _session_trust[path] = content_sha
+            else:
+                _session_trust[path] = content_sha
 
     if blocked_reasons:
         print("\n".join(blocked_reasons))
@@ -242,6 +282,20 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                     + _format_matches(result.matches, file_path)
                 )
                 print(warning)
+            else:
+                # Tier 0 clean — Tier 1.5 semantic check on sensitive write content
+                t15_verdict, t15_reason = _classify_with_tier15(content, file_path)
+                if t15_verdict == "MALICIOUS":
+                    print(
+                        f"BLOCKED: Semantic classifier flagged write to {file_path}"
+                        f" — {t15_reason}"
+                    )
+                    return 2
+                elif t15_verdict == "SUSPICIOUS":
+                    print(
+                        f"WARNING: Semantic classifier flagged write to {file_path}"
+                        f" — {t15_reason}"
+                    )
 
     # --- 3. Block allowlist manipulation via Bash ---
     if tool_name == "Bash":
@@ -332,6 +386,14 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
             + _format_matches(result.matches, source_path)
         )
         print(warning)
+        return 0
+
+    # Tier 0 clean — run Tier 1.5 semantic check on tool output
+    t15_verdict, t15_reason = _classify_with_tier15(content, source_path)
+    if t15_verdict == "MALICIOUS":
+        print(f"WARNING: Semantic classifier flagged tool output from {source_path} — {t15_reason}")
+    elif t15_verdict == "SUSPICIOUS":
+        print(f"WARNING: Semantic classifier flagged tool output from {source_path} — {t15_reason}")
 
     return 0
 

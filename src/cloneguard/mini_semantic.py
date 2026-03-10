@@ -234,32 +234,32 @@ class MiniSemanticClassifier:
         except OSError:
             logger.debug("Failed to write review log to %s", _REVIEW_LOG_PATH)
 
-    def _scan_code_block_lines(self, content: str) -> MiniClassification | None:
-        """Scan individual lines in fenced code blocks to counter dilution attacks.
+    def _scan_lines(self, content: str) -> MiniClassification | None:
+        """Scan individual lines to counter dilution attacks.
 
         If the whole-file classification is SAFE, an attacker may have diluted
-        a short malicious line among many benign lines. This method extracts
-        lines from fenced code blocks and classifies each individually.
+        a short malicious line among many benign lines. This scans all lines
+        (not just fenced code blocks) that look like they could contain
+        instructions or commands.
         Returns the worst finding, or None if all lines are safe.
         """
-        blocks = _FENCED_BLOCK_RE.findall(content)
-        if not blocks:
-            return None
-
         worst: MiniClassification | None = None
-        for block in blocks:
-            for line in block.splitlines():
-                line = line.strip()
-                if len(line) < _MIN_LINE_LEN:
-                    continue
-                result = self.classify(line)
-                if result.verdict != "SAFE":
-                    if worst is None or result.confidence > worst.confidence:
-                        worst = MiniClassification(
-                            verdict=result.verdict,
-                            confidence=result.confidence,
-                            reason=f"Code block line: {result.reason}",
-                        )
+
+        for line in content.splitlines():
+            line = line.strip()
+            if len(line) < _MIN_LINE_LEN:
+                continue
+            # Classify lines that could be imperative instructions or commands.
+            # Skip lines that are clearly structural (pure markdown headers with
+            # no instruction content, blank-ish lines, import statements).
+            result = self.classify(line)
+            if result.verdict != "SAFE":
+                if worst is None or result.confidence > worst.confidence:
+                    worst = MiniClassification(
+                        verdict=result.verdict,
+                        confidence=result.confidence,
+                        reason=f"Line scan: {result.reason}",
+                    )
         return worst
 
     def classify_files(self, files: list[tuple[str, str]]) -> SemanticResult:
@@ -272,8 +272,8 @@ class MiniSemanticClassifier:
         for file_path, content in files:
             result = self.classify(content)
             if result.verdict == "SAFE":
-                # Counter-dilution: scan code block lines individually
-                line_result = self._scan_code_block_lines(content)
+                # Counter-dilution: scan all lines individually
+                line_result = self._scan_lines(content)
                 if line_result is not None:
                     result = line_result
 

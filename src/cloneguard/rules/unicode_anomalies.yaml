@@ -60,3 +60,15 @@ patterns:
     severity: high
     description: "Bidirectional control characters"
     false_positive_hint: "Legitimate in mixed RTL/LTR text"
+
+  - id: UA-011
+    regex: '\u00ad'
+    severity: high
+    description: "Soft hyphen (U+00AD) — used to split keywords across subword boundaries"
+    false_positive_hint: "Occasionally in hyphenation-aware text, but suspicious in code/config"
+
+  - id: UA-012
+    regex: '[\u0300-\u036f]{2,}'
+    severity: high
+    description: "Multiple combining diacritical marks — used to obfuscate keywords"
+    false_positive_hint: "Legitimate in Vietnamese and other heavily-accented scripts"

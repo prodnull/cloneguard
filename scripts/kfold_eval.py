@@ -39,7 +39,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from train_mini_model import (
     BASE_MODEL,
     BATCH_SIZE,
-    DATASET_PATH,
+    DATASET_PATH_DEFAULT,
     LOG_EVERY,
     LR,
     MAX_SEQ_LEN,
@@ -151,6 +151,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="K-fold cross-validation")
     parser.add_argument("--folds", type=int, default=5, help="Number of folds (default: 5)")
     parser.add_argument("--epochs", type=int, default=8, help="Epochs per fold (default: 8)")
+    parser.add_argument("--dataset", type=Path, default=DATASET_PATH_DEFAULT, help="Path to dataset JSONL")
     args = parser.parse_args()
 
     k = args.folds
@@ -164,7 +165,7 @@ def main() -> None:
     print(f"K-fold cross-validation: {k} folds, {epochs} epochs each\n")
 
     # Load data
-    texts, labels = load_dataset(DATASET_PATH)
+    texts, labels = load_dataset(args.dataset)
     texts_arr = np.array(texts)
     labels_arr = np.array(labels)
     print(f"Dataset: {len(texts)} samples ({sum(labels)} malicious, {len(labels) - sum(labels)} benign)")

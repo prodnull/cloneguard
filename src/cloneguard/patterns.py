@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import re
 import time
+import unicodedata
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -169,6 +170,9 @@ class PatternEngine:
         if not content:
             elapsed = (time.perf_counter() - start) * 1000
             return ScanResult(verdict=Verdict.CLEAN, scan_time_ms=elapsed)
+
+        # NFKC normalize to collapse homoglyphs and combining marks
+        content = unicodedata.normalize("NFKC", content)
 
         # Build a line-start offset map for line number lookup
         line_offsets = self._build_line_offsets(content)

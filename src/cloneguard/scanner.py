@@ -54,6 +54,10 @@ class ScanReport:
         lines.append(f"CloneGuard v{__version__} — Pre-execution scan")
         lines.append("")
         lines.append(f"Scanning {self.repo_path}...")
+
+        # Surface active tiers so users know what's running
+        if hasattr(self, "_active_tiers") and self._active_tiers:
+            lines.append(f"Active tiers: {self._active_tiers}")
         lines.append("")
 
         if self.yolo_mode:
@@ -393,8 +397,23 @@ class RepoScanner:
             mini = MiniSemanticClassifier()
             if mini.available:
                 sem_result = mini.classify_files(file_contents)
+                report._active_tiers = "Tier 0 (regex) + Tier 1.5 (ONNX)"
+            else:
+                import sys
+
+                print(
+                    "WARNING: Tier 1.5 ONNX model unavailable — scanning with Tier 0 regex only"
+                    " (31.9% recall). Install cloneguard[mini] for semantic detection.",
+                    file=sys.stderr,
+                )
         except ImportError:
-            pass  # onnxruntime/transformers not installed
+            import sys
+
+            print(
+                "WARNING: Tier 1.5 dependencies not installed — scanning with Tier 0 regex only"
+                " (31.9% recall). Run: pip install cloneguard[mini]",
+                file=sys.stderr,
+            )
 
         # Fall back to Tier 2 (Ollama) if mini model unavailable
         if sem_result is None:
@@ -405,8 +424,11 @@ class RepoScanner:
                 kwargs["model"] = self._tier2_model
             classifier = SemanticClassifier(**kwargs)
             if not classifier.is_available():
+                if not hasattr(report, "_active_tiers"):
+                    report._active_tiers = "Tier 0 (regex) only — semantic scanning unavailable"
                 return
             sem_result = classifier.classify_files(file_contents)
+            report._active_tiers = "Tier 0 (regex) + Tier 2 (Ollama)"
 
         # Track which files Tier 2 flagged
         flagged_paths: set[str] = set()

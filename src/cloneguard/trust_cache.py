@@ -21,6 +21,13 @@ logger = logging.getLogger(__name__)
 _CACHE_DIR = Path.home() / ".cloneguard"
 
 
+def _scanner_version() -> str:
+    """Return a composite version string for cache invalidation on upgrades."""
+    from cloneguard import __version__
+
+    return __version__
+
+
 def _sha256(content: bytes) -> str:
     """Compute SHA-256 hex digest."""
     return hashlib.sha256(content).hexdigest()
@@ -39,6 +46,7 @@ class TrustEntry:
     file_hash: str
     scanned_at: float  # epoch timestamp
     tier2_clean: bool  # whether Tier 2 also cleared this file
+    scanner_version: str = ""  # CloneGuard version when entry was created
 
 
 class TrustCache:
@@ -63,12 +71,18 @@ class TrustCache:
             return
 
         try:
+            current_ver = _scanner_version()
             data = json.loads(self._cache_file.read_text(encoding="utf-8"))
             for path, entry_data in data.items():
+                entry_ver = entry_data.get("scanner_version", "")
+                if entry_ver != current_ver:
+                    # Stale entry from older scanner version — discard
+                    continue
                 self._entries[path] = TrustEntry(
                     file_hash=entry_data["file_hash"],
                     scanned_at=entry_data.get("scanned_at", 0),
                     tier2_clean=entry_data.get("tier2_clean", False),
+                    scanner_version=entry_ver,
                 )
         except (json.JSONDecodeError, KeyError, OSError) as e:
             logger.warning("Corrupt trust cache — resetting: %s", e)
@@ -83,6 +97,7 @@ class TrustCache:
                 "file_hash": entry.file_hash,
                 "scanned_at": entry.scanned_at,
                 "tier2_clean": entry.tier2_clean,
+                "scanner_version": entry.scanner_version,
             }
         self._cache_file.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
 
@@ -121,6 +136,7 @@ class TrustCache:
             file_hash=current_hash,
             scanned_at=time.time(),
             tier2_clean=tier2_clean,
+            scanner_version=_scanner_version(),
         )
         self._save_cache()
 
