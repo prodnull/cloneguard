@@ -3,11 +3,11 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-transferability-gate/01-02-PLAN.md
-last_updated: "2026-03-10T15:22:52.577Z"
+stopped_at: Pivot survey complete, roadmap updated for adversarial hardening
+last_updated: "2026-03-10T16:06:57.146Z"
 last_activity: 2026-03-10 — Roadmap created, milestone v0.3.0 initialized
 progress:
-  total_phases: 4
+  total_phases: 3
   completed_phases: 1
   total_plans: 2
   completed_plans: 2
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-10)
 
 **Core value:** Make prompt injection attacks against AI coding agents expensive enough that attackers move on
-**Current focus:** Phase 1 — Transferability Gate
+**Current focus:** Phase 2 — Adversarial Hardening
 
 ## Current Position
 
-Phase: 1 of 4 (Transferability Gate)
+Phase: 2 of 3 (Adversarial Hardening)
 Plan: 0 of TBD in current phase
 Status: Ready to plan
-Last activity: 2026-03-10 — Roadmap created, milestone v0.3.0 initialized
+Last activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 
-Progress: [░░░░░░░░░░] 0%
+Progress: [███░░░░░░░] 33%
 
 ## Performance Metrics
 
@@ -64,6 +64,8 @@ Recent decisions affecting current work:
 - [Phase 01-transferability-gate]: Pre-filter corpus to MiniLM-detected samples (score > 0.5) for transfer rate measurement on detectable inputs
 - [Phase 01-transferability-gate]: PIVOT: ensemble (MiniLM + DeBERTa) abandoned — 58.0% transfer rate (CI: 47.5%–67.7%) exceeds 40% gate; failure is structural (fragmentation/implicit_instruction/truncation at 100% transfer), not model-specific
 - [Phase 01-transferability-gate]: TextFooler-BERTScore not executed (silent failure on sample 0); PWWS-only result is conservative — pivot is stronger, not weaker
+- [Pivot]: 12 alternative defenses evaluated. Adversarial hardening (AT + Mahalanobis) selected over second classifier, certified defenses, randomized smoothing, ensemble diversity, and others. Survey: docs/results/pivot-alternatives-survey-2026-03-10.md
+- [Pivot]: Roadmap reduced from 4 phases to 3. Original Phases 2-4 (DeBERTa, ensemble, ensemble benchmark) → Phase 2 (adversarial hardening) + Phase 3 (benchmark + publication)
 
 ### Pending Todos
 
@@ -71,14 +73,14 @@ None yet.
 
 ### Blockers/Concerns
 
-- **[Phase 1 gate]:** If transfer rate >40%, milestone pivots — Phase 2 does not begin. Pivot path must be documented before Phase 1 planning.
-- **[Phase 2 risk]:** DeBERTa ONNX export via optimum-cli is broken (issue #2075). Must use ORTModel programmatically. Sanity check (50 balanced samples, non-constant predictions) is mandatory post-export.
-- **[Phase 2 risk]:** DeBERTa INT8 latency on Apple M-series is unverified (estimate only). Latency probe must be first step of Phase 2. Fallback: deberta-v3-xsmall if >80ms.
-- **[Phase 3 risk]:** OR-vote inflates FPR from 3.8% toward 7-9%. Mode-gate OR-vote to STRICT mode. Confirm WARNING rate <= 10% on benign eval before Phase 4.
-- **[Phase 4 risk]:** NIST AI 100-2e2025 requires adaptive attack evaluation. AdaEA full implementation may exceed scope — define minimum viable adaptive attack during Phase 4 planning.
+- **[Phase 1 gate — RESOLVED]:** Transfer rate 58.0% > 40%. Pivot executed. Original Phases 2-4 replaced.
+- **[Phase 2 risk]:** ASR ≤35% target is a PROJECTION from A2T literature (Yoo & Qi 2021), not measured on our data. Must validate experimentally — success criteria may need revision based on empirical results.
+- **[Phase 2 risk]:** Mahalanobis single-layer CLS AUC 75-85% is estimated, not benchmarked. Yoo et al. 2022 reported 85-98% for multi-feature RDE. Single-layer will be lower.
+- **[Phase 2 risk]:** Adversarial augmentation is attack-specific — PWWS hardening may not generalize to TextFooler/BERT-Attack (<5% improvement on unseen attacks per ACL Findings 2023).
+- **[Phase 3 risk]:** Adaptive attacks (PWWS against hardened model) will partially circumvent augmentation. Must report the ceiling honestly.
 
 ## Session Continuity
 
-Last session: 2026-03-10T15:12:58.002Z
-Stopped at: Completed 01-transferability-gate/01-02-PLAN.md
-Resume file: None
+Last session: 2026-03-10T16:06:57.143Z
+Stopped at: Pivot survey complete, roadmap updated for adversarial hardening
+Resume file: docs/results/pivot-alternatives-survey-2026-03-10.md

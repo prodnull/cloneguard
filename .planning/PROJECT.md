@@ -39,35 +39,36 @@ See `.planning/REQUIREMENTS.md`
 - 978 tests passing, CI green
 - Adversarial security review (3 agents) identified H8: white-box attacks against the public MiniLM model are estimated 70-90% successful for a skilled adversarial ML practitioner
 - The ONNX model is public on HuggingFace, architecture is documented — attacker can compute exact gradients
-- Theory (Papernot et al. 2016, Tramer et al. 2017) suggests cross-architecture transfer is lower but not zero — needs empirical validation on our domain
+- Phase 1 transferability experiment: 58.0% transfer rate MiniLM→DeBERTa (CI: 47.5%–67.7%). Structural attacks transfer at 88-100%. Ensemble approach abandoned.
 - Dataset: 6,340 samples (v3), published on HuggingFace (gated)
-- Current Tier 1.5 latency: ~16ms/sample. Budget for ensemble: ~70-120ms total acceptable
+- Current Tier 1.5 latency: ~16ms/sample. Budget for hardened pipeline: ~25ms total
 
 ## Constraints
 
-- **ONNX-only inference**: No PyTorch at runtime. Both classifiers must export to ONNX for CPUExecutionProvider.
+- **ONNX-only inference**: No PyTorch at runtime. Classifier must export to ONNX for CPUExecutionProvider.
 - **Dependency budget**: Minimize new dependencies. onnxruntime + transformers tokenizer already present.
-- **Latency**: Combined ensemble must stay under ~120ms/sample on Apple M-series CPU.
-- **Same dataset**: Second classifier trains on same 6,340-sample dataset for fair comparison.
-- **Architecture dissimilarity**: Second model must use fundamentally different tokenization and embedding approach from MiniLM-L6-v2.
+- **Latency**: Hardened pipeline (Tier 0 + Tier 1.5 + Mahalanobis) must stay under ~25ms/sample on Apple M-series CPU.
+- **Same dataset**: Adversarial augmentation extends the existing 6,340-sample dataset, does not replace it.
+- **Clean accuracy floor**: Adversarial training must not drop 5-fold CV F1 below 94.5% (currently 95.51%).
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Parallel vote (option B) over cascade | GitHub issue title injection scenario — cascade misses adversarial evasions on non-file content | — Pending |
-| Ensemble over perturbation detection | Architecturally diverse models defeat transfer attacks; perturbation detection less proven for text | — Pending |
-| Transferability experiment as gate | Don't trust theory — validate empirically on our domain before committing | — Pending |
+| Transferability experiment as gate | Don't trust theory — validate empirically on our domain before committing | Gate failed: 58% transfer. Ensemble abandoned. |
+| Ensemble over perturbation detection | Architecturally diverse models defeat transfer attacks | Invalidated: structural attacks transfer at 88-100% regardless of architecture |
+| Adversarial hardening over second classifier | AT + Mahalanobis: higher ROI, lower complexity, +1-5ms vs +40-60ms latency | Adopted post-pivot |
+| Literature projections as targets, not guarantees | ASR ≤35% target from A2T (Yoo & Qi 2021) extrapolation — must validate experimentally | Pending Phase 2 |
 
 ## Current Milestone: v0.3.0 White-Box Adversarial Resilience
 
-**Goal:** Defend Tier 1.5 against white-box adversarial attacks by adding an architecturally diverse ensemble classifier with parallel voting.
+**Goal:** Harden Tier 1.5 against white-box adversarial attacks through adversarial training (data augmentation + FreeLB) and Mahalanobis anomaly detection. Publish results with honest framing.
 
 **Target features:**
-- Transferability experiment (adversarial examples against MiniLM, measure transfer to second architecture)
-- Second ONNX classifier on architecturally different base (DeBERTa or ModernBERT)
-- Parallel vote integration — both classifiers on all content
-- Ensemble adversarial benchmark with published results
+- Adversarial data augmentation (PWWS-generated examples, 2-3 rounds)
+- FreeLB embedding perturbation AT in training loop
+- Mahalanobis anomaly detector on CLS embeddings
+- Adversarial benchmark with adaptive attacks and honest publication
 
 ---
-*Last updated: 2026-03-10 after milestone v0.3.0 initialization*
+*Last updated: 2026-03-10 after Phase 1 gate failure and pivot*
