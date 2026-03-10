@@ -27,6 +27,7 @@ logger = logging.getLogger(__name__)
 
 MODEL_DIR = Path(__file__).parent / "model"
 ONNX_MODEL = MODEL_DIR / "mini_semantic.onnx"
+MAHALANOBIS_PARAMS = MODEL_DIR / "mahalanobis_params.npz"
 
 _FENCED_BLOCK_RE = re.compile(r"```[^\n]*\n(.*?)```", re.DOTALL)
 _MIN_LINE_LEN = 10  # Skip trivially short lines in code blocks
@@ -41,6 +42,9 @@ _REVIEW_THRESHOLD = float(os.environ.get("CLONEGUARD_REVIEW_THRESHOLD", "0.98"))
 _MAX_CHUNKS = 16  # Sliding window: max chunks to classify (~8K chars, ~256ms worst case)
 _WINDOW_SIZE = 256  # Tokens per classification window
 _STRIDE = 128  # Token stride (50% overlap) — prevents boundary-splitting evasion
+# Minimum text length for Mahalanobis scoring: short inputs (<100 chars) produce
+# systematically OOD embeddings due to padding artifacts, not adversarial content.
+_MIN_MAHALANOBIS_CHARS = 100
 
 
 @dataclass
@@ -48,6 +52,8 @@ class MiniClassification:
     verdict: str  # "SAFE", "SUSPICIOUS", "MALICIOUS"
     confidence: float
     reason: str
+    anomaly_score: float = 0.0  # Mahalanobis distance (0.0 = normal, higher = anomalous)
+    anomaly_flagged: bool = False  # True when score exceeds calibrated threshold
 
 
 class MiniSemanticClassifier:
@@ -57,6 +63,7 @@ class MiniSemanticClassifier:
         self._session: Any = None
         self._tokenizer: Any = None
         self._available: bool | None = None
+        self._mahalanobis: Any = None  # MahalanobisDetector | None
 
     @property
     def available(self) -> bool:
@@ -78,6 +85,26 @@ class MiniSemanticClassifier:
             )
             self._tokenizer = AutoTokenizer.from_pretrained(str(MODEL_DIR))
             logger.debug("Mini semantic model loaded successfully")
+
+            # Load Mahalanobis detector if parameters are available.
+            # Graceful degradation: v3 ONNX models without .npz still work.
+            if MAHALANOBIS_PARAMS.exists():
+                try:
+                    from cloneguard.mahalanobis import MahalanobisDetector
+
+                    self._mahalanobis = MahalanobisDetector.load(MAHALANOBIS_PARAMS)
+                    logger.debug(
+                        "Mahalanobis detector loaded (threshold=%.4f)", self._mahalanobis.threshold
+                    )
+                except Exception as e:
+                    logger.warning("Failed to load Mahalanobis detector: %s", e)
+                    self._mahalanobis = None
+            else:
+                logger.debug(
+                    "Mahalanobis params not found at %s — anomaly detection disabled",
+                    MAHALANOBIS_PARAMS,
+                )
+
             return True
         except ImportError:
             logger.debug("onnxruntime or transformers not installed")
@@ -86,8 +113,15 @@ class MiniSemanticClassifier:
             logger.warning("Failed to load mini model: %s", e)
             return False
 
-    def classify(self, text: str) -> MiniClassification:
-        """Classify a single text sample."""
+    def classify(self, text: str, *, _apply_mahalanobis: bool = True) -> MiniClassification:
+        """Classify a single text sample.
+
+        Args:
+            text: Input text to classify.
+            _apply_mahalanobis: Apply Mahalanobis scoring (default True). Set
+                to False for short-fragment line scanning where OOD distances
+                reflect fragment length, not adversarial content.
+        """
         if not self.available:
             return MiniClassification(
                 verdict="SAFE", confidence=0.0, reason="Mini model not available"
@@ -102,13 +136,17 @@ class MiniSemanticClassifier:
             max_length=256,
             padding="max_length",
         )
-        logits = self._session.run(
+        outputs = self._session.run(
             None,
             {
                 "input_ids": inputs["input_ids"],
                 "attention_mask": inputs["attention_mask"],
             },
-        )[0][0]
+        )
+        logits = outputs[0][0]
+
+        # Extract CLS embedding if available (v4 dual-output ONNX).
+        cls_embedding = outputs[1][0] if len(outputs) > 1 else None
 
         probs = np.exp(logits) / np.exp(logits).sum()
         malicious_prob = float(probs[1])
@@ -127,12 +165,32 @@ class MiniSemanticClassifier:
             reason=f"Mini model: {malicious_prob:.1%} malicious probability",
         )
 
+        # Mahalanobis anomaly scoring (defense-in-depth orthogonal signal).
+        # Applied only on full-content text of sufficient length. Short inputs
+        # produce systematically OOD embeddings regardless of content (fragment
+        # length effect). _scan_lines also sets _apply_mahalanobis=False.
+        # SAFE + anomalous -> SUSPICIOUS raises attacker cost: adversaries must
+        # fool both the logits head AND remain inside the training distribution.
+        if (
+            _apply_mahalanobis
+            and self._mahalanobis is not None
+            and cls_embedding is not None
+            and len(text) >= _MIN_MAHALANOBIS_CHARS
+        ):
+            anomaly_score = self._mahalanobis.score(cls_embedding)
+            anomaly_flagged = self._mahalanobis.is_anomalous(cls_embedding)
+            result.anomaly_score = anomaly_score
+            result.anomaly_flagged = anomaly_flagged
+            if result.verdict == "SAFE" and anomaly_flagged:
+                result.verdict = "SUSPICIOUS"
+                result.reason = f"{result.reason} [Mahalanobis anomaly: score={anomaly_score:.2f}]"
+
         # Log SAFE verdicts below the review threshold for analyst review.
-        if _REVIEW_LOG_PATH and verdict == "SAFE" and confidence < _REVIEW_THRESHOLD:
+        if _REVIEW_LOG_PATH and result.verdict == "SAFE" and result.confidence < _REVIEW_THRESHOLD:
             self._log_for_review(text, result)
 
         # Sliding window: if initial verdict is SAFE, check for truncation evasion.
-        if verdict == "SAFE":
+        if result.verdict == "SAFE":
             sw_result = self._classify_sliding_window(text)
             if sw_result is not None:
                 return sw_result
@@ -163,6 +221,7 @@ class MiniSemanticClassifier:
         )
 
         worst_prob = 0.0
+        worst_anomaly_score = 0.0
         num_chunks = 0
 
         for i in range(0, len(token_ids), _STRIDE):
@@ -186,13 +245,20 @@ class MiniSemanticClassifier:
             input_ids_batch = chunk_ids.reshape(1, _WINDOW_SIZE)
             attention_mask_batch = attention_mask.reshape(1, _WINDOW_SIZE)
 
-            logits = self._session.run(
+            chunk_outputs = self._session.run(
                 None,
                 {
                     "input_ids": input_ids_batch,
                     "attention_mask": attention_mask_batch,
                 },
-            )[0][0]
+            )
+            logits = chunk_outputs[0][0]
+
+            # Extract CLS embedding and score Mahalanobis if available.
+            if self._mahalanobis is not None and len(chunk_outputs) > 1:
+                cls_emb = chunk_outputs[1][0]
+                chunk_anomaly = self._mahalanobis.score(cls_emb)
+                worst_anomaly_score = max(worst_anomaly_score, chunk_anomaly)
 
             probs = np.exp(logits) / np.exp(logits).sum()
             malicious_prob = float(probs[1])
@@ -206,7 +272,16 @@ class MiniSemanticClassifier:
         else:
             verdict = "SAFE"
 
-        if verdict == "SAFE":
+        # Defense-in-depth: SAFE + anomalous worst chunk CLS -> SUSPICIOUS.
+        # Compare pre-computed score directly against threshold (avoids calling
+        # score() again on a 1-element array that would produce wrong distances).
+        anomaly_flagged = (
+            self._mahalanobis is not None and worst_anomaly_score > self._mahalanobis.threshold
+        )
+        if anomaly_flagged and verdict == "SAFE":
+            verdict = "SUSPICIOUS"
+
+        if verdict == "SAFE" and not anomaly_flagged:
             return None
 
         confidence = worst_prob
@@ -216,6 +291,8 @@ class MiniSemanticClassifier:
             reason=(
                 f"Sliding window ({num_chunks} chunks): {worst_prob:.1%} malicious probability"
             ),
+            anomaly_score=worst_anomaly_score,
+            anomaly_flagged=anomaly_flagged,
         )
 
     def _log_for_review(self, text: str, result: MiniClassification) -> None:
@@ -250,9 +327,9 @@ class MiniSemanticClassifier:
             if len(line) < _MIN_LINE_LEN:
                 continue
             # Classify lines that could be imperative instructions or commands.
-            # Skip lines that are clearly structural (pure markdown headers with
-            # no instruction content, blank-ish lines, import statements).
-            result = self.classify(line)
+            # Skip Mahalanobis on line fragments: short snippets produce OOD
+            # distances by nature (fragment length, not adversarial content).
+            result = self.classify(line, _apply_mahalanobis=False)
             if result.verdict != "SAFE":
                 if worst is None or result.confidence > worst.confidence:
                     worst = MiniClassification(
@@ -284,6 +361,8 @@ class MiniSemanticClassifier:
                         confidence=result.confidence,
                         reason=result.reason,
                         file_path=file_path,
+                        anomaly_score=result.anomaly_score,
+                        anomaly_flagged=result.anomaly_flagged,
                     )
                 )
 

@@ -41,6 +41,8 @@ class SemanticFinding:
     confidence: float  # 0.0 - 1.0
     reason: str
     file_path: str
+    anomaly_score: float = 0.0  # Mahalanobis distance from Tier 1.5 (0.0 = not scored)
+    anomaly_flagged: bool = False  # True when Mahalanobis threshold exceeded
 
 
 @dataclass
