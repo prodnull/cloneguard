@@ -7,8 +7,8 @@
 
 ### Transferability Experiment
 
-- [ ] **XFER-01**: Generate adversarial examples against MiniLM using TextAttack (PWWS + TextFooler) on held-out adversarial benchmark (185 samples)
-- [ ] **XFER-02**: Measure transfer rate to ProtectAI DeBERTa proxy model as early signal before fine-tuning investment
+- [x] **XFER-01**: Generate adversarial examples against MiniLM using TextAttack (PWWS + TextFooler) on held-out adversarial benchmark (185 samples)
+- [x] **XFER-02**: Measure transfer rate to ProtectAI DeBERTa proxy model as early signal before fine-tuning investment
 - [ ] **XFER-03**: Hard gate: transfer rate >40% = pivot to alternative defense; document and publish results regardless of outcome
 
 ### Second Classifier
@@ -59,8 +59,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| XFER-01 | Phase 1 | Pending |
-| XFER-02 | Phase 1 | Pending |
+| XFER-01 | Phase 1 | Complete |
+| XFER-02 | Phase 1 | Complete |
 | XFER-03 | Phase 1 | Pending |
 | DBERT-01 | Phase 2 | Pending |
 | DBERT-02 | Phase 2 | Pending |

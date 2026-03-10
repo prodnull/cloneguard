@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Phase 1 context gathered
-last_updated: "2026-03-10T14:14:27.754Z"
+stopped_at: Completed 01-transferability-gate/01-01-PLAN.md
+last_updated: "2026-03-10T14:41:22.548Z"
 last_activity: 2026-03-10 — Roadmap created, milestone v0.3.0 initialized
 progress:
   total_phases: 4
   completed_phases: 0
-  total_plans: 0
-  completed_plans: 0
+  total_plans: 2
+  completed_plans: 1
   percent: 0
 ---
 
@@ -46,6 +46,7 @@ Progress: [░░░░░░░░░░] 0%
 | - | - | - | - |
 
 *Updated after each plan completion*
+| Phase 01-transferability-gate P01 | 8 | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -57,6 +58,9 @@ Recent decisions affecting current work:
 - [Pre-milestone]: Parallel vote (option B) selected over cascade — GitHub issue title injection scenario requires both classifiers on all content
 - [Pre-milestone]: Ensemble over perturbation detection — architecturally diverse models defeat transfer attacks
 - [Pre-milestone]: Transferability experiment as hard gate — validate empirically, do not trust theory
+- [Phase 01-transferability-gate]: TextFooler-BERTScore: substituted BERTScore for UniversalSentenceEncoder to avoid TensorFlow dependency
+- [Phase 01-transferability-gate]: DeBERTa id2label loaded dynamically from model config (not hard-coded); verified: {0: SAFE, 1: INJECTION}
+- [Phase 01-transferability-gate]: Pre-filter corpus to MiniLM-detected samples (score > 0.5) for transfer rate measurement on detectable inputs
 
 ### Pending Todos
 
@@ -72,6 +76,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T14:14:27.752Z
-Stopped at: Phase 1 context gathered
-Resume file: .planning/phases/01-transferability-gate/01-CONTEXT.md
+Last session: 2026-03-10T14:41:22.546Z
+Stopped at: Completed 01-transferability-gate/01-01-PLAN.md
+Resume file: None
