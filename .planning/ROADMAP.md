@@ -63,6 +63,12 @@ Plans:
   2. Adaptive attacks — PWWS generated against the hardened model (not just the original) — are run and reported alongside non-adaptive results; the improvement ceiling is documented
   3. Correlated failure analysis between Tier 0 and hardened Tier 1.5 identifies which samples remain undetected by both, documented as known limitations
   4. All published results use "raises attacker cost" framing — words "prevents," "blocks," and "secure" do not appear in benchmark writeup, HuggingFace model card, or release notes
+**Plans:** 3 plans
+
+Plans:
+- [ ] 03-01-PLAN.md — Run adaptive PWWS attack against v4 hardened model (fresh measurement, not training-round ASR)
+- [ ] 03-02-PLAN.md — Re-run hardened benchmark for reproducibility + correlated failure analysis (both-miss samples)
+- [ ] 03-03-PLAN.md — Update all publication channels (SECURITY.md, model docs, Medium Part 2, LinkedIn, venue assessment) with consistent numbers and honest framing
 
 > **NOTE:** If Phase 2 doesn't achieve ≤35% ASR, Phase 3 publishes actual results honestly. A TF-IDF + XGBoost ensemble (Tier 1.6) is a contingency option evaluated in the pivot survey but not currently phased.
 
@@ -84,4 +90,4 @@ The following phases from the original roadmap were replaced after the Phase 1 g
 |-------|----------------|--------|-----------|
 | 1. Transferability Gate | 2/2 | Complete (PIVOT) | 2026-03-10 |
 | 2. Adversarial Hardening | 3/3 | Complete   | 2026-03-10 |
-| 3. Adversarial Benchmark and Publication | 0/TBD | Not started | - |
+| 3. Adversarial Benchmark and Publication | 0/3 | Planning complete | - |
