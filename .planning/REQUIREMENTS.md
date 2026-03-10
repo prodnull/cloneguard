@@ -25,7 +25,7 @@
 - [x] **BENCH-01**: Re-run adversarial benchmark (185 malicious + 234 benign) with full hardened pipeline, publish results
 - [ ] **BENCH-02**: Run adaptive attacks (PWWS against hardened model, not just original) and report alongside non-adaptive results
 - [x] **BENCH-03**: Correlated failure analysis — identify which samples Tier 0 AND hardened Tier 1.5 both miss
-- [ ] **BENCH-04**: Publish results with honest "raises attacker cost" framing, not "prevents" or "blocks"
+- [x] **BENCH-04**: Publish results with honest "raises attacker cost" framing, not "prevents" or "blocks"
 
 ### Superseded Requirements
 
@@ -75,7 +75,7 @@ The following requirements were part of the original ensemble plan and are super
 | BENCH-01 | Phase 3 | Complete |
 | BENCH-02 | Phase 3 | Pending |
 | BENCH-03 | Phase 3 | Complete |
-| BENCH-04 | Phase 3 | Pending |
+| BENCH-04 | Phase 3 | Complete |
 
 **Coverage:**
 - v0.3.0 requirements: 12 total (3 complete + 9 pending)

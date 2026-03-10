@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-01-PLAN.md — adaptive PWWS benchmark executed; ASR 20.3% (CI 14.6%-27.5%)
-last_updated: "2026-03-10T23:40:00.000Z"
-last_activity: 2026-03-10 — Phase 3 Plan 01 complete; adaptive benchmark results available for publication
+stopped_at: "Stopped at Task 3 checkpoint: 03-03-PLAN.md human review"
+last_updated: "2026-03-10T23:33:32.653Z"
+last_activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 progress:
   total_phases: 3
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 8
-  completed_plans: 6
+  completed_plans: 8
   percent: 88
 ---
 
@@ -87,6 +87,10 @@ Recent decisions affecting current work:
 - [Phase 03-adversarial-benchmark-and-publication]: docs/results/ gitignored: benchmark artifacts local only; scripts and tests committed to public repo
 - [Phase 03-adversarial-benchmark-and-publication]: Correlated failure definition: tier0_detected=False AND tier15_verdict=SAFE AND anomaly_flagged=False (all three tiers must miss)
 - [Phase 03-adversarial-benchmark-and-publication]: Both-miss dominated by structural categories: fragmentation 11/20 (55%), implicit_instruction 5/20 (25%) -- information-theoretic ceiling for publication narrative
+- [Phase 03-adversarial-benchmark-and-publication]: Framing audit uses compound patterns requiring CloneGuard attribution to avoid false positives on technical usage (hook blocks writes, False block rate metric)
+- [Phase 03-adversarial-benchmark-and-publication]: Framing audit uses compound patterns requiring CloneGuard attribution to avoid false positives on technical usage
+- [Phase 03-adversarial-benchmark-and-publication]: Mahalanobis framed as marginal orthogonal signal: 2.7% detection rate, published as negative result with full methodology
+- [Phase 03-adversarial-benchmark-and-publication]: Venue assessment: arXiv pre-print + IEEE SecDev/NDSS workshop recommended; top-tier venues require multi-attack evaluation and novel algorithm
 
 ### Pending Todos
 
@@ -102,6 +106,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T23:40:00Z
-Stopped at: Completed 03-01-PLAN.md — adaptive PWWS benchmark executed; ASR 20.3% (CI 14.6%-27.5%)
+Last session: 2026-03-10T23:32:14.855Z
+Stopped at: Stopped at Task 3 checkpoint: 03-03-PLAN.md human review
 Resume file: None

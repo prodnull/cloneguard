@@ -14,7 +14,7 @@ This milestone hardens Tier 1.5 against white-box adversarial attacks through ad
 
 - [x] **Phase 1: Transferability Gate** - Empirically validate that white-box adversarial examples against MiniLM do not transfer effectively to DeBERTa (hard gate: >40% = pivot) (completed 2026-03-10)
 - [x] **Phase 2: Adversarial Hardening** - Harden MiniLM via adversarial data augmentation + FreeLB embedding AT, add Mahalanobis anomaly detector, re-benchmark (completed 2026-03-10)
-- [ ] **Phase 3: Adversarial Benchmark and Publication** - Run full hardened pipeline benchmark with adaptive attacks, publish results with honest framing
+- [x] **Phase 3: Adversarial Benchmark and Publication** - Run full hardened pipeline benchmark with adaptive attacks, publish results with honest framing (completed 2026-03-10)
 
 ## Phase Details
 
@@ -63,7 +63,7 @@ Plans:
   2. Adaptive attacks — PWWS generated against the hardened model (not just the original) — are run and reported alongside non-adaptive results; the improvement ceiling is documented
   3. Correlated failure analysis between Tier 0 and hardened Tier 1.5 identifies which samples remain undetected by both, documented as known limitations
   4. All published results use "raises attacker cost" framing — words "prevents," "blocks," and "secure" do not appear in benchmark writeup, HuggingFace model card, or release notes
-**Plans:** 1/3 plans executed
+**Plans:** 3/3 plans complete
 
 Plans:
 - [ ] 03-01-PLAN.md — Run adaptive PWWS attack against v4 hardened model (fresh measurement, not training-round ASR)
@@ -90,4 +90,4 @@ The following phases from the original roadmap were replaced after the Phase 1 g
 |-------|----------------|--------|-----------|
 | 1. Transferability Gate | 2/2 | Complete (PIVOT) | 2026-03-10 |
 | 2. Adversarial Hardening | 3/3 | Complete   | 2026-03-10 |
-| 3. Adversarial Benchmark and Publication | 1/3 | In Progress|  |
+| 3. Adversarial Benchmark and Publication | 3/3 | Complete   | 2026-03-10 |
