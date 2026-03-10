@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v0.3
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-02-PLAN.md — reproducibility confirmed, correlated failure analysis complete
-last_updated: "2026-03-10T21:17:59.424Z"
-last_activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
+stopped_at: Completed 03-01-PLAN.md — adaptive PWWS benchmark executed; ASR 20.3% (CI 14.6%-27.5%)
+last_updated: "2026-03-10T23:40:00.000Z"
+last_activity: 2026-03-10 — Phase 3 Plan 01 complete; adaptive benchmark results available for publication
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 8
   completed_plans: 6
-  percent: 33
+  percent: 88
 ---
 
 # Project State
@@ -30,7 +30,7 @@ Plan: 0 of TBD in current phase
 Status: Ready to plan
 Last activity: 2026-03-10 — Phase 1 gate failed, pivot survey complete, roadmap updated
 
-Progress: [███░░░░░░░] 33%
+Progress: [█████████░] 88%
 
 ## Performance Metrics
 
@@ -51,6 +51,7 @@ Progress: [███░░░░░░░] 33%
 | Phase 02-deberta-training-and-onnx-export P01 | 8 | 2 tasks | 4 files |
 | Phase 02-deberta-training-and-onnx-export P02 | ~4h | 3 tasks | 7 files |
 | Phase 02-deberta-training-and-onnx-export P03 | 65min | 3 tasks | 9 files |
+| Phase 03-adversarial-benchmark-and-publication P01 | 90min | 2 tasks | 3 files |
 | Phase 03-adversarial-benchmark-and-publication P02 | 25min | 2 tasks | 4 files |
 
 ## Accumulated Context
@@ -81,6 +82,8 @@ Recent decisions affecting current work:
 - [Phase 02-deberta-training-and-onnx-export]: Mahalanobis scoring applied only in single-chunk classify() path, not sliding window: calibration domain (single-chunk) must match inference domain
 - [Phase 02-deberta-training-and-onnx-export]: Mahalanobis detection rate 2.7% (plan target 60%): benign/malicious CLS distributions overlap substantially (means 17.59 vs 17.21); single-layer CLS has limited OOD discriminative power
 - [Phase 02-deberta-training-and-onnx-export]: Min 100-char gate for Mahalanobis: short inputs OOD by MiniLM padding artifact, not adversarial content
+- [Phase 03-01]: Adaptive ASR 20.3% (CI: 14.6%-27.5%) is a fresh test-time measurement distinct from round-2 training-time ASR (20.0%); both are real but measure different attack scenarios
+- [Phase 03-01]: Wilson CI implemented inline with numpy (z=1.959964) — scipy.stats.proportion_confint not available in .venv-transfer scipy version
 - [Phase 03-adversarial-benchmark-and-publication]: docs/results/ gitignored: benchmark artifacts local only; scripts and tests committed to public repo
 - [Phase 03-adversarial-benchmark-and-publication]: Correlated failure definition: tier0_detected=False AND tier15_verdict=SAFE AND anomaly_flagged=False (all three tiers must miss)
 - [Phase 03-adversarial-benchmark-and-publication]: Both-miss dominated by structural categories: fragmentation 11/20 (55%), implicit_instruction 5/20 (25%) -- information-theoretic ceiling for publication narrative
@@ -99,6 +102,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T21:17:59.422Z
-Stopped at: Completed 03-02-PLAN.md — reproducibility confirmed, correlated failure analysis complete
+Last session: 2026-03-10T23:40:00Z
+Stopped at: Completed 03-01-PLAN.md — adaptive PWWS benchmark executed; ASR 20.3% (CI 14.6%-27.5%)
 Resume file: None
