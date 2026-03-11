@@ -5,7 +5,8 @@ patterns:
     regex: '(?i)\$\{\{\s*(?:github\.event\.(?:issue|pull_request|comment|review|discussion)\.(?:title|body|head\.ref)|inputs\.)'
     severity: high
     description: "GitHub Actions expression injection — untrusted user input in workflow expression"
-    false_positive_hint: "Common in workflows but dangerous when interpolated into run: blocks"
+    false_positive_hint: "Restricted to strict mode — CI-002 covers the run: block execution context in all modes. CI-001 fires only when expression injection appears in agent instruction files (CLAUDE.md, .cursorrules, etc.)."
+    modes: [strict]
 
   - id: CI-002
     regex: '(?i)(?:run|script)\s*:\s*.*\$\{\{\s*github\.event\.'

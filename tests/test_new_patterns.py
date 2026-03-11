@@ -58,8 +58,20 @@ class TestCICDPoisoning:
     """CI-001 through CI-006."""
 
     def test_ci001_expression_injection(self, engine: PatternEngine) -> None:
-        result = engine.scan("title: ${{ github.event.issue.title }}", ".github/workflows/ci.yml")
+        # CI-001 is strict-only — scan via agent instruction file path to trigger STRICT mode
+        result = engine.scan(
+            "title: ${{ github.event.issue.title }}",
+            "CLAUDE.md",
+        )
         assert any(m.pattern_id == "CI-001" for m in result.matches)
+
+    def test_ci001_suppressed_in_standard_mode(self, engine: PatternEngine) -> None:
+        # CI-001 must NOT fire in STANDARD mode on workflow files — this is the FPR fix
+        result = engine.scan(
+            "title: ${{ github.event.issue.title }}",
+            ".github/workflows/ci.yml",
+        )
+        assert not any(m.pattern_id == "CI-001" for m in result.matches)
 
     def test_ci002_shell_injection(self, engine: PatternEngine) -> None:
         result = engine.scan(
