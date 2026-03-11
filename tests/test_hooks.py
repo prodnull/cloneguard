@@ -715,6 +715,19 @@ class TestModeDetectionEnhanced:
 class TestModeThreadingHooks:
     """Verify that ScanMode is correctly threaded through each hook handler to classify()."""
 
+    def _make_engine_mock(self, detect_mode_return):
+        """Helper: build a PatternEngine mock with a configured _detect_mode return value."""
+        from unittest.mock import MagicMock
+
+        from cloneguard.patterns import Verdict
+
+        mock_engine = MagicMock()
+        mock_scan_result = MagicMock()
+        mock_scan_result.verdict = Verdict.CLEAN
+        mock_engine.scan.return_value = mock_scan_result
+        mock_engine._detect_mode.return_value = detect_mode_return
+        return mock_engine
+
     def test_instructions_loaded_passes_strict_to_classify(self):
         """handle_instructions_loaded must call classify() with mode=ScanMode.STRICT (minimum)."""
         from unittest.mock import MagicMock, patch
@@ -733,23 +746,17 @@ class TestModeThreadingHooks:
                 {
                     "source": "README.md",
                     "content": "Normal benign text.",
-                    # Deliberately ambiguous path to test that hook layer enforces STRICT
+                    # Deliberately ambiguous path — hook layer must enforce STRICT minimum
                     "path": "README.md",
                 }
             ],
         }
 
+        # Path README.md -> STANDARD from _detect_mode, but hook_default=STRICT wins
+        mock_engine = self._make_engine_mock(ScanMode.STANDARD)
+
         with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
-            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
-                mock_engine = MagicMock()
-                mock_scan_result = MagicMock()
-                mock_scan_result.verdict.value = "clean"
-                from cloneguard.patterns import Verdict
-
-                mock_scan_result.verdict = Verdict.CLEAN
-                mock_engine.scan.return_value = mock_scan_result
-                mock_engine_factory.return_value = mock_engine
-
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
                 _session_trust.clear()
                 handle_instructions_loaded(data)
 
@@ -770,7 +777,7 @@ class TestModeThreadingHooks:
         mock_classifier.classify.return_value = mock_result
         mock_classifier.available = True
 
-        # CLAUDE.md as source_path -> expect STRICT mode
+        # CLAUDE.md as source_path -> _detect_mode returns STRICT
         data = {
             "hook_type": "PostToolUse",
             "tool_name": "Read",
@@ -778,16 +785,10 @@ class TestModeThreadingHooks:
             "tool_output": {"content": "Normal content from CLAUDE.md."},
         }
 
+        mock_engine = self._make_engine_mock(ScanMode.STRICT)
+
         with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
-            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
-                mock_engine = MagicMock()
-                mock_scan_result = MagicMock()
-                from cloneguard.patterns import Verdict
-
-                mock_scan_result.verdict = Verdict.CLEAN
-                mock_engine.scan.return_value = mock_scan_result
-                mock_engine_factory.return_value = mock_engine
-
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
                 handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
@@ -813,16 +814,11 @@ class TestModeThreadingHooks:
             "tool_output": {"content": "Normal README content."},
         }
 
+        # README.md -> _detect_mode returns STANDARD
+        mock_engine = self._make_engine_mock(ScanMode.STANDARD)
+
         with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
-            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
-                mock_engine = MagicMock()
-                mock_scan_result = MagicMock()
-                from cloneguard.patterns import Verdict
-
-                mock_scan_result.verdict = Verdict.CLEAN
-                mock_engine.scan.return_value = mock_scan_result
-                mock_engine_factory.return_value = mock_engine
-
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
                 handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
@@ -848,16 +844,11 @@ class TestModeThreadingHooks:
             "tool_output": {"content": "x = 1"},
         }
 
+        # tests/ path -> _detect_mode returns LENIENT
+        mock_engine = self._make_engine_mock(ScanMode.LENIENT)
+
         with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
-            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
-                mock_engine = MagicMock()
-                mock_scan_result = MagicMock()
-                from cloneguard.patterns import Verdict
-
-                mock_scan_result.verdict = Verdict.CLEAN
-                mock_engine.scan.return_value = mock_scan_result
-                mock_engine_factory.return_value = mock_engine
-
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
                 handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
@@ -885,16 +876,11 @@ class TestModeThreadingHooks:
             },
         }
 
+        # CLAUDE.md -> _detect_mode returns STRICT
+        mock_engine = self._make_engine_mock(ScanMode.STRICT)
+
         with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
-            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
-                mock_engine = MagicMock()
-                mock_scan_result = MagicMock()
-                from cloneguard.patterns import Verdict
-
-                mock_scan_result.verdict = Verdict.CLEAN
-                mock_engine.scan.return_value = mock_scan_result
-                mock_engine_factory.return_value = mock_engine
-
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
                 handle_pre_tool_use(data)
 
         assert mock_classifier.classify.called

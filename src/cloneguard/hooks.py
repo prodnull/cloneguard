@@ -18,11 +18,23 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import sys
 from pathlib import Path
 from typing import Any
 
 from cloneguard.patterns import PatternEngine, PatternMatch, ScanMode, Severity, Verdict
+
+# ---------------------------------------------------------------------------
+# Content heuristic markers for three-signal mode detection (locked — CONTEXT.md)
+# ---------------------------------------------------------------------------
+# These lightweight regexes detect content type when path alone is ambiguous.
+# Workflow/CI markers confirm STANDARD context (do not upgrade).
+# Agent instruction markers upgrade toward STRICT.
+
+_WORKFLOW_MARKER = re.compile(r"(?m)^(?:on:|jobs:)\s")
+_AGENT_INSTRUCTION_MARKER = re.compile(r"(?m)^#\s*Instructions?\b")
+_CI_CONFIG_MARKER = re.compile(r"(?m)^(?:stages:|pipeline:|image:)\s")
 
 # Singleton engine — loaded once per process lifetime.
 _engine: PatternEngine | None = None
@@ -54,12 +66,62 @@ def _get_mini_classifier() -> Any:
     return _mini_classifier
 
 
-def _classify_with_tier15(content: str, source: str) -> tuple[str | None, str]:
+def _detect_mode_for_tier15(
+    source_path: str,
+    content: str,
+    hook_default: ScanMode,
+) -> ScanMode:
+    """Determine Tier 1.5 ScanMode via three signals (path + hook layer + content markers).
+
+    Signal precedence (highest wins; content markers can only upgrade, never downgrade):
+    1. Hook-layer default (hook_default): the implicit mode for this hook context.
+    2. Path-based detection: reuses PatternEngine._detect_mode() logic.
+    3. Content marker heuristics: agent instruction markers upgrade toward STRICT.
+       Workflow/CI markers do NOT upgrade mode — they confirm STANDARD context.
+
+    Final mode = max(hook_default, path_mode, content_upgrade) where
+    STRICT > STANDARD > LENIENT — ensuring markers only move mode upward.
+    """
+    # Signal 2: path-based detection via PatternEngine (primary signal)
+    path_mode = _get_engine()._detect_mode(source_path)
+
+    # Signal 3: content markers — only agent instruction marker upgrades to STRICT.
+    # Workflow/CI markers confirm STANDARD context; they do not upgrade mode.
+    # Content markers can only upgrade mode toward STRICT, never downgrade.
+    if _AGENT_INSTRUCTION_MARKER.search(content):
+        content_upgrade = ScanMode.STRICT
+    else:
+        content_upgrade = ScanMode.LENIENT  # no upgrade from content
+
+    # Precedence: path is primary. hook_default applies when path says STANDARD
+    # (i.e. no specific path signal). Content markers only upgrade, never downgrade.
+    # STRICT > STANDARD > LENIENT ordinal for max() comparison.
+    _rank = {ScanMode.LENIENT: 0, ScanMode.STANDARD: 1, ScanMode.STRICT: 2}
+    rank_to_mode = {0: ScanMode.LENIENT, 1: ScanMode.STANDARD, 2: ScanMode.STRICT}
+
+    # Path is authoritative for LENIENT (test files) and STRICT (agent configs).
+    # hook_default overrides only when path returns STANDARD (no strong path signal).
+    if path_mode == ScanMode.STANDARD:
+        # No strong path signal — use hook_default as baseline, content can upgrade
+        base_rank = max(_rank[hook_default], _rank[content_upgrade])
+    else:
+        # Path has a strong signal (STRICT or LENIENT) — path wins over hook_default.
+        # Content markers can still upgrade from path_mode toward STRICT.
+        base_rank = max(_rank[path_mode], _rank[content_upgrade])
+
+    return rank_to_mode[base_rank]
+
+
+def _classify_with_tier15(
+    content: str,
+    source: str,
+    mode: ScanMode = ScanMode.STANDARD,
+) -> tuple[str | None, str]:
     """Run Tier 1.5 classification on content. Returns (verdict, reason) or (None, '')."""
     classifier = _get_mini_classifier()
     if classifier is None:
         return None, ""
-    result = classifier.classify(content)
+    result = classifier.classify(content, mode=mode)
     if result.verdict != "SAFE":
         return result.verdict, f"Tier 1.5: {result.reason}"
     return None, ""
@@ -217,8 +279,9 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
             warnings.append(warning)
             _session_trust[path] = content_sha
         else:
-            # Tier 0 clean — run Tier 1.5 semantic check
-            t15_verdict, t15_reason = _classify_with_tier15(content, path)
+            # Tier 0 clean — run Tier 1.5 semantic check (STRICT minimum for InstructionsLoaded)
+            mode = _detect_mode_for_tier15(path, content, ScanMode.STRICT)
+            t15_verdict, t15_reason = _classify_with_tier15(content, path, mode=mode)
             if t15_verdict == "MALICIOUS":
                 blocked_reasons.append(
                     f"BLOCKED: Semantic classifier flagged {path} — {t15_reason}"
@@ -282,7 +345,8 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                 print(warning)
             else:
                 # Tier 0 clean — Tier 1.5 semantic check on sensitive write content
-                t15_verdict, t15_reason = _classify_with_tier15(content, file_path)
+                mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD)
+                t15_verdict, t15_reason = _classify_with_tier15(content, file_path, mode=mode)
                 if t15_verdict == "MALICIOUS":
                     print(
                         f"BLOCKED: Semantic classifier flagged write to {file_path} — {t15_reason}"
@@ -385,7 +449,8 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
         return 0
 
     # Tier 0 clean — run Tier 1.5 semantic check on tool output
-    t15_verdict, t15_reason = _classify_with_tier15(content, source_path)
+    mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD)
+    t15_verdict, t15_reason = _classify_with_tier15(content, source_path, mode=mode)
     if t15_verdict == "MALICIOUS":
         print(f"WARNING: Semantic classifier flagged tool output from {source_path} — {t15_reason}")
     elif t15_verdict == "SUSPICIOUS":
