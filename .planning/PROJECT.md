@@ -30,7 +30,18 @@ Make prompt injection attacks against AI coding agents expensive enough that att
 
 ### Active
 
-(None — next milestone requirements TBD via `/gsd:new-milestone`)
+#### v0.4 — FPR Investigation, Pattern Expansion & Tool Call Monitoring
+
+- [ ] INV-01: Empirically measure whether security-context markers increase Tier 0+1.5 FPR
+- [ ] INV-02: Audit 4 strict-only patterns against legitimate defensive security content
+- [ ] INV-03: Document findings — structural FPR limits, authorization paradox presence/absence
+- [ ] FPR-01: Implement context-aware thresholds (per-context, informed by INV findings)
+- [ ] FPR-02: Reduce sliding-window FPR on agent_instructions (33%) and workflows (24%)
+- [ ] PAT-01: Add 51 new patterns covering 11 identified gaps
+- [ ] PAT-02: Add Log-To-Leak exfiltration patterns
+- [ ] DOC-01: Cite Campbell et al. 2026 in SECURITY.md threat model
+- [ ] DOC-02: Update Medium Part 2 draft with Campbell findings
+- [ ] TCM-01: Implement tool call behavioral monitoring at hook layer (CaMeL-lite)
 
 ### Out of Scope
 
@@ -42,6 +53,17 @@ Make prompt injection attacks against AI coding agents expensive enough that att
 - Retraining MiniLM-L6-v2 base model
 - Tier 2 (Ollama) changes
 - Subsuming mcp-guard as sub-project
+
+## Current Milestone: v0.4 FPR Investigation, Pattern Expansion & Tool Call Monitoring
+
+**Goal:** Empirically characterize FPR behavior (informed by Campbell et al. 2026 Defensive Refusal Bias), expand pattern coverage, and add tool call behavioral monitoring.
+
+**Target features:**
+- Authorization paradox investigation in our pipeline
+- Context-aware FPR thresholds
+- 51 new patterns + Log-To-Leak
+- Campbell et al. citation in threat model
+- CaMeL-lite tool call monitoring at hook layer
 
 ## Context
 
@@ -75,5 +97,7 @@ Make prompt injection attacks against AI coding agents expensive enough that att
 | dynamo=False for ONNX export | PyTorch 2.9 dynamo fails on LayerNorm dynamic axes | — Workaround, monitor future PyTorch releases |
 | Publish negative results honestly | Mahalanobis miss, adaptive ceiling, both-miss — all disclosed | ✓ Good — credibility over marketing |
 
+| Campbell et al. FPR investigation before pattern expansion | Embedding-space structural limits are information-theoretic — investigate before tuning | — Pending |
+
 ---
-*Last updated: 2026-03-11 after v0.3 milestone*
+*Last updated: 2026-03-10 after v0.4 milestone start*
