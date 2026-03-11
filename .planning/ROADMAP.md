@@ -33,7 +33,7 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 **Goal**: Users can see empirically grounded findings on whether the authorization paradox manifests in CloneGuard's pipeline, with Campbell et al. cited in the threat model
 **Depends on**: Phase 3 (v0.3 shipped)
 **Requirements**: INV-01, INV-02, INV-03, DOC-01, DOC-02
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 04-01-PLAN.md — Build investigation infrastructure, run FPR benchmark (INV-01 + INV-02)
@@ -88,7 +88,7 @@ Plans:
 | 1. Transferability Gate | v0.3 | 2/2 | Complete (PIVOT) | 2026-03-10 |
 | 2. Adversarial Hardening | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
-| 4. FPR Investigation & Documentation | v0.4 | 0/2 | Planned | - |
+| 4. FPR Investigation & Documentation | 1/2 | In Progress|  | - |
 | 5. FPR Tuning | v0.4 | 0/TBD | Not started | - |
 | 6. Pattern Expansion | v0.4 | 0/TBD | Not started | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |
