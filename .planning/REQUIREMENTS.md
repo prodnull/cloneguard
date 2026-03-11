@@ -13,8 +13,8 @@
 
 ### FPR Tuning
 
-- [ ] **FPR-01**: Implement context-aware thresholds (per-context rather than global threshold, informed by INV-01/INV-02 findings)
-- [ ] **FPR-02**: Reduce sliding-window FPR on agent_instructions (currently 33%) and workflows (currently 24%)
+- [x] **FPR-01**: Implement context-aware thresholds (per-context rather than global threshold, informed by INV-01/INV-02 findings)
+- [x] **FPR-02**: Reduce sliding-window FPR on agent_instructions (currently 33%) and workflows (currently 24%)
 
 ### Pattern Expansion
 
@@ -52,8 +52,8 @@
 | INV-03 | Phase 4 | Complete |
 | DOC-01 | Phase 4 | Complete |
 | DOC-02 | Phase 4 | Complete |
-| FPR-01 | Phase 5 | Pending |
-| FPR-02 | Phase 5 | Pending |
+| FPR-01 | Phase 5 | Complete |
+| FPR-02 | Phase 5 | Complete |
 | PAT-01 | Phase 6 | Pending |
 | PAT-02 | Phase 6 | Pending |
 | TCM-01 | Phase 7 | Pending |

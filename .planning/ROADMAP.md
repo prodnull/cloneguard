@@ -50,7 +50,7 @@ Plans:
 **Goal**: Users operating CloneGuard in agent_instructions and workflow contexts experience materially lower false positive rates via per-context thresholds derived from Phase 4 empirical findings
 **Depends on**: Phase 4
 **Requirements**: FPR-01, FPR-02
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 05-01-PLAN.md — Calibration script and per-ScanMode threshold table in mini_semantic.py (FPR-01 + FPR-02)
@@ -94,6 +94,6 @@ Plans:
 | 2. Adversarial Hardening | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
-| 5. FPR Tuning | v0.4 | 0/2 | Planning complete | - |
+| 5. FPR Tuning | 1/2 | In Progress|  | - |
 | 6. Pattern Expansion | v0.4 | 0/TBD | Not started | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |
