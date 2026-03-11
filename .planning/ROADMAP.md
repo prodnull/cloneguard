@@ -24,7 +24,7 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 
 - [x] **Phase 4: FPR Investigation & Documentation** — Audit the authorization paradox in our pipeline, measure security-context marker FPR impact, document structural limits, cite Campbell et al. (completed 2026-03-11)
 - [x] **Phase 5: FPR Tuning** — Implement context-aware thresholds and reduce sliding-window FPR in agent_instructions and workflows, informed by Phase 4 findings (completed 2026-03-11)
-- [ ] **Phase 6: Pattern Expansion** — Add Log-To-Leak exfiltration category, fix CI-001 workflow FPR floor, confirm 65+ gap-category patterns
+- [x] **Phase 6: Pattern Expansion** — Add Log-To-Leak exfiltration category, fix CI-001 workflow FPR floor, confirm 65+ gap-category patterns (completed 2026-03-11)
 - [ ] **Phase 7: Tool Call Monitoring** — Implement CaMeL-lite behavioral monitoring at hook layer to detect anomalous tool call sequences
 
 ## Phase Details
@@ -66,7 +66,7 @@ Plans:
 **Goal**: CloneGuard's Tier 0 coverage includes 65+ gap-category patterns across 11 gaps, a new Log-To-Leak exfiltration category, and CI-001 workflow FPR floor is resolved
 **Depends on**: Phase 5
 **Requirements**: PAT-01, PAT-02
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 06-01-PLAN.md — Create Log-To-Leak category (LTL-001 to LTL-004), restrict CI-001 to strict mode, audit 65 gap patterns (PAT-01 + PAT-02)
@@ -101,5 +101,5 @@ Plans:
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
 | 5. FPR Tuning | 2/2 | Complete   | 2026-03-11 | - |
-| 6. Pattern Expansion | 1/2 | In Progress|  | - |
+| 6. Pattern Expansion | 2/2 | Complete   | 2026-03-11 | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |

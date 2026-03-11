@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: FPR Investigation, Pattern Expansion & Tool Call Monitoring
 status: planning
-stopped_at: Completed 06-01-PLAN.md — Log-To-Leak patterns + CI-001 strict mode restriction
-last_updated: "2026-03-11T12:10:04.411Z"
+stopped_at: "Completed 06-02-PLAN.md — FPR verification: workflow combined 18.9% STANDARD (target was <24%)"
+last_updated: "2026-03-11T12:17:03.681Z"
 last_activity: 2026-03-10 — Roadmap created, v0.4 phases 4-7 defined
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 05-fpr-tuning]: Combined workflow FPR 30.2% is the honest structural result: Tier 0 CI-001 floor (~23.9%) cannot be addressed by Tier 1.5 tuning — deferred to Phase 6
 - [Phase 06-01]: CI-001 moved to modes: [strict] — Option B per RESEARCH.md — CI-002 owns run-context detection in all modes
 - [Phase 06-01]: LTL-004 compliance-framed exfiltration is strict-only to avoid FPR on legitimate compliance docs in STANDARD mode
+- [Phase Phase 06-02]: Workflow combined FPR (STANDARD) confirmed at 18.9% after CI-001 strict restriction — 24% target met with 5.1pp margin; Tier 0 standalone FPR reduced to 0.0% across all content types
 
 ### Pending Todos
 
@@ -64,6 +65,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:10:04.409Z
-Stopped at: Completed 06-01-PLAN.md — Log-To-Leak patterns + CI-001 strict mode restriction
+Last session: 2026-03-11T12:17:03.679Z
+Stopped at: Completed 06-02-PLAN.md — FPR verification: workflow combined 18.9% STANDARD (target was <24%)
 Resume file: None
