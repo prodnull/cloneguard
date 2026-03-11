@@ -23,7 +23,7 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 **Milestone Goal:** Empirically characterize FPR behavior informed by Campbell et al. 2026, reduce sliding-window FPR in high-noise contexts, expand pattern coverage to 11 identified gaps, and add tool call behavioral monitoring at the hook layer.
 
 - [x] **Phase 4: FPR Investigation & Documentation** — Audit the authorization paradox in our pipeline, measure security-context marker FPR impact, document structural limits, cite Campbell et al. (completed 2026-03-11)
-- [ ] **Phase 5: FPR Tuning** — Implement context-aware thresholds and reduce sliding-window FPR in agent_instructions and workflows, informed by Phase 4 findings
+- [x] **Phase 5: FPR Tuning** — Implement context-aware thresholds and reduce sliding-window FPR in agent_instructions and workflows, informed by Phase 4 findings (completed 2026-03-11)
 - [ ] **Phase 6: Pattern Expansion** — Add 51 new patterns covering 11 identified gaps plus Log-To-Leak exfiltration patterns
 - [ ] **Phase 7: Tool Call Monitoring** — Implement CaMeL-lite behavioral monitoring at hook layer to detect anomalous tool call sequences
 
@@ -50,7 +50,7 @@ Plans:
 **Goal**: Users operating CloneGuard in agent_instructions and workflow contexts experience materially lower false positive rates via per-context thresholds derived from Phase 4 empirical findings
 **Depends on**: Phase 4
 **Requirements**: FPR-01, FPR-02
-**Plans:** 1/2 plans executed
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 05-01-PLAN.md — Calibration script and per-ScanMode threshold table in mini_semantic.py (FPR-01 + FPR-02)
@@ -94,6 +94,6 @@ Plans:
 | 2. Adversarial Hardening | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
-| 5. FPR Tuning | 1/2 | In Progress|  | - |
+| 5. FPR Tuning | 2/2 | Complete   | 2026-03-11 | - |
 | 6. Pattern Expansion | v0.4 | 0/TBD | Not started | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |

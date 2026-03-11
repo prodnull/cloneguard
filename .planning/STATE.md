@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: FPR Investigation, Pattern Expansion & Tool Call Monitoring
 status: planning
-stopped_at: Completed 05-01-PLAN.md — per-ScanMode threshold table implemented
-last_updated: "2026-03-11T05:29:39.242Z"
+stopped_at: Completed 05-02-PLAN.md — ScanMode threaded through hooks.py and scanner.py, combined pipeline FPR verified
+last_updated: "2026-03-11T05:42:00.870Z"
 last_activity: 2026-03-10 — Roadmap created, v0.4 phases 4-7 defined
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -48,6 +48,9 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 05-fpr-tuning]: STANDARD=(0.65, 0.88) and LENIENT=(0.75, 0.92) confirmed by calibration sweep on 757 benign samples
 - [Phase 05-fpr-tuning]: Default mode=ScanMode.STANDARD on classify() for backward-compatibility with callers that omit mode
 - [Phase 05-fpr-tuning]: Tier 0 CI-001 floor at 23.9% workflow FPR is the honest structural limit; Phase 5 cannot hit combined 24% target — deferred to Phase 6
+- [Phase 05-fpr-tuning]: Path is primary mode signal: LENIENT/STRICT from path wins over hook_default; hook_default applies only when path returns STANDARD
+- [Phase 05-fpr-tuning]: Content markers upgrade only: agent instruction marker upgrades to STRICT; workflow/CI markers confirm STANDARD without upgrading or downgrading
+- [Phase 05-fpr-tuning]: Combined workflow FPR 30.2% is the honest structural result: Tier 0 CI-001 floor (~23.9%) cannot be addressed by Tier 1.5 tuning — deferred to Phase 6
 
 ### Pending Todos
 
@@ -59,6 +62,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T05:29:39.241Z
-Stopped at: Completed 05-01-PLAN.md — per-ScanMode threshold table implemented
+Last session: 2026-03-11T05:42:00.868Z
+Stopped at: Completed 05-02-PLAN.md — ScanMode threaded through hooks.py and scanner.py, combined pipeline FPR verified
 Resume file: None
