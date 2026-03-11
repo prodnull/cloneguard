@@ -629,6 +629,280 @@ class TestMainDispatch:
 
 
 # ---------------------------------------------------------------------------
+# Mode threading — Task 1 (Phase 05-02)
+# ---------------------------------------------------------------------------
+
+
+class TestModeDetectionEnhanced:
+    """Tests for _detect_mode_for_tier15() three-signal mode detection."""
+
+    def test_detect_mode_strict_basename(self):
+        """CLAUDE.md basename -> STRICT regardless of hook default."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        mode = _detect_mode_for_tier15(
+            "CLAUDE.md", "# Instructions\nsome content", ScanMode.STANDARD
+        )
+        assert mode == ScanMode.STRICT
+
+    def test_detect_mode_strict_path_pattern(self):
+        """.claude/ path prefix -> STRICT."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        mode = _detect_mode_for_tier15(".claude/rules/coding.md", "some rule", ScanMode.STANDARD)
+        assert mode == ScanMode.STRICT
+
+    def test_detect_mode_lenient_test_path(self):
+        """tests/ path segment -> LENIENT (hook default STANDARD, path says LENIENT)."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        mode = _detect_mode_for_tier15("tests/fixture.py", "x = 1", ScanMode.STANDARD)
+        assert mode == ScanMode.LENIENT
+
+    def test_detect_mode_standard_readme(self):
+        """README.md -> STANDARD (no strict or lenient signals)."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        mode = _detect_mode_for_tier15("README.md", "# My project", ScanMode.STANDARD)
+        assert mode == ScanMode.STANDARD
+
+    def test_hook_default_strict_is_minimum(self):
+        """Hook default STRICT is never downgraded — even if path would say LENIENT."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        # InstructionsLoaded always passes hook_default=STRICT; a test-path instruction
+        # file should still be scanned at STRICT (hook layer wins over lenient path).
+        mode = _detect_mode_for_tier15("tests/CLAUDE.md", "# Instructions", ScanMode.STRICT)
+        assert mode == ScanMode.STRICT
+
+    def test_content_marker_agent_instruction_upgrades_standard_to_strict(self):
+        """Content with # Instructions marker upgrades STANDARD -> STRICT."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        # Ambiguous path (no path signal), but content has agent instruction marker
+        content = "# Instructions\nDo the following steps..."
+        mode = _detect_mode_for_tier15("context.md", content, ScanMode.STANDARD)
+        assert mode == ScanMode.STRICT
+
+    def test_content_marker_never_downgrades_strict(self):
+        """Workflow content markers do not downgrade an already-STRICT mode."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        # CLAUDE.md with workflow content — path -> STRICT, content has workflow marker.
+        # Mode must stay STRICT, not downgrade.
+        content = "on: push\njobs:\n  build:\n    runs-on: ubuntu-latest"
+        mode = _detect_mode_for_tier15("CLAUDE.md", content, ScanMode.STANDARD)
+        assert mode == ScanMode.STRICT
+
+    def test_content_marker_workflow_does_not_upgrade(self):
+        """Workflow/CI content markers do not upgrade mode — only agent instruction markers do."""
+        from cloneguard.hooks import _detect_mode_for_tier15
+        from cloneguard.patterns import ScanMode
+
+        content = "on: push\njobs:\n  test:\n    runs-on: ubuntu-latest"
+        mode = _detect_mode_for_tier15("ci.yml", content, ScanMode.STANDARD)
+        # Workflow content is STANDARD context; workflow markers confirm STANDARD, don't upgrade
+        assert mode == ScanMode.STANDARD
+
+
+class TestModeThreadingHooks:
+    """Verify that ScanMode is correctly threaded through each hook handler to classify()."""
+
+    def test_instructions_loaded_passes_strict_to_classify(self):
+        """handle_instructions_loaded must call classify() with mode=ScanMode.STRICT (minimum)."""
+        from unittest.mock import MagicMock, patch
+
+        from cloneguard.patterns import ScanMode
+
+        mock_classifier = MagicMock()
+        mock_result = MagicMock()
+        mock_result.verdict = "SAFE"
+        mock_classifier.classify.return_value = mock_result
+        mock_classifier.available = True
+
+        data = {
+            "hook_type": "InstructionsLoaded",
+            "instructions": [
+                {
+                    "source": "README.md",
+                    "content": "Normal benign text.",
+                    # Deliberately ambiguous path to test that hook layer enforces STRICT
+                    "path": "README.md",
+                }
+            ],
+        }
+
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
+                mock_engine = MagicMock()
+                mock_scan_result = MagicMock()
+                mock_scan_result.verdict.value = "clean"
+                from cloneguard.patterns import Verdict
+
+                mock_scan_result.verdict = Verdict.CLEAN
+                mock_engine.scan.return_value = mock_scan_result
+                mock_engine_factory.return_value = mock_engine
+
+                _session_trust.clear()
+                handle_instructions_loaded(data)
+
+        # classify() must be called with mode=ScanMode.STRICT (minimum for InstructionsLoaded)
+        assert mock_classifier.classify.called
+        call_kwargs = mock_classifier.classify.call_args
+        assert call_kwargs.kwargs.get("mode") == ScanMode.STRICT
+
+    def test_post_tool_use_passes_mode_to_classify(self):
+        """handle_post_tool_use must call classify() with mode derived from source_path."""
+        from unittest.mock import MagicMock, patch
+
+        from cloneguard.patterns import ScanMode
+
+        mock_classifier = MagicMock()
+        mock_result = MagicMock()
+        mock_result.verdict = "SAFE"
+        mock_classifier.classify.return_value = mock_result
+        mock_classifier.available = True
+
+        # CLAUDE.md as source_path -> expect STRICT mode
+        data = {
+            "hook_type": "PostToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "CLAUDE.md"},
+            "tool_output": {"content": "Normal content from CLAUDE.md."},
+        }
+
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
+                mock_engine = MagicMock()
+                mock_scan_result = MagicMock()
+                from cloneguard.patterns import Verdict
+
+                mock_scan_result.verdict = Verdict.CLEAN
+                mock_engine.scan.return_value = mock_scan_result
+                mock_engine_factory.return_value = mock_engine
+
+                handle_post_tool_use(data)
+
+        assert mock_classifier.classify.called
+        call_kwargs = mock_classifier.classify.call_args
+        assert call_kwargs.kwargs.get("mode") == ScanMode.STRICT
+
+    def test_post_tool_use_standard_for_readme(self):
+        """handle_post_tool_use uses STANDARD mode for README.md source path."""
+        from unittest.mock import MagicMock, patch
+
+        from cloneguard.patterns import ScanMode
+
+        mock_classifier = MagicMock()
+        mock_result = MagicMock()
+        mock_result.verdict = "SAFE"
+        mock_classifier.classify.return_value = mock_result
+        mock_classifier.available = True
+
+        data = {
+            "hook_type": "PostToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "README.md"},
+            "tool_output": {"content": "Normal README content."},
+        }
+
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
+                mock_engine = MagicMock()
+                mock_scan_result = MagicMock()
+                from cloneguard.patterns import Verdict
+
+                mock_scan_result.verdict = Verdict.CLEAN
+                mock_engine.scan.return_value = mock_scan_result
+                mock_engine_factory.return_value = mock_engine
+
+                handle_post_tool_use(data)
+
+        assert mock_classifier.classify.called
+        call_kwargs = mock_classifier.classify.call_args
+        assert call_kwargs.kwargs.get("mode") == ScanMode.STANDARD
+
+    def test_post_tool_use_lenient_for_test_file(self):
+        """handle_post_tool_use uses LENIENT mode for test fixture paths."""
+        from unittest.mock import MagicMock, patch
+
+        from cloneguard.patterns import ScanMode
+
+        mock_classifier = MagicMock()
+        mock_result = MagicMock()
+        mock_result.verdict = "SAFE"
+        mock_classifier.classify.return_value = mock_result
+        mock_classifier.available = True
+
+        data = {
+            "hook_type": "PostToolUse",
+            "tool_name": "Read",
+            "tool_input": {"file_path": "tests/fixtures/sample.py"},
+            "tool_output": {"content": "x = 1"},
+        }
+
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
+                mock_engine = MagicMock()
+                mock_scan_result = MagicMock()
+                from cloneguard.patterns import Verdict
+
+                mock_scan_result.verdict = Verdict.CLEAN
+                mock_engine.scan.return_value = mock_scan_result
+                mock_engine_factory.return_value = mock_engine
+
+                handle_post_tool_use(data)
+
+        assert mock_classifier.classify.called
+        call_kwargs = mock_classifier.classify.call_args
+        assert call_kwargs.kwargs.get("mode") == ScanMode.LENIENT
+
+    def test_pre_tool_use_passes_mode_to_classify_for_sensitive_write(self):
+        """handle_pre_tool_use uses STRICT mode when writing to CLAUDE.md (sensitive target)."""
+        from unittest.mock import MagicMock, patch
+
+        from cloneguard.patterns import ScanMode
+
+        mock_classifier = MagicMock()
+        mock_result = MagicMock()
+        mock_result.verdict = "SAFE"
+        mock_classifier.classify.return_value = mock_result
+        mock_classifier.available = True
+
+        data = {
+            "hook_type": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": "CLAUDE.md",
+                "content": "Normal content being written.",
+            },
+        }
+
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine") as mock_engine_factory:
+                mock_engine = MagicMock()
+                mock_scan_result = MagicMock()
+                from cloneguard.patterns import Verdict
+
+                mock_scan_result.verdict = Verdict.CLEAN
+                mock_engine.scan.return_value = mock_scan_result
+                mock_engine_factory.return_value = mock_engine
+
+                handle_pre_tool_use(data)
+
+        assert mock_classifier.classify.called
+        call_kwargs = mock_classifier.classify.call_args
+        assert call_kwargs.kwargs.get("mode") == ScanMode.STRICT
+
+
+# ---------------------------------------------------------------------------
 # C1: hook-check CLI subcommand
 # ---------------------------------------------------------------------------
 
