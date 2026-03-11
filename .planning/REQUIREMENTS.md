@@ -18,8 +18,8 @@
 
 ### Pattern Expansion
 
-- [ ] **PAT-01**: Add 51 new patterns covering 11 identified gaps
-- [ ] **PAT-02**: Add Log-To-Leak exfiltration patterns
+- [x] **PAT-01**: Add 51 new patterns covering 11 identified gaps
+- [x] **PAT-02**: Add Log-To-Leak exfiltration patterns
 
 ### Documentation
 
@@ -54,8 +54,8 @@
 | DOC-02 | Phase 4 | Complete |
 | FPR-01 | Phase 5 | Complete |
 | FPR-02 | Phase 5 | Complete |
-| PAT-01 | Phase 6 | Pending |
-| PAT-02 | Phase 6 | Pending |
+| PAT-01 | Phase 6 | Complete |
+| PAT-02 | Phase 6 | Complete |
 | TCM-01 | Phase 7 | Pending |
 
 **Coverage:**

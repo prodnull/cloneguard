@@ -66,7 +66,7 @@ Plans:
 **Goal**: CloneGuard's Tier 0 coverage includes 65+ gap-category patterns across 11 gaps, a new Log-To-Leak exfiltration category, and CI-001 workflow FPR floor is resolved
 **Depends on**: Phase 5
 **Requirements**: PAT-01, PAT-02
-**Plans:** 2 plans
+**Plans:** 1/2 plans executed
 
 Plans:
 - [ ] 06-01-PLAN.md — Create Log-To-Leak category (LTL-001 to LTL-004), restrict CI-001 to strict mode, audit 65 gap patterns (PAT-01 + PAT-02)
@@ -101,5 +101,5 @@ Plans:
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
 | 5. FPR Tuning | 2/2 | Complete   | 2026-03-11 | - |
-| 6. Pattern Expansion | v0.4 | 0/2 | Planning | - |
+| 6. Pattern Expansion | 1/2 | In Progress|  | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |

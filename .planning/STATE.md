@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: FPR Investigation, Pattern Expansion & Tool Call Monitoring
 status: planning
-stopped_at: Completed 05-02-PLAN.md — ScanMode threaded through hooks.py and scanner.py, combined pipeline FPR verified
-last_updated: "2026-03-11T05:46:15.566Z"
+stopped_at: Completed 06-01-PLAN.md — Log-To-Leak patterns + CI-001 strict mode restriction
+last_updated: "2026-03-11T12:10:04.411Z"
 last_activity: 2026-03-10 — Roadmap created, v0.4 phases 4-7 defined
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 4
-  completed_plans: 4
+  total_plans: 6
+  completed_plans: 5
   percent: 0
 ---
 
@@ -51,6 +51,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 05-fpr-tuning]: Path is primary mode signal: LENIENT/STRICT from path wins over hook_default; hook_default applies only when path returns STANDARD
 - [Phase 05-fpr-tuning]: Content markers upgrade only: agent instruction marker upgrades to STRICT; workflow/CI markers confirm STANDARD without upgrading or downgrading
 - [Phase 05-fpr-tuning]: Combined workflow FPR 30.2% is the honest structural result: Tier 0 CI-001 floor (~23.9%) cannot be addressed by Tier 1.5 tuning — deferred to Phase 6
+- [Phase 06-01]: CI-001 moved to modes: [strict] — Option B per RESEARCH.md — CI-002 owns run-context detection in all modes
+- [Phase 06-01]: LTL-004 compliance-framed exfiltration is strict-only to avoid FPR on legitimate compliance docs in STANDARD mode
 
 ### Pending Todos
 
@@ -62,6 +64,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T05:42:00.868Z
-Stopped at: Completed 05-02-PLAN.md — ScanMode threaded through hooks.py and scanner.py, combined pipeline FPR verified
+Last session: 2026-03-11T12:10:04.409Z
+Stopped at: Completed 06-01-PLAN.md — Log-To-Leak patterns + CI-001 strict mode restriction
 Resume file: None
