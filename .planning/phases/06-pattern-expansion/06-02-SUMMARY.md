@@ -11,7 +11,7 @@ requires:
     provides: CI-001 restricted to strict mode (eliminating 23.9% workflow Tier 0 FPR floor), LTL-004 patterns, 197 total patterns
 provides:
   - Quantitative confirmation that workflow combined FPR (STANDARD) dropped from 30.2% to 18.9% after CI-001 strict restriction
-  - Tier 0 standalone FPR confirmed at 0.0% across all content types in STANDARD mode
+  - Tier 0 standalone workflow FPR reduced from 23.9% to ~10.7% in STANDARD mode (CI-001 eliminated; residual from EX-001, CI-002, PE-005, CH-009, VP-007)
   - Pattern count confirmed at 197 (193 original + 4 LTL) across 25 categories
 affects: [v0.4-release, docs/SECURITY.md FPR claims, HF model card]
 
@@ -20,7 +20,7 @@ tech-stack:
   added: []
   patterns:
     - "FPR verification baseline: workflow STANDARD combined = 18.9% (post CI-001 strict fix)"
-    - "Tier 0 standalone FPR now 0.0% across all content types in STANDARD mode"
+    - "Tier 0 workflow FPR reduced from 23.9% to ~10.7% (CI-001 eliminated; residual from EX-001, CI-002, PE-005, CH-009, VP-007)"
 
 key-files:
   created: []
@@ -28,7 +28,7 @@ key-files:
 
 key-decisions:
   - "Workflow combined FPR (STANDARD) is 18.9% post CI-001 strict restriction — 24% target met with 5.1pp margin"
-  - "Tier 0 standalone FPR is 0.0% on all content types: CI-001 strict restriction fully eliminates the structural workflow floor"
+  - "Tier 0 workflow FPR reduced from 23.9% to ~10.7%: CI-001 eliminated but residual FPs from EX-001, CI-002, PE-005, CH-009, VP-007 remain"
   - "calibrate_thresholds.py stale Phase 5 note (mentions 23.9% floor) is cosmetically outdated — does not affect measurement accuracy"
 
 patterns-established:
@@ -43,7 +43,7 @@ completed: 2026-03-11
 
 # Phase 6 Plan 02: FPR Verification Summary
 
-**Workflow combined FPR (STANDARD) confirmed at 18.9% — below the 24% target deferred from Phase 5 — with Tier 0 standalone FPR reduced to 0.0% across all content types after CI-001 strict restriction**
+**Workflow combined FPR (STANDARD) confirmed at 18.9% — below the 24% target deferred from Phase 5 — with Tier 0 workflow FPR reduced from 23.9% to ~10.7% after CI-001 strict restriction (residual from EX-001, CI-002, PE-005, CH-009, VP-007)**
 
 ## Performance
 
@@ -57,7 +57,7 @@ completed: 2026-03-11
 
 - Ran `scripts/calibrate_thresholds.py --verify` against `data/benchmark/benign_eval_751.json` (757 samples)
 - Confirmed workflow combined FPR (STANDARD) = **18.9%**, down from **30.2%** before CI-001 fix — 11.3pp improvement
-- Confirmed Tier 0 standalone FPR = **0.0%** on all content types in STANDARD mode (workflow was 23.9% before Phase 6)
+- Confirmed Tier 0 workflow FPR reduced from **23.9%** to **~10.7%** in STANDARD mode (CI-001 eliminated; residual 17/159 samples from EX-001, CI-002, PE-005, CH-009, VP-007)
 - Confirmed pattern count = **197** across **25** categories (193 original + 4 LTL)
 - Verified no FPR regressions on non-workflow content categories
 
@@ -71,17 +71,12 @@ Task 1 is a verification-only task with no code changes. No task commit was made
 
 ### Tier 0 Standalone FPR (benign_eval_751.json, STANDARD mode)
 
-| Content Type | Samples | Tier 0 FPR | Phase 5 Baseline |
-|---|---|---|---|
-| agent_instructions | 49 | 0.0% | ~0% |
-| build_script | 55 | 0.0% | ~0% |
-| config | 76 | 0.0% | ~0% |
-| env_config | 55 | 0.0% | ~0% |
-| readme | 146 | 0.0% | ~0% |
-| security_doc | 48 | 0.0% | ~0% |
-| test_file | 169 | 0.0% | ~0% |
-| workflow | 159 | **0.0%** | **23.9%** |
-| **Overall** | **757** | **0.0%** | — |
+| Content Type | Samples | Tier 0 FPR | Phase 5 Baseline | Notes |
+|---|---|---|---|---|
+| workflow | 159 | **~10.7%** | **23.9%** | CI-001 eliminated; residual from EX-001, CI-002, PE-005, CH-009, VP-007 |
+| Other categories | 598 | ~0% | ~0% | No change |
+
+**Correction:** Earlier version of this summary incorrectly claimed 0.0% Tier 0 FPR across all content types. Verifier measured 10.7% (17/159 workflow samples) from non-CI-001 patterns. The combined FPR target (18.9% < 24%) is unaffected.
 
 ### Combined Tier 0 + Tier 1.5 FPR
 
@@ -146,7 +141,7 @@ None.
 
 - Pattern count 197 confirmed via `PatternEngine().rules` — VERIFIED
 - Calibration output workflow STANDARD combined FPR 18.9% < 24% — VERIFIED
-- Tier 0 standalone workflow FPR 0.0% — VERIFIED
+- Tier 0 workflow FPR ~10.7% (down from 23.9%, CI-001 eliminated) — CORRECTED & VERIFIED
 - No FPR regressions on non-workflow categories (all at or below Phase 5 baseline) — VERIFIED
 
 ---
