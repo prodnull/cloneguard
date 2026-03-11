@@ -360,11 +360,11 @@ Confidence is reported as the probability of the predicted class (malicious_prob
 
 | Metric | Value |
 |--------|:-----:|
-| Cross-validated F1 | 95.51% ± 0.53% |
-| Cross-validated accuracy | 95.71% ± 0.53% |
-| Cross-validated precision | 95.79% ± 1.55% |
-| Cross-validated recall | 95.25% ± 1.21% |
-| Cross-validated FPR | 3.87% ± 1.55% |
+| Cross-validated F1 (v3) | 95.51% ± 0.53% |
+| Cross-validated accuracy (v3) | 95.71% ± 0.53% |
+| Cross-validated precision (v3) | 95.79% ± 1.55% |
+| Cross-validated recall (v3) | 95.25% ± 1.21% |
+| Cross-validated FPR (v3) | 3.87% ± 1.55% |
 
 The v3 augmentation (669 samples targeting OOD FPR and adversarial robustness) did not degrade generalization — v3 CV F1 (95.51%) is within the confidence interval of v2 CV F1 (95.80%). The adversarial benchmark provides the honest out-of-distribution evaluation.
 

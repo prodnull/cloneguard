@@ -176,11 +176,14 @@ def _check_secure_allowlisted(line: str) -> bool:
     if FILENAME_REFERENCE.search(line):
         return True
     # Technical protocol contexts
-    if re.search(r"\b(https?|TLS|SSL|CORS|CSRF|OAuth|SSH)\b.*\bsecure\b|"
-                 r"\bsecure\b.*\b(channel|connection|transport|socket|boot|"
-                 r"hash|token|credential|handshake|protocol|storage|enclave|"
-                 r"element|chip|key|key\s+exchange|random|erase)\b",
-                 line, re.IGNORECASE):
+    if re.search(
+        r"\b(https?|TLS|SSL|CORS|CSRF|OAuth|SSH)\b.*\bsecure\b|"
+        r"\bsecure\b.*\b(channel|connection|transport|socket|boot|"
+        r"hash|token|credential|handshake|protocol|storage|enclave|"
+        r"element|chip|key|key\s+exchange|random|erase)\b",
+        line,
+        re.IGNORECASE,
+    ):
         return True
     # "Secure development lifecycle" / "secure development" — describing a venue/domain
     if re.search(r"\bsecure\s+development\b", line, re.IGNORECASE):
@@ -189,7 +192,8 @@ def _check_secure_allowlisted(line: str) -> bool:
     if re.search(r"\bsecurity\b", line, re.IGNORECASE) and not re.search(
         r"\bCloneGuard\b|\bTier\s+\d|\bthe\s+model\b|\bthe\s+classifier\b|"
         r"\bthe\s+scanner\b|\bthe\s+detector\b|\bour\s+defense\b",
-        line, re.IGNORECASE,
+        line,
+        re.IGNORECASE,
     ):
         return True
     return False
@@ -218,17 +222,13 @@ def collect_violations(path: Path) -> list[str]:
         # Check prohibited patterns
         for pattern, label in PROHIBITED_PATTERNS:
             if pattern.search(line):
-                violations.append(
-                    f"{path.name}:{lineno}: [{label}] {line.strip()[:120]}"
-                )
+                violations.append(f"{path.name}:{lineno}: [{label}] {line.strip()[:120]}")
                 break
 
         # Check "secure" separately (more context-sensitive)
         if SECURE_PATTERN.search(line):
             if not _check_secure_allowlisted(line):
-                violations.append(
-                    f"{path.name}:{lineno}: [secure] {line.strip()[:120]}"
-                )
+                violations.append(f"{path.name}:{lineno}: [secure] {line.strip()[:120]}")
 
     return violations
 
@@ -249,18 +249,14 @@ def test_security_md_no_prohibited_framing() -> None:
     """docs/SECURITY.md must not contain prohibited framing words."""
     path = REQUIRED_FILES[0]
     violations = collect_violations(path)
-    assert not violations, (
-        f"Framing violations in {path.name}:\n" + "\n".join(violations)
-    )
+    assert not violations, f"Framing violations in {path.name}:\n" + "\n".join(violations)
 
 
 def test_mini_semantic_model_md_no_prohibited_framing() -> None:
     """docs/MINI-SEMANTIC-MODEL.md must not contain prohibited framing words."""
     path = REQUIRED_FILES[1]
     violations = collect_violations(path)
-    assert not violations, (
-        f"Framing violations in {path.name}:\n" + "\n".join(violations)
-    )
+    assert not violations, f"Framing violations in {path.name}:\n" + "\n".join(violations)
 
 
 def test_hf_model_card_draft_exists() -> None:
@@ -275,9 +271,7 @@ def test_hf_model_card_draft_no_prohibited_framing() -> None:
     if not path.exists():
         pytest.skip("hf-model-card-v4-draft.md not yet created (run Task 1 first)")
     violations = collect_violations(path)
-    assert not violations, (
-        f"Framing violations in {path.name}:\n" + "\n".join(violations)
-    )
+    assert not violations, f"Framing violations in {path.name}:\n" + "\n".join(violations)
 
 
 def test_release_notes_exists() -> None:
@@ -292,9 +286,7 @@ def test_release_notes_no_prohibited_framing() -> None:
     if not path.exists():
         pytest.skip("v0.3.0-release-notes.md not yet created (run Task 1 first)")
     violations = collect_violations(path)
-    assert not violations, (
-        f"Framing violations in {path.name}:\n" + "\n".join(violations)
-    )
+    assert not violations, f"Framing violations in {path.name}:\n" + "\n".join(violations)
 
 
 def test_all_publications_no_prohibited_framing() -> None:
@@ -308,8 +300,8 @@ def test_all_publications_no_prohibited_framing() -> None:
         violations = collect_violations(path)
         all_violations.extend(violations)
 
-    assert not all_violations, (
-        "Framing violations in docs/publications/:\n" + "\n".join(all_violations)
+    assert not all_violations, "Framing violations in docs/publications/:\n" + "\n".join(
+        all_violations
     )
 
 
@@ -318,7 +310,6 @@ def test_prohibited_word_list_is_comprehensive() -> None:
     # These are the framing categories from the plan spec.
     # We verify each category has at least one pattern, rather than checking plain-word
     # matches (patterns use compound matching to avoid false positives on technical usage).
-    pattern_labels = [label for _, label in PROHIBITED_PATTERNS]
     combined_pattern_source = " ".join(p.pattern for p, _ in PROHIBITED_PATTERNS)
 
     # "prevents" category — covered by CloneGuard-specific and tool-specific patterns
@@ -327,9 +318,7 @@ def test_prohibited_word_list_is_comprehensive() -> None:
     )
 
     # "secure" category — covered by SECURE_PATTERN
-    assert SECURE_PATTERN.pattern == r"\bsecure\b", (
-        "secure pattern must be present"
-    )
+    assert SECURE_PATTERN.pattern == r"\bsecure\b", "secure pattern must be present"
 
     # "immune to" — explicit pattern
     assert any("immune" in p.pattern.lower() for p, _ in PROHIBITED_PATTERNS), (

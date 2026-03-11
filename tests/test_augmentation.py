@@ -3,15 +3,13 @@
 Validates JSONL output schema and provenance tracking using mock data.
 Does NOT require TextAttack at test time — tests serialization/validation functions.
 """
+
 from __future__ import annotations
 
 import json
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
-
-import pytest
 
 # ---------------------------------------------------------------------------
 # Import the module under test (not the heavy TextAttack parts)
@@ -67,7 +65,9 @@ def test_jsonl_schema_has_required_fields() -> None:
 
     for record in sample_results:
         validated = mod.validate_augmentation_record(record)
-        assert validated["text"] is not None and len(validated["text"]) > 0, "text must be non-empty"
+        assert validated["text"] is not None and len(validated["text"]) > 0, (
+            "text must be non-empty"
+        )
         assert validated["label"] == 1, "label must be 1 (malicious)"
         assert "provenance" in validated, "provenance key required"
         assert "round" in validated["provenance"], "provenance.round required"
@@ -151,12 +151,18 @@ def test_cli_parse_args() -> None:
 
     args = mod.parse_args(
         [
-            "--round", "2",
-            "--model-path", "src/cloneguard/model/mini_semantic.onnx",
-            "--corpus", "data/benchmark/malicious_corpus.json",
-            "--output", "data/training/pwws_adversarial_r2.jsonl",
-            "--limit", "10",
-            "--time-limit", "30",
+            "--round",
+            "2",
+            "--model-path",
+            "src/cloneguard/model/mini_semantic.onnx",
+            "--corpus",
+            "data/benchmark/malicious_corpus.json",
+            "--output",
+            "data/training/pwws_adversarial_r2.jsonl",
+            "--limit",
+            "10",
+            "--time-limit",
+            "30",
         ]
     )
 

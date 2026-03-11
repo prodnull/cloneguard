@@ -16,7 +16,7 @@ import sys
 import types
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import numpy as np
 import pytest
@@ -259,9 +259,7 @@ def test_output_schema_has_per_sample_results_key() -> None:
 def test_gate_threshold_is_0_40() -> None:
     """XFER-03: GATE_THRESHOLD constant must be exactly 0.40."""
     mod = _get_mod()
-    assert mod.GATE_THRESHOLD == 0.40, (
-        f"GATE_THRESHOLD must be 0.40, got {mod.GATE_THRESHOLD}"
-    )
+    assert mod.GATE_THRESHOLD == 0.40, f"GATE_THRESHOLD must be 0.40, got {mod.GATE_THRESHOLD}"
 
 
 def test_make_gate_decision_proceed_at_low_transfer_rate() -> None:
@@ -368,9 +366,7 @@ def test_make_gate_decision_returns_ci_in_combined_stats() -> None:
         "textfooler": None,
     }
     gate, combined, note = mod.make_gate_decision(attack_results)
-    assert "transfer_rate_ci_95" in combined, (
-        "combined stats must include transfer_rate_ci_95"
-    )
+    assert "transfer_rate_ci_95" in combined, "combined stats must include transfer_rate_ci_95"
     lo, hi = combined["transfer_rate_ci_95"]
     assert lo <= hi, f"CI lower ({lo}) must be <= upper ({hi})"
     assert 0.0 <= lo <= 1.0 and 0.0 <= hi <= 1.0

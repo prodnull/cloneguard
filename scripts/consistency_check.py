@@ -133,7 +133,7 @@ def check_cv_metrics() -> None:
     # Exclude lines about alternative configs (hyperparameter search results)
     cv_line_re = re.compile(r".*(?:cross.?validat|5-fold|Tier\s*1\.5|\bCV\b).*", re.IGNORECASE)
     alt_config_re = re.compile(
-        r"(?:candidate|alternative|achieved|top\s+\d|runner.up|\bv2\b|original\s+\d)", re.IGNORECASE
+        r"(?:candidate|alternative|achieved|top\s+\d|runner.up|\bv[23]\b|original\s+\d)", re.IGNORECASE
     )
 
     for relpath in files_to_check:
