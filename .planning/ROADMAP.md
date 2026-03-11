@@ -50,12 +50,17 @@ Plans:
 **Goal**: Users operating CloneGuard in agent_instructions and workflow contexts experience materially lower false positive rates via per-context thresholds derived from Phase 4 empirical findings
 **Depends on**: Phase 4
 **Requirements**: FPR-01, FPR-02
+**Plans:** 2 plans
+
+Plans:
+- [ ] 05-01-PLAN.md — Calibration script and per-ScanMode threshold table in mini_semantic.py (FPR-01 + FPR-02)
+- [ ] 05-02-PLAN.md — Thread ScanMode through hooks.py and scanner.py, verify combined pipeline FPR (FPR-01 + FPR-02)
+
 **Success Criteria** (what must be TRUE):
   1. Per-context thresholds are implemented and configurable — not a single global threshold
   2. Sliding-window FPR on agent_instructions drops below 33% (current baseline)
   3. Sliding-window FPR on workflows drops below 24% (current baseline)
   4. All existing 1,053 tests continue to pass with context-aware threshold changes in place
-**Plans**: TBD
 
 ### Phase 6: Pattern Expansion
 **Goal**: CloneGuard's Tier 0 coverage includes 51 new patterns across 11 previously identified gaps and a new Log-To-Leak exfiltration category
@@ -89,6 +94,6 @@ Plans:
 | 2. Adversarial Hardening | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
-| 5. FPR Tuning | v0.4 | 0/TBD | Not started | - |
+| 5. FPR Tuning | v0.4 | 0/2 | Planning complete | - |
 | 6. Pattern Expansion | v0.4 | 0/TBD | Not started | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |
