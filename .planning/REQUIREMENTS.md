@@ -47,22 +47,22 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INV-01 | TBD | Pending |
-| INV-02 | TBD | Pending |
-| INV-03 | TBD | Pending |
-| FPR-01 | TBD | Pending |
-| FPR-02 | TBD | Pending |
-| PAT-01 | TBD | Pending |
-| PAT-02 | TBD | Pending |
-| DOC-01 | TBD | Pending |
-| DOC-02 | TBD | Pending |
-| TCM-01 | TBD | Pending |
+| INV-01 | Phase 4 | Pending |
+| INV-02 | Phase 4 | Pending |
+| INV-03 | Phase 4 | Pending |
+| DOC-01 | Phase 4 | Pending |
+| DOC-02 | Phase 4 | Pending |
+| FPR-01 | Phase 5 | Pending |
+| FPR-02 | Phase 5 | Pending |
+| PAT-01 | Phase 6 | Pending |
+| PAT-02 | Phase 6 | Pending |
+| TCM-01 | Phase 7 | Pending |
 
 **Coverage:**
 - v0.4 requirements: 10 total
-- Mapped to phases: 0
-- Unmapped: 10 (awaiting roadmap)
+- Mapped to phases: 10
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-10*
-*Last updated: 2026-03-10 after initial definition*
+*Last updated: 2026-03-10 after roadmap creation*
