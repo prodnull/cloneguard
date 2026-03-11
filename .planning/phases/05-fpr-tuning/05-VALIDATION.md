@@ -38,16 +38,16 @@ created: 2026-03-11
 
 | Task ID | Plan | Wave | Requirement | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|-----------|-------------------|-------------|--------|
-| 05-01-01 | 01 | 0 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "mode" -x` | ❌ W0 | ⬜ pending |
-| 05-01-02 | 01 | 0 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_hooks.py -k "mode_threading" -x` | ❌ W0 | ⬜ pending |
-| 05-01-03 | 01 | 0 | FPR-02 | integration | `.venv/bin/python scripts/calibrate_thresholds.py --verify` | ❌ W0 | ⬜ pending |
-| 05-02-01 | 02 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "threshold" -x` | ✅ | ⬜ pending |
-| 05-02-02 | 02 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "sliding_window_mode" -x` | ❌ W0 | ⬜ pending |
-| 05-02-03 | 02 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "env_var" -x` | ❌ W0 | ⬜ pending |
-| 05-02-04 | 02 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "strict_threshold_unchanged" -x` | ❌ W0 | ⬜ pending |
-| 05-03-01 | 03 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_hooks.py -k "mode" -x` | ❌ W0 | ⬜ pending |
-| 05-04-01 | 04 | 2 | FPR-02 | integration | `.venv/bin/python scripts/calibrate_thresholds.py` | ❌ W0 | ⬜ pending |
-| 05-05-01 | 05 | 2 | FPR-01/02 | regression | `.venv/bin/python -m pytest tests/ -x -q` | ✅ | ⬜ pending |
+| 05-01-T1a | 01 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "mode" -x` | ❌ W0 | ⬜ pending |
+| 05-01-T1b | 01 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "sliding_window_mode" -x` | ❌ W0 | ⬜ pending |
+| 05-01-T1c | 01 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "env_var" -x` | ❌ W0 | ⬜ pending |
+| 05-01-T1d | 01 | 1 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_mini_semantic.py -k "strict_threshold_unchanged" -x` | ❌ W0 | ⬜ pending |
+| 05-01-T1e | 01 | 1 | FPR-02 | integration | `.venv/bin/python scripts/calibrate_thresholds.py --verify` | ❌ W0 | ⬜ pending |
+| 05-02-T1a | 02 | 2 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_hooks.py -k "mode" -x` | ❌ W0 | ⬜ pending |
+| 05-02-T1b | 02 | 2 | FPR-01 | unit | `.venv/bin/python -m pytest tests/test_hooks.py -k "mode_threading" -x` | ❌ W0 | ⬜ pending |
+| 05-02-T2a | 02 | 2 | FPR-01 | unit | `.venv/bin/python -m pytest tests/ -k "scanner" -x` | ❌ W0 | ⬜ pending |
+| 05-02-T2b | 02 | 2 | FPR-02 | integration | `.venv/bin/python scripts/calibrate_thresholds.py` | ❌ W0 | ⬜ pending |
+| 05-02-T2c | 02 | 2 | FPR-01/02 | regression | `.venv/bin/python -m pytest tests/ -x -q` | ✅ | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 
