@@ -324,6 +324,40 @@ training data can close.
 Data: `docs/results/correlated-failures-2026-03-10.json` (local, gitignored).
 Script: `scripts/hardened_benchmark.py --correlated-failures`.
 
+## Structural FPR Limits and the Authorization Paradox
+
+Campbell et al. (ICLR 2026, arXiv:2603.01246) demonstrate that safety-aligned LLMs refuse
+legitimate defensive security requests at 2.72x the rate of neutral equivalents. Critically,
+adding authorization context (e.g., "authorized red team assessment," "blue team defensive ops")
+*increases* refusal rate from 28.7% to 50% — the authorization paradox. The mechanism is
+embedding-space proximity: security content occupies embedding space near attack content
+(AUC 0.827), not keyword overlap (AUC 0.572). This is a structural property of the
+embedding representation, not a model-specific quirk.
+
+CloneGuard's Tier 1.5 (ONNX MiniLM classifier) uses the same embedding-space representation.
+Our v0.4 INV-01 investigation empirically tested whether this structural limit manifests in
+our specific pipeline, by comparing Tier 1.5 FPR on 757 benign samples with and without
+authorization preambles added to each sample.
+
+**Finding:** The authorization paradox is present in Tier 1.5. Overall Tier 1.5 FPR increased
+from 9.25% (baseline) to 21.93% (auth-marker), a **+12.7 percentage-point increase** affecting
+all 8 content types. The largest deltas occurred for content types with near-zero baseline FPR
+(env_config: +41.8pp, build_script: +38.2pp, config: +14.5pp). Tier 0 (regex) was unaffected
+by authorization framing — the paradox is purely a semantic/embedding phenomenon.
+
+A complementary INV-02 audit found that MCP-005 (21% FPR on legitimate MCP configuration
+content) and CI-006 (11% FPR on CI/CD security documentation) are the strict-mode patterns
+with the highest false positive burden against legitimate defensive security content.
+
+**Citation framing:** Campbell et al. study LLM refusal in safety-aligned models, not
+embedding classifiers. The finding cited here is that the mechanism they identify
+(embedding-space proximity of security vocabulary to attack vocabulary) is general enough
+to manifest in our MiniLM classifier. Our INV-01 investigation is an independent empirical
+test — not a replication of Campbell's study — and the results confirm the mechanism
+applies to our pipeline. This informs Phase 5 context-aware threshold design.
+
+Internal findings record: `docs/results/fpr-investigation-findings.md` (gitignored).
+
 ## Known Limitations
 
 1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 93.7% recall (v4 CV) but is not infallible.
