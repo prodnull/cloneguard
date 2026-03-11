@@ -33,13 +33,18 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 **Goal**: Users can see empirically grounded findings on whether the authorization paradox manifests in CloneGuard's pipeline, with Campbell et al. cited in the threat model
 **Depends on**: Phase 3 (v0.3 shipped)
 **Requirements**: INV-01, INV-02, INV-03, DOC-01, DOC-02
+**Plans:** 2 plans
+
+Plans:
+- [ ] 04-01-PLAN.md — Build investigation infrastructure, run FPR benchmark (INV-01 + INV-02)
+- [ ] 04-02-PLAN.md — Write findings document, update SECURITY.md and Medium draft (INV-03 + DOC-01 + DOC-02)
+
 **Success Criteria** (what must be TRUE):
   1. A benchmark result exists comparing FPR with and without security-context markers (authorization preambles, blue-team framing) on Tier 0+1.5
   2. All 4 strict-only patterns (CI-004, CI-006, SC-001, MCP-005) have been audited against a corpus of legitimate defensive security content and findings are recorded
   3. SECURITY.md cites Campbell et al. 2026 with accurate framing of asymmetric burden and embedding-space structural limits
   4. Medium Part 2 draft is updated to contextualize FPR results using Campbell findings
   5. INV-03 findings document is written: structural FPR limits are characterized and authorization paradox presence/absence in our pipeline is stated with supporting data
-**Plans**: TBD
 
 ### Phase 5: FPR Tuning
 **Goal**: Users operating CloneGuard in agent_instructions and workflow contexts experience materially lower false positive rates via per-context thresholds derived from Phase 4 empirical findings
@@ -83,7 +88,7 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 | 1. Transferability Gate | v0.3 | 2/2 | Complete (PIVOT) | 2026-03-10 |
 | 2. Adversarial Hardening | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
-| 4. FPR Investigation & Documentation | v0.4 | 0/TBD | Not started | - |
+| 4. FPR Investigation & Documentation | v0.4 | 0/2 | Planned | - |
 | 5. FPR Tuning | v0.4 | 0/TBD | Not started | - |
 | 6. Pattern Expansion | v0.4 | 0/TBD | Not started | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |
