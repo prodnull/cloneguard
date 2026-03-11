@@ -23,6 +23,8 @@ from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from cloneguard.semantic import SemanticResult
 
+from cloneguard.patterns import ScanMode
+
 logger = logging.getLogger(__name__)
 
 MODEL_DIR = Path(__file__).parent / "model"
@@ -45,6 +47,33 @@ _STRIDE = 128  # Token stride (50% overlap) — prevents boundary-splitting evas
 # Minimum text length for Mahalanobis scoring: short inputs (<100 chars) produce
 # systematically OOD embeddings due to padding artifacts, not adversarial content.
 _MIN_MAHALANOBIS_CHARS = 100
+
+# Per-ScanMode threshold table: (suspicious_threshold, malicious_threshold).
+# STRICT is LOCKED — see Phase 5 CONTEXT.md. Do not modify STRICT values.
+# STANDARD and LENIENT values derived from calibration sweep on
+# data/benchmark/benign_eval_751.json (scripts/calibrate_thresholds.py, 2026-03-11).
+_DEFAULT_THRESHOLDS: dict[ScanMode, tuple[float, float]] = {
+    ScanMode.STRICT: (0.5, 0.8),  # LOCKED: Do not modify — per Phase 5 CONTEXT.md
+    ScanMode.STANDARD: (0.65, 0.88),  # From calibration: balances FPR reduction and recall
+    ScanMode.LENIENT: (0.75, 0.92),  # From calibration: test/fixture contexts, low attack surface
+}
+
+
+def _get_thresholds(mode: ScanMode) -> tuple[float, float]:
+    """Return (suspicious_threshold, malicious_threshold) for the given ScanMode.
+
+    Reads env var overrides at call time (not module load) to support test patching
+    and runtime configuration without restart. Env var pattern:
+      CLONEGUARD_THRESHOLD_{MODE}_SUSPICIOUS
+      CLONEGUARD_THRESHOLD_{MODE}_MALICIOUS
+
+    Where {MODE} is STRICT, STANDARD, or LENIENT.
+    """
+    defaults = _DEFAULT_THRESHOLDS[mode]
+    mode_name = mode.value.upper()
+    susp = float(os.environ.get(f"CLONEGUARD_THRESHOLD_{mode_name}_SUSPICIOUS", defaults[0]))
+    mal = float(os.environ.get(f"CLONEGUARD_THRESHOLD_{mode_name}_MALICIOUS", defaults[1]))
+    return susp, mal
 
 
 @dataclass
@@ -113,11 +142,21 @@ class MiniSemanticClassifier:
             logger.warning("Failed to load mini model: %s", e)
             return False
 
-    def classify(self, text: str, *, _apply_mahalanobis: bool = True) -> MiniClassification:
+    def classify(
+        self,
+        text: str,
+        *,
+        mode: ScanMode = ScanMode.STANDARD,
+        _apply_mahalanobis: bool = True,
+    ) -> MiniClassification:
         """Classify a single text sample.
 
         Args:
             text: Input text to classify.
+            mode: ScanMode controlling detection thresholds. STRICT uses the
+                locked (0.5, 0.8) thresholds; STANDARD and LENIENT use higher
+                thresholds to reduce FPR on benign content. Defaults to STANDARD
+                for backward-compatibility with callers that don't pass mode.
             _apply_mahalanobis: Apply Mahalanobis scoring (default True). Set
                 to False for short-fragment line scanning where OOD distances
                 reflect fragment length, not adversarial content.
@@ -151,9 +190,10 @@ class MiniSemanticClassifier:
         probs = np.exp(logits) / np.exp(logits).sum()
         malicious_prob = float(probs[1])
 
-        if malicious_prob > 0.8:
+        susp_thresh, mal_thresh = _get_thresholds(mode)
+        if malicious_prob > mal_thresh:
             verdict = "MALICIOUS"
-        elif malicious_prob > 0.5:
+        elif malicious_prob > susp_thresh:
             verdict = "SUSPICIOUS"
         else:
             verdict = "SAFE"
@@ -191,19 +231,25 @@ class MiniSemanticClassifier:
 
         # Sliding window: if initial verdict is SAFE, check for truncation evasion.
         if result.verdict == "SAFE":
-            sw_result = self._classify_sliding_window(text)
+            sw_result = self._classify_sliding_window(text, mode=mode)
             if sw_result is not None:
                 return sw_result
 
         return result
 
-    def _classify_sliding_window(self, text: str) -> MiniClassification | None:
+    def _classify_sliding_window(
+        self, text: str, mode: ScanMode = ScanMode.STANDARD
+    ) -> MiniClassification | None:
         """Classify long inputs via overlapping sliding window.
 
         If the input fits within _WINDOW_SIZE tokens, returns None (no action).
         Otherwise, classifies overlapping chunks and returns the worst verdict.
         This defeats truncation-based evasion where an attacker front-pads
         benign tokens to push malicious content past the 256-token window.
+
+        Args:
+            text: Input text to classify.
+            mode: ScanMode controlling detection thresholds (threaded from classify()).
         """
         import numpy as np
 
@@ -266,9 +312,10 @@ class MiniSemanticClassifier:
             worst_prob = max(worst_prob, malicious_prob)
             num_chunks += 1
 
-        if worst_prob > 0.8:
+        susp_thresh, mal_thresh = _get_thresholds(mode)
+        if worst_prob > mal_thresh:
             verdict = "MALICIOUS"
-        elif worst_prob > 0.5:
+        elif worst_prob > susp_thresh:
             verdict = "SUSPICIOUS"
         else:
             verdict = "SAFE"
@@ -303,7 +350,9 @@ class MiniSemanticClassifier:
         except OSError:
             logger.debug("Failed to write review log to %s", _REVIEW_LOG_PATH)
 
-    def _scan_lines(self, content: str) -> MiniClassification | None:
+    def _scan_lines(
+        self, content: str, mode: ScanMode = ScanMode.STANDARD
+    ) -> MiniClassification | None:
         """Scan individual lines to counter dilution attacks.
 
         If the whole-file classification is SAFE, an attacker may have diluted
@@ -311,6 +360,10 @@ class MiniSemanticClassifier:
         (not just fenced code blocks) that look like they could contain
         instructions or commands.
         Returns the worst finding, or None if all lines are safe.
+
+        Args:
+            content: Full file content to line-scan.
+            mode: ScanMode controlling detection thresholds (threaded from classify_files()).
         """
         worst: MiniClassification | None = None
 
@@ -321,7 +374,7 @@ class MiniSemanticClassifier:
             # Classify lines that could be imperative instructions or commands.
             # Skip Mahalanobis on line fragments: short snippets produce OOD
             # distances by nature (fragment length, not adversarial content).
-            result = self.classify(line, _apply_mahalanobis=False)
+            result = self.classify(line, mode=mode, _apply_mahalanobis=False)
             if result.verdict != "SAFE":
                 if worst is None or result.confidence > worst.confidence:
                     worst = MiniClassification(
@@ -331,18 +384,27 @@ class MiniSemanticClassifier:
                     )
         return worst
 
-    def classify_files(self, files: list[tuple[str, str]]) -> SemanticResult:
-        """Classify files — conforms to SemanticClassifier interface."""
+    def classify_files(
+        self, files: list[tuple[str, str]], mode: ScanMode = ScanMode.STANDARD
+    ) -> SemanticResult:
+        """Classify files — conforms to SemanticClassifier interface.
+
+        Args:
+            files: List of (file_path, content) pairs to classify.
+            mode: ScanMode controlling detection thresholds for all files in this
+                batch. Callers (scanner.py, hooks.py) supply mode from path-based
+                mode detection so per-file thresholds are applied correctly.
+        """
         from cloneguard.semantic import SemanticFinding, SemanticResult, SemanticVerdict
 
         start = time.perf_counter()
         findings: list[SemanticFinding] = []
 
         for file_path, content in files:
-            result = self.classify(content)
+            result = self.classify(content, mode=mode)
             if result.verdict == "SAFE":
                 # Counter-dilution: scan all lines individually
-                line_result = self._scan_lines(content)
+                line_result = self._scan_lines(content, mode=mode)
                 if line_result is not None:
                     result = line_result
 
