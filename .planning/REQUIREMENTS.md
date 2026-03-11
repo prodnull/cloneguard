@@ -7,9 +7,9 @@
 
 ### Investigation
 
-- [ ] **INV-01**: Empirically measure whether security-context markers (authorization preambles, blue-team framing) increase Tier 0+1.5 FPR vs identical content without markers
-- [ ] **INV-02**: Audit 4 strict-only patterns (CI-004, CI-006, SC-001, MCP-005) against corpus of legitimate defensive security content (pentest frameworks, IR playbooks, hardening scripts)
-- [ ] **INV-03**: Document findings — structural FPR limits, authorization paradox presence/absence in our pipeline
+- [x] **INV-01**: Empirically measure whether security-context markers (authorization preambles, blue-team framing) increase Tier 0+1.5 FPR vs identical content without markers
+- [x] **INV-02**: Audit 4 strict-only patterns (CI-004, CI-006, SC-001, MCP-005) against corpus of legitimate defensive security content (pentest frameworks, IR playbooks, hardening scripts)
+- [x] **INV-03**: Document findings — structural FPR limits, authorization paradox presence/absence in our pipeline
 
 ### FPR Tuning
 
@@ -23,8 +23,8 @@
 
 ### Documentation
 
-- [ ] **DOC-01**: Cite Campbell et al. 2026 in SECURITY.md threat model (asymmetric burden, embedding-space structural limits)
-- [ ] **DOC-02**: Update Medium Part 2 draft with Campbell findings to contextualize FPR results
+- [x] **DOC-01**: Cite Campbell et al. 2026 in SECURITY.md threat model (asymmetric burden, embedding-space structural limits)
+- [x] **DOC-02**: Update Medium Part 2 draft with Campbell findings to contextualize FPR results
 
 ### Tool Call Monitoring
 
@@ -47,11 +47,11 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| INV-01 | Phase 4 | Pending |
-| INV-02 | Phase 4 | Pending |
-| INV-03 | Phase 4 | Pending |
-| DOC-01 | Phase 4 | Pending |
-| DOC-02 | Phase 4 | Pending |
+| INV-01 | Phase 4 | Complete |
+| INV-02 | Phase 4 | Complete |
+| INV-03 | Phase 4 | Complete |
+| DOC-01 | Phase 4 | Complete |
+| DOC-02 | Phase 4 | Complete |
 | FPR-01 | Phase 5 | Pending |
 | FPR-02 | Phase 5 | Pending |
 | PAT-01 | Phase 6 | Pending |
