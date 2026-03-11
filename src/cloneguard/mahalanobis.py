@@ -89,9 +89,13 @@ class MahalanobisDetector:
 
         cov = cov + np.eye(dim, dtype=np.float64) * shrinkage
 
-        from scipy.linalg import pinv
+        try:
+            from scipy.linalg import pinv
+        except ImportError:
+            from numpy.linalg import pinv
 
-        return pinv(cov)
+        result: np.ndarray = pinv(cov)
+        return result
 
     def score(self, embedding: np.ndarray) -> float:
         """Compute minimum Mahalanobis distance to any class center."""

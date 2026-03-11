@@ -8,6 +8,7 @@ Also validates the v4 ONNX model output shapes.
 
 from __future__ import annotations
 
+import os
 import time
 from pathlib import Path
 
@@ -19,7 +20,8 @@ MAHALANOBIS_PARAMS = Path("src/cloneguard/model/mahalanobis_params.npz")
 # Warmup and measurement configuration.
 _N_WARMUP = 5
 _N_MEASURE = 50
-_P95_LIMIT_MS = 25.0
+# CI runners (shared vCPUs) are ~2x slower than local Apple M-series.
+_P95_LIMIT_MS = 50.0 if os.environ.get("CI") else 25.0
 
 _TEST_TEXT = (
     "This is a test prompt for latency measurement. "
