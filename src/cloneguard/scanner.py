@@ -397,7 +397,11 @@ class RepoScanner:
 
             mini = MiniSemanticClassifier()
             if mini.available:
-                sem_result = mini.classify_files(file_contents)
+                # Repo-wide scans are STANDARD context — each file's path-based mode is
+                # applied per-chunk inside classify_files() via the shared mode parameter.
+                # Hook handlers (hooks.py) handle STRICT/LENIENT for their specific
+                # single-file contexts; scanner uses STANDARD as the safe default.
+                sem_result = mini.classify_files(file_contents, mode=ScanMode.STANDARD)
                 report._active_tiers = "Tier 0 (regex) + Tier 1.5 (ONNX)"
             else:
                 import sys
