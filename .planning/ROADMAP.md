@@ -24,7 +24,7 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 
 - [x] **Phase 4: FPR Investigation & Documentation** — Audit the authorization paradox in our pipeline, measure security-context marker FPR impact, document structural limits, cite Campbell et al. (completed 2026-03-11)
 - [x] **Phase 5: FPR Tuning** — Implement context-aware thresholds and reduce sliding-window FPR in agent_instructions and workflows, informed by Phase 4 findings (completed 2026-03-11)
-- [ ] **Phase 6: Pattern Expansion** — Add 51 new patterns covering 11 identified gaps plus Log-To-Leak exfiltration patterns
+- [ ] **Phase 6: Pattern Expansion** — Add Log-To-Leak exfiltration category, fix CI-001 workflow FPR floor, confirm 65+ gap-category patterns
 - [ ] **Phase 7: Tool Call Monitoring** — Implement CaMeL-lite behavioral monitoring at hook layer to detect anomalous tool call sequences
 
 ## Phase Details
@@ -63,15 +63,21 @@ Plans:
   4. All existing 1,053 tests continue to pass with context-aware threshold changes in place
 
 ### Phase 6: Pattern Expansion
-**Goal**: CloneGuard's Tier 0 coverage includes 51 new patterns across 11 previously identified gaps and a new Log-To-Leak exfiltration category
+**Goal**: CloneGuard's Tier 0 coverage includes 65+ gap-category patterns across 11 gaps, a new Log-To-Leak exfiltration category, and CI-001 workflow FPR floor is resolved
 **Depends on**: Phase 5
 **Requirements**: PAT-01, PAT-02
+**Plans:** 2 plans
+
+Plans:
+- [ ] 06-01-PLAN.md — Create Log-To-Leak category (LTL-001 to LTL-004), restrict CI-001 to strict mode, audit 65 gap patterns (PAT-01 + PAT-02)
+- [ ] 06-02-PLAN.md — Verify FPR improvement via calibration script, confirm final pattern counts (PAT-01 + PAT-02)
+
 **Success Criteria** (what must be TRUE):
-  1. 51 new patterns are merged into the pattern library and correctly categorized across 11 gap categories
+  1. 65+ gap-category patterns confirmed across 11 gap categories (exceeds original 51-pattern target)
   2. Log-To-Leak exfiltration patterns exist as a distinct category and fire on known log-injection exfiltration payloads
   3. Pattern test suite passes with no regressions on the existing 193 patterns
   4. New patterns carry mode restrictions where appropriate (strict/standard/lenient) consistent with existing convention
-**Plans**: TBD
+  5. CI-001 restricted to strict mode — workflow combined FPR drops below 24%
 
 ### Phase 7: Tool Call Monitoring
 **Goal**: CloneGuard's hook layer detects anomalous tool call sequences consistent with prompt-injection-driven lateral movement or exfiltration, raising attacker cost without adding blocking latency to the hot path
@@ -95,5 +101,5 @@ Plans:
 | 3. Adversarial Benchmark & Publication | v0.3 | 3/3 | Complete | 2026-03-10 |
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
 | 5. FPR Tuning | 2/2 | Complete   | 2026-03-11 | - |
-| 6. Pattern Expansion | v0.4 | 0/TBD | Not started | - |
+| 6. Pattern Expansion | v0.4 | 0/2 | Planning | - |
 | 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |
