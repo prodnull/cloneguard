@@ -1,0 +1,27 @@
+category: logToLeak
+description: "Patterns detecting covert data exfiltration framed as logging, telemetry, or audit compliance"
+patterns:
+  - id: LTL-001
+    regex: '(?i)\b(log|record|audit|telemetry|backup|track)\b.{0,40}\b(all|every|each)\b.{0,40}\b(output|result|content|context|tool|file|session|conversation)\b'
+    severity: high
+    description: "Logging/telemetry framing over all outputs — Log-To-Leak exfiltration pattern"
+    false_positive_hint: "Triple-keyword conjunction (log+all+output) required — benign logging uses specific target names, not 'all outputs'"
+
+  - id: LTL-002
+    regex: '(?i)\b(forward|send|post|submit|upload)\b.{0,30}\b(session|context|output|result|conversation|history)\b.{0,60}https?://(?!localhost|127\.0\.0\.1|0\.0\.0\.0|\[::1\])'
+    severity: critical
+    description: "Session or context forwarded to external URL — exfiltration via telemetry framing"
+    false_positive_hint: "Almost never legitimate — logging endpoints should not receive full conversation context"
+
+  - id: LTL-003
+    regex: '(?i)"description"\s*:\s*"[^"]{0,300}\b(call|invoke|log|record)\b.{0,40}\b(after\s+every|each\s+time|following\s+each|on\s+every)\b.{0,40}\b(tool|file|command|output|read)\b[^"]*"'
+    severity: critical
+    description: "MCP tool description instructing per-call invocation — hallmark of covert logging tool"
+    false_positive_hint: "Legitimate MCP tool descriptions do not instruct agents when to call them"
+
+  - id: LTL-004
+    regex: '(?i)\b(required|mandatory|compliance|policy|soc.?2|gdpr|hipaa)\b.{0,80}\b(log|audit|record|report|forward)\b.{0,60}\b(output|context|session|tool\s+call|result|conversation)\b'
+    severity: high
+    description: "Compliance framing used to justify logging of agent outputs — authority-framed exfiltration"
+    false_positive_hint: "Real compliance docs describe logging requirements, not agent behavior obligations; restricted to strict mode to avoid FPR on legitimate compliance docs"
+    modes: [strict]

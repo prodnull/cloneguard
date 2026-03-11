@@ -258,7 +258,7 @@ All measurements on Apple M-series CPU. Latency varies by hardware.
 
 | Component | Latency | Notes |
 |-----------|:-------:|-------|
-| Tier 0 regex | < 50 ms | Full repo scan, 193 compiled patterns |
+| Tier 0 regex | < 50 ms | Full repo scan, 197 compiled patterns |
 | Tier 1.5 ONNX | ~16 ms/sample | Single file classification |
 | Tier 2 Ollama | ~680 ms/sample | qwen2.5:7b, local inference |
 
@@ -298,7 +298,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 | `test_mini_semantic.py` | 12 | Tier 1.5 ONNX classifier: loading, classification, thresholds, code block scanning |
 | `test_evasion_resistance.py` | 11 | Trust cache evasion + boundary tests: TOCTOU, cache poisoning, path traversal |
 | `test_tier2_live.py` | 10 | Ollama integration: classification, confidence scores, verdict mapping (requires Ollama) |
-| `test_integration_all_patterns.py` | 7 | All 193 patterns through full scan pipeline: end-to-end pattern coverage |
+| `test_integration_all_patterns.py` | 7 | All 197 patterns through full scan pipeline: end-to-end pattern coverage |
 | `test_docker_integration.py` | 3 | Container tests: build, scan, hook execution (requires Docker) |
 
 Additional test files: `test_full_pattern_coverage.py` (pattern-to-test mapping audit), `test_new_patterns.py` (gap closure patterns from PoC validation), `test_semantic.py` (Tier 2 semantic classifier interface).
@@ -315,7 +315,7 @@ pytest tests/test_security_vectors.py
 # Pattern engine — regex loading, matching, severity
 pytest tests/test_patterns.py
 
-# Full pipeline — all 193 patterns end-to-end
+# Full pipeline — all 197 patterns end-to-end
 pytest tests/test_integration_all_patterns.py
 
 # Tier 1.5 ONNX model

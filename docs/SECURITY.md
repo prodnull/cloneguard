@@ -17,7 +17,7 @@ This document describes CloneGuard's threat model, defense architecture, known l
 
 CloneGuard does not guarantee protection against any attack class. It raises the cost, skill, and risk of discovery required for successful prompt injection by adding detection layers that an attacker must evade:
 
-- Known prompt injection patterns — 193 regex rules across 24 categories force attackers to avoid well-documented techniques
+- Known prompt injection patterns — 197 regex rules across 25 categories force attackers to avoid well-documented techniques
 - Semantic prompt injection — bundled ONNX classifier (Tier 1.5, CV F1=94.3% v4) forces attackers beyond synonym substitution and social engineering rewording
 - LLM classification (Tier 2, Ollama fallback) — adds a reasoning-capable detection layer for novel patterns
 - HTML comment injection — scanner reads what human reviewers skip, removing a free hiding spot
@@ -388,7 +388,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 
 | Component | Latency | Context |
 |-----------|---------|---------|
-| Tier 0 regex (193 patterns) | <50 ms | Full repo scan (~20 files) |
+| Tier 0 regex (197 patterns) | <50 ms | Full repo scan (~20 files) |
 | Tier 1.5 ONNX (per file) | ~16 ms | Single file classification |
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |
