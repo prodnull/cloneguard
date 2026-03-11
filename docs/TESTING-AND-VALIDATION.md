@@ -18,8 +18,8 @@ Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stor
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 968 tests (Tier 0 + Tier 1.5, no external deps)
-pytest --co -q | tail -1    # verify count: "968 tests collected"
+pytest                      # 1,078 tests (Tier 0 + Tier 1.5, no external deps)
+pytest --co -q | tail -1    # verify count: "1,078 tests collected"
 ```
 
 Expected: all pass in < 30 seconds. Tests requiring Ollama or Docker auto-skip via markers in `tests/conftest.py`.
@@ -51,7 +51,7 @@ python scripts/kfold_eval.py              # default: 5-fold
 python scripts/kfold_eval.py --folds 10   # 10-fold for tighter CI
 ```
 
-Expected output: CV F1 = 95.51% ± 0.53% (5-fold, v3 augmented dataset). Runtime ~15 minutes on Apple M-series.
+Expected output: CV F1 = 95.51% ± 0.53% (5-fold, v3 augmented dataset). With the v4 dataset (6,472 samples, PWWS adversarial augmentation), expected CV F1 is 94.34% ± 0.77%. Runtime ~15 minutes on Apple M-series.
 
 ### Reproduce Adversarial Evaluation
 
@@ -145,6 +145,8 @@ The training dataset (`data/training/dataset.jsonl`) contains 5,671 labeled samp
 **Methodology:** Automated regex-based label audit fixed 68 mislabeled samples (benign README headers like `## Roadmap` incorrectly labeled malicious). Added XOXO semantics-preserving code modifications, GitHub Actions cache poisoning, workspace/IDE settings injection, JSON `$schema` exfiltration, and "for debugging purposes" social engineering framing.
 
 **Gap addressed:** Label noise was degrading precision. FPR dropped from ~2.1% to 0.95%.
+
+**Rounds 7-8: PWWS adversarial augmentation (132 samples)** — Two rounds of PWWS (Probability Weighted Word Saliency) attacks against the v3 model generated 132 adversarial samples (88 round 1 + 44 round 2). Combined with FreeLB adversarial training, this produced the v4 model (6,472 total samples). See `docs/MINI-SEMANTIC-MODEL.md` for details.
 
 ## 3. PoC Attack Scenarios
 
@@ -280,7 +282,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 ## 6. Test Suite Structure
 
-968 tests across 14 test files. All in `tests/`.
+1,078 tests across 14 test files. All in `tests/`.
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|

@@ -18,7 +18,7 @@ This document describes CloneGuard's threat model, defense architecture, known l
 CloneGuard does not guarantee protection against any attack class. It raises the cost, skill, and risk of discovery required for successful prompt injection by adding detection layers that an attacker must evade:
 
 - Known prompt injection patterns — 193 regex rules across 24 categories force attackers to avoid well-documented techniques
-- Semantic prompt injection — bundled ONNX classifier (Tier 1.5, CV F1=95.80%) forces attackers beyond synonym substitution and social engineering rewording
+- Semantic prompt injection — bundled ONNX classifier (Tier 1.5, CV F1=94.3% v4) forces attackers beyond synonym substitution and social engineering rewording
 - LLM classification (Tier 2, Ollama fallback) — adds a reasoning-capable detection layer for novel patterns
 - HTML comment injection — scanner reads what human reviewers skip, removing a free hiding spot
 - Self-propagating agent config files — detection of viral spread patterns (.cursorrules, CLAUDE.md)
@@ -326,7 +326,7 @@ Script: `scripts/hardened_benchmark.py --correlated-failures`.
 
 ## Known Limitations
 
-1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 95.4% recall (cross-validated) but is not infallible.
+1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 93.7% recall (v4 CV) but is not infallible.
 
 2. **Mean-pooling dilution (mitigated).** The mini model (Tier 1.5) uses mean-pooling, which averages token embeddings across the sequence. A short malicious instruction embedded in a long block of legitimate code can be diluted below the detection threshold within a single 256-token window. **Mitigations:** (a) Sliding window classification — when input exceeds 256 tokens, the classifier applies a 256-token window with 128-token stride (50% overlap), scanning up to 16 chunks (~8K chars, ~256ms worst case). This prevents truncation-based evasion for the vast majority of scanned content. (b) Per-value scanning in the MCP plugin classifies each extracted text value independently, preventing concatenation-based dilution. (c) Tier 0 regex scans full content line-by-line with no token limit. Mean-pooling dilution within a single 256-token chunk remains a limitation. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md#structural-vulnerability-mean-pooling-dilution) for analysis.
 
@@ -346,7 +346,7 @@ Script: `scripts/hardened_benchmark.py --correlated-failures`.
 
 9. **Layer 0 TOCTOU gap.** Layer 0 scans files on disk, then the agent reads them. A race condition is theoretically possible if files change between scan and read. Layers 1-3 mitigate this since they scan the actual content the agent processes (via stdin JSON).
 
-10. **No guarantee of long-term viability.** This defense pattern — regex + embedding classifier + runtime hooks — has not been formally proven to be durable against adaptive adversaries. It is plausible that advances in adversarial ML, novel LLM exploitation techniques, or fundamental changes in how agents process input could render this entire approach ineffective. The 95.8% F1 is measured against today's attack distribution; future attacks are unconstrained. Defense-in-depth buys time and raises cost, but it is an empirical bet, not a mathematical guarantee. If the underlying assumption — that semantic evasion is structurally harder than byte-level evasion — is invalidated, the ONNX classifier's advantage over regex diminishes. We publish this tool as a practical improvement over no defense, not as a solved problem.
+10. **No guarantee of long-term viability.** This defense pattern — regex + embedding classifier + runtime hooks — has not been formally proven to be durable against adaptive adversaries. It is plausible that advances in adversarial ML, novel LLM exploitation techniques, or fundamental changes in how agents process input could render this entire approach ineffective. The 94.3% F1 (v4 CV) is measured against today's attack distribution; future attacks are unconstrained. Defense-in-depth buys time and raises cost, but it is an empirical bet, not a mathematical guarantee. If the underlying assumption — that semantic evasion is structurally harder than byte-level evasion — is invalidated, the ONNX classifier's advantage over regex diminishes. We publish this tool as a practical improvement over no defense, not as a solved problem.
 
 ## Performance Overhead
 

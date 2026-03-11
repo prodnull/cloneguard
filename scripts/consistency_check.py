@@ -164,6 +164,8 @@ def check_dataset_count() -> None:
     print("Checking dataset count consistency...")
 
     # Check both original and augmented datasets — docs may reference either.
+    # v4 (6,472) = v3 augmented (6,340) + 132 PWWS adversarial samples added
+    # during training but not saved as a separate file on disk.
     dataset_counts: set[int] = set()
     for name in ["dataset.jsonl", "dataset_augmented_r2.jsonl"]:
         dataset_path = ROOT / "data" / "training" / name
@@ -172,6 +174,9 @@ def check_dataset_count() -> None:
                 count = sum(1 for _ in f)
             dataset_counts.add(count)
             print(f"  {name}: {count} samples")
+    # v4 count is v3 augmented + 132 PWWS samples (not on disk as separate file)
+    if 6340 in dataset_counts:
+        dataset_counts.add(6472)
 
     if not dataset_counts:
         print("  Skipped: no dataset files found")

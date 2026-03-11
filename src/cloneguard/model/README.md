@@ -15,7 +15,7 @@ metrics:
   - recall
 pipeline_tag: text-classification
 model-index:
-  - name: cloneguard-mini-semantic-v3
+  - name: cloneguard-mini-semantic-v4
     results:
       - task:
           type: text-classification
@@ -33,11 +33,17 @@ model-index:
           - name: Recall (5-fold CV, v3)
             type: recall
             value: 0.9525
+          - name: v4, 5-fold CV, 6,472 samples
+            type: f1
+            value: 0.9434
+          - name: Accuracy (5-fold CV, v4)
+            type: accuracy
+            value: 0.9451
 ---
 
-# CloneGuard Mini Semantic Classifier v3
+# CloneGuard Mini Semantic Classifier v4
 
-Fine-tuned [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) for detecting prompt injection attacks in AI coding agent configuration files. v3 adds 669 augmentation samples targeting out-of-distribution FPR and adversarial robustness.
+Fine-tuned [sentence-transformers/all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2) for detecting prompt injection attacks in AI coding agent configuration files. v4 adds 132 PWWS adversarial augmentation samples (88 from round 1, 44 from round 2) to the v3 base, hardening against synonym-substitution attacks.
 
 ## Model Description
 
@@ -45,7 +51,7 @@ Binary classifier that detects prompt injection payloads targeting AI coding age
 
 - **Base model:** all-MiniLM-L6-v2 (22M parameters, 384-dim embeddings)
 - **Classification head:** MeanPool → Linear(384,128) → ReLU → Dropout(0.1) → Linear(128,2)
-- **Export:** ONNX opset 18 (87 MB)
+- **Export:** ONNX opset 18 (87 MB); dual-output: `logits` (classification scores) and `cls_embedding` (384-dim [CLS] token embedding for Mahalanobis anomaly detection)
 - **Runtime:** onnxruntime CPUExecutionProvider, ~16 ms/sample
 
 ## Intended Use
@@ -58,7 +64,7 @@ Scanning repository files (CLAUDE.md, README.md, package.json, Makefile, CI conf
 
 ## Training Data
 
-6,340 labeled samples (3,033 malicious, 3,307 benign) built in 8 rounds from 14+ published research sources and 59 real GitHub repositories. Rounds 7-8 added 669 samples to fix out-of-distribution FPR (40-87% → 0-33%) identified by the adversarial benchmark. Sources include:
+6,472 labeled samples (3,165 malicious, 3,307 benign) built in 8 rounds from 14+ published research sources and 59 real GitHub repositories. Rounds 7-8 added 669 samples to fix out-of-distribution FPR (40-87% → 0-33%) identified by the adversarial benchmark. v4 adds 132 PWWS adversarial samples (88 round 1 + 44 round 2) to the v3 base of 6,340. Sources include:
 
 - arXiv:2509.22040 (AIShellJack), arXiv:2601.17548, arXiv:2602.10453, arXiv:2503.14281 (XOXO)
 - Pillar Security, Snyk ToxicSkills, IDEsaster (30+ CVEs), Cymulate InversePrompt
@@ -68,7 +74,7 @@ Attack categories: instruction override, credential harvesting, exfiltration, be
 
 ## Evaluation
 
-### Multi-Tier Pipeline (Primary, v3)
+### Multi-Tier Pipeline (Primary, v4)
 
 When combined with Tier 0 regex (193 patterns), the tiers compensate for each other. Evaluated on 185 adversarial payloads + 234 held-out benign samples (production mode):
 
@@ -98,9 +104,20 @@ When combined with Tier 0 regex (193 patterns), the tiers compensate for each ot
 
 **FPR (production mode, held-out eval):** 0-33% depending on content type. Best: config/env (0%), worst: agent instructions (33%), workflows (24%).
 
+### Cross-Validated Metrics (v4 dataset, 6,472 samples)
+
+5-fold stratified cross-validation on the v4 dataset (v3 base + 132 PWWS adversarial samples):
+
+| Metric | Value |
+|--------|:-----:|
+| F1 | 94.34% ± 0.77% |
+| Accuracy | 94.51% ± 0.67% |
+| Precision | 95.04% ± 1.20% |
+| Recall | 93.68% ± 1.77% |
+
 ### Cross-Validated Metrics (v3 augmented dataset, 6,340 samples)
 
-5-fold stratified cross-validation on the augmented dataset:
+5-fold stratified cross-validation on the v3 augmented dataset:
 
 | Metric | Value |
 |--------|:-----:|
