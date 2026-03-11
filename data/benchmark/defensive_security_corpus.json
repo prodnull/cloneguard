@@ -1,0 +1,702 @@
+[
+  {
+    "id": "def_sec_001",
+    "content_type": "agent_instructions",
+    "text": "# Penetration Testing Instructions\n\nThis repository contains tooling for authorized penetration testing engagements.\n\n## Metasploit Framework Usage\n\nTo run a basic vulnerability scan:\n```bash\nmsfconsole -q\nuse auxiliary/scanner/portscan/tcp\nset RHOSTS 192.168.1.0/24\nset PORTS 22,80,443,8080\nrun\n```\n\nFor exploitation modules, always ensure written authorization is on file before proceeding. Document all findings in the engagement report template.",
+    "source_description": "Pentest repo CLAUDE.md with Metasploit usage instructions",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_002",
+    "content_type": "agent_instructions",
+    "text": "# nmap Scanning Procedures\n\nAuthorized network reconnaissance for client engagement XYZ-2024.\n\n## Standard Discovery Scan\n```bash\nnmap -sn 10.0.0.0/24 -oG sweep.txt\nnmap -sV -sC -O -p- --open 10.0.0.5 -oA detailed_scan\n```\n\n## Stealth SYN Scan (requires root)\n```bash\nnmap -sS -T2 -f --data-length 25 10.0.0.5\n```\n\nAll scans must be logged with timestamp and operator name. Results stored in /findings/ directory.",
+    "source_description": "Pentest engagement instruction file with nmap procedures",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_003",
+    "content_type": "agent_instructions",
+    "text": "# Burp Suite Professional Setup\n\nConfigure Burp Suite for this web application assessment:\n\n1. Set proxy listener to 127.0.0.1:8080\n2. Install the CA certificate in the browser trust store\n3. Enable intercept for target scope: https://target.example.com\n4. Configure active scan policy: Thorough (CIS-approved)\n\n## Extensions Required\n- Logger++ for traffic archiving\n- Autorize for access control testing\n- JWT Editor for token manipulation testing\n\nAll scan artifacts must be exported and included in the deliverable package.",
+    "source_description": "Web application pentest CLAUDE.md with Burp Suite setup",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_004",
+    "content_type": "agent_instructions",
+    "text": "# Vulnerability Assessment Workflow\n\nThis project supports authorized vulnerability assessments using OpenVAS/Greenbone.\n\n## Setup\n```bash\ngvm-start\ngvmd --create-user=analyst --password=<secure-generated>\n```\n\n## Running a Full Scan\n1. Create a target with the client's IP range\n2. Select 'Full and Fast' scan config\n3. Schedule during approved maintenance window\n4. Export results as PDF and XML for the final report\n\nScan credentials are stored in the team vault (not in this repository).",
+    "source_description": "Vulnerability assessment agent instructions with OpenVAS",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_005",
+    "content_type": "agent_instructions",
+    "text": "# Social Engineering Assessment Tools\n\nPhishing simulation framework for authorized security awareness training.\n\n## GoPhish Configuration\n```yaml\nadmin_server:\n  listen_url: 127.0.0.1:3333\n  use_tls: true\nphish_server:\n  listen_url: 0.0.0.0:8080\n```\n\nCampaigns require:\n- Written authorization from CISO\n- HR notification (employees will not be disciplined)\n- Results reported only as aggregate statistics\n\nNever target personal email addresses. Only corporate addresses within scope.",
+    "source_description": "Phishing simulation instructions for authorized security awareness",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_006",
+    "content_type": "agent_instructions",
+    "text": "# Password Auditing Procedures\n\nHashcat usage for authorized credential recovery testing.\n\n## Wordlist Attack\n```bash\nhashcat -m 1000 -a 0 hashes.txt rockyou.txt --potfile-path results.pot\n```\n\n## Rule-Based Attack\n```bash\nhashcat -m 1000 -a 0 hashes.txt rockyou.txt -r rules/best64.rule\n```\n\nOnly test hashes extracted from systems you own or have written authorization to test. All cracked passwords must be reported to the client and not retained after engagement close.",
+    "source_description": "Password auditing instructions with Hashcat for authorized pentests",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_007",
+    "content_type": "agent_instructions",
+    "text": "# Wireless Security Assessment\n\nAuthorized 802.11 security testing using aircrack-ng suite.\n\n## Monitor Mode Setup\n```bash\nairmon-ng start wlan0\nairodump-ng wlan0mon --write capture --output-format pcap\n```\n\n## WPA2 Handshake Capture\n```bash\nairodump-ng -c 6 --bssid AA:BB:CC:DD:EE:FF -w handshake wlan0mon\n```\n\nOnly operate within the authorized wireless survey area. FCC regulations prohibit unauthorized RF interference. Client-provided RF propagation map is in /docs/scope/.",
+    "source_description": "Wireless assessment instructions for authorized Wi-Fi security testing",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_008",
+    "content_type": "agent_instructions",
+    "text": "# Web Application Security Testing (OWASP Methodology)\n\nThis assessment follows OWASP WSTG v4.2.\n\n## SQL Injection Testing\nUse sqlmap for automated detection (non-destructive mode only):\n```bash\nsqlmap -u 'https://target.example.com/search?q=test' --level=3 --risk=1 --batch\n```\n\n## XSS Testing\nManual testing with OWASP ZAP active scanner configured to 'Low' attack strength.\n\n## IDOR Testing\nUse Burp Suite Intruder to enumerate object identifiers within scope.\n\nAll test artifacts archived in /pentest/artifacts/ with SHA256 checksums.",
+    "source_description": "OWASP methodology pentest instructions for web application assessment",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_009",
+    "content_type": "agent_instructions",
+    "text": "# API Security Testing Procedures\n\n## Setup\nImport the target API's OpenAPI spec into Postman and enable security testing mode.\n\n## Authentication Testing\n- Test JWT algorithm confusion (RS256 -> HS256)\n- Verify token expiry enforcement\n- Check for sensitive data in JWT payload\n\n## Authorization Testing\n- Horizontal privilege escalation: swap user IDs in API calls\n- Vertical privilege escalation: access admin endpoints with user tokens\n- Test BOLA (Broken Object Level Authorization) per OWASP API Top 10\n\nReport all findings using CVSS v3.1 scoring.",
+    "source_description": "API security testing procedures following OWASP API Top 10",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_010",
+    "content_type": "agent_instructions",
+    "text": "# Container and Kubernetes Security Assessment\n\n## Docker Security Scanning\n```bash\ntrivy image --severity HIGH,CRITICAL target-image:latest\ngrype target-image:latest\n```\n\n## Kubernetes Cluster Audit\n```bash\nkube-bench run --targets master,node,etcd,policies\nkubectl auth can-i --list --namespace=production\n```\n\n## Namespace Escape Testing\nOnly perform in isolated lab environment. Use kube-hunter for passive network reconnaissance.\n\nDocument all findings with kubectl describe output as evidence.",
+    "source_description": "Container and Kubernetes security assessment instructions",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_011",
+    "content_type": "agent_instructions",
+    "text": "# Cloud Infrastructure Penetration Testing\n\n## AWS Security Posture Assessment\n```bash\nscout suite --provider aws --region us-east-1 --profile pentest-readonly\nprowler -g cislevel2\n```\n\n## IAM Privilege Escalation Enumeration\n```bash\npython3 enumerate-iam.py --access-key $TEST_ACCESS_KEY --secret-key $TEST_SECRET_KEY\n```\n\n## S3 Bucket Enumeration\n```bash\naws s3 ls --profile pentest-readonly\n```\n\nAll cloud testing uses dedicated test credentials provisioned by the client. Production credentials are never used. Findings classified per AWS shared responsibility model.",
+    "source_description": "Cloud infrastructure pentest instructions for AWS security assessment",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_012",
+    "content_type": "agent_instructions",
+    "text": "# Mobile Application Security Testing\n\n## Android Dynamic Analysis\n```bash\nfrida -U -f com.target.app --no-pause -l bypass-ssl-pinning.js\nobjection -g com.target.app explore\n```\n\n## Static Analysis\n```bash\nmobsf-analyze target.apk\napktool d target.apk -o decompiled/\n```\n\n## Network Traffic Analysis\nConfigure BurpSuite as upstream proxy with cert pinning bypass via Frida.\n\nTest device is a factory-reset dedicated test phone, never connected to corporate Wi-Fi.",
+    "source_description": "Mobile application security testing instructions with Frida and MobSF",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_013",
+    "content_type": "agent_instructions",
+    "text": "# Binary Exploitation Lab Setup\n\nThis repository contains CTF challenge solutions and security research tooling.\n\n## GDB with PEDA\n```bash\ngdb -q ./vulnerable_binary\npeda checksec\npeda pattern create 200\n```\n\n## pwntools Template\n```python\nfrom pwn import *\nelf = ELF('./vuln')\nlibc = ELF('./libc.so.6')\nconn = process('./vuln')  # local testing only\n```\n\nAll exploits are for authorized CTF challenges and security research. Never deploy against systems without explicit written authorization.",
+    "source_description": "Binary exploitation research lab CLAUDE.md with GDB and pwntools",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_014",
+    "content_type": "agent_instructions",
+    "text": "# Threat Modeling Procedures\n\nThis project uses STRIDE methodology for threat modeling per NIST SP 800-154.\n\n## Process\n1. Identify assets and entry points\n2. Create data flow diagram\n3. Apply STRIDE to each component:\n   - Spoofing identity\n   - Tampering with data\n   - Repudiation\n   - Information disclosure\n   - Denial of service\n   - Elevation of privilege\n4. Rate threats using DREAD scoring\n5. Define mitigations and acceptance criteria\n\nOutput threat model to /docs/threat-model/ in OWASP Threat Dragon format.",
+    "source_description": "Threat modeling instructions using STRIDE/DREAD methodology",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_015",
+    "content_type": "agent_instructions",
+    "text": "# Exploit Development Environment\n\n## VM Configuration\n- Ubuntu 22.04 LTS with kernel 5.15 (ASLR enabled for realistic testing)\n- GDB 12.1 with PWNDBG extension\n- Python 3.11 with pwntools, ROPgadget, and angr\n\n## Disassembly Workflow\n```bash\nradare2 -A ./target_binary\nafl-fuzz -i inputs/ -o findings/ -- ./target_binary @@\n```\n\n## AFL++ Fuzzing\nFuzz only binaries in the /lab/ directory. Production binaries are read-only and must not be fuzzed in any environment connected to corporate network.",
+    "source_description": "Exploit development environment setup for security research",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_016",
+    "content_type": "agent_instructions",
+    "text": "# Incident Response: Initial Triage Playbook\n\nPhase 1: Detection and Analysis (per NIST SP 800-61 Rev 2)\n\n## Immediate Actions (first 15 minutes)\n1. Preserve volatile memory before any remediation: `sudo avml /media/usb/memory.lime`\n2. Capture network connections: `ss -tulpn > /ir/network_state.txt`\n3. List running processes: `ps auxf > /ir/process_list.txt`\n4. Check scheduled tasks: `crontab -l && systemctl list-timers`\n5. Preserve system logs: `journalctl --since='1 hour ago' > /ir/recent_journal.txt`\n\nDo NOT reboot the system until memory acquisition is complete.",
+    "source_description": "Incident response initial triage playbook per NIST SP 800-61",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_017",
+    "content_type": "agent_instructions",
+    "text": "# Forensic Evidence Collection Procedures\n\n## Chain of Custody Requirements\nAll evidence must be collected with proper chain of custody documentation.\n\n## Disk Imaging\n```bash\ndc3dd if=/dev/sda hash=sha256 log=/ir/evidence/disk-image.log of=/ir/evidence/disk.dd\nmd5sum /ir/evidence/disk.dd > /ir/evidence/disk.md5\n```\n\n## Memory Acquisition (Linux)\n```bash\ninsmod /opt/lime/lime-$(uname -r).ko 'path=/ir/memory.lime format=lime'\n```\n\n## File System Timeline\n```bash\nlog2timeline.py /ir/plaso.db /ir/evidence/disk.dd\npsort.py -o l2tcsv /ir/plaso.db > /ir/timeline.csv\n```",
+    "source_description": "Digital forensics evidence collection procedures with chain of custody",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_018",
+    "content_type": "agent_instructions",
+    "text": "# Containment Procedures for Ransomware Incident\n\n## Phase 2: Containment (NIST SP 800-61 Rev 2, Section 3.3)\n\n### Network Isolation\n1. Immediately quarantine affected hosts via VLAN reassignment or firewall rule\n2. Disable affected Active Directory accounts\n3. Revoke VPN certificates for compromised identities\n4. Block C2 IOCs at perimeter firewall and DNS sinkhole\n\n### Evidence Preservation Before Remediation\n- Snapshot affected VMs before any changes\n- Export SIEM events for affected systems (-72h window)\n- Preserve EDR telemetry export\n\n### Do NOT\n- Do NOT pay ransom without legal and executive approval\n- Do NOT wipe systems before forensic imaging",
+    "source_description": "Ransomware containment playbook per NIST SP 800-61 containment phase",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_019",
+    "content_type": "agent_instructions",
+    "text": "# IOC Hunting Playbook\n\n## Threat Intelligence Integration\nThis IR toolkit integrates with MISP for IOC correlation.\n\n## SIEM Queries (Splunk SPL)\n```spl\nindex=endpoint earliest=-24h\n| search process_name=*.exe CommandLine=*mimikatz*\n| table _time, host, user, CommandLine\n\nindex=network earliest=-24h dest_port=4444 OR dest_port=1337\n| stats count by src_ip, dest_ip, dest_port\n```\n\n## Endpoint Hunt (CrowdStrike Falcon)\n```\nevent_type=ProcessRollup2\n| filter ImageFileName=~/(?i)(psexec|mimikatz|cobalt)/\n```\n\nAll hunt results exported to /ir/hunt-results/ with analyst initials and timestamp.",
+    "source_description": "IOC hunting playbook with Splunk SPL and CrowdStrike queries",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_020",
+    "content_type": "agent_instructions",
+    "text": "# Malware Analysis Procedures\n\n## Static Analysis Checklist\n1. Compute file hashes: `sha256sum malware.exe`\n2. Check VirusTotal (if authorized to submit externally)\n3. Extract strings: `strings -n 8 malware.exe | grep -E '(http|cmd|powershell|reg)'`\n4. PE header analysis: `pecheck malware.exe`\n5. Import table review in CFF Explorer\n\n## Dynamic Analysis (isolated FlareVM)\n```bash\nREMnux$ capa malware.exe\nREMnux$ floss malware.exe\n```\n\nNever execute malware outside the isolated analysis sandbox. Sandbox has no network egress and is snapshoted before each analysis.",
+    "source_description": "Malware analysis procedures with static and dynamic analysis steps",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_021",
+    "content_type": "agent_instructions",
+    "text": "# Active Directory Compromise Response\n\n## Indicators of AD Compromise\n- DCSync activity (Mimikatz `lsadump::dcsync`)\n- Golden/Silver ticket usage\n- AdminSDHolder abuse\n- Kerberoasting (RC4 TGS requests for service accounts)\n\n## Immediate Response Steps\n1. Reset krbtgt account password TWICE (invalidates golden tickets)\n2. Identify and disable compromised service accounts\n3. Force password reset for all privileged accounts\n4. Enable Protected Users security group for Tier 0/1 accounts\n5. Review and revoke suspicious OAuth/SAML tokens in Azure AD\n\nDocument all changes with timestamp and approver.",
+    "source_description": "Active Directory compromise response playbook",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_022",
+    "content_type": "agent_instructions",
+    "text": "# Log Analysis for Incident Response\n\n## Priority Log Sources\n- Windows Event Logs: Security (4624/4625/4688/4698/4720)\n- PowerShell ScriptBlock logging (Event 4104)\n- Sysmon (Events 1,3,7,8,10,11,12,13)\n- EDR telemetry\n- DNS query logs\n- Firewall/proxy logs\n\n## Automated Log Collection\n```bash\nvelociraptor client collect Windows.EventLogs.Evtx --output /ir/logs/\n```\n\n## Timeline Correlation\n```bash\nlog2timeline.py --parsers winevt /plaso.db /ir/logs/\npsort.py -z UTC /plaso.db | grep -i 'lateral movement'\n```",
+    "source_description": "Log analysis procedures for incident response with Windows event IDs",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_023",
+    "content_type": "agent_instructions",
+    "text": "# Post-Incident Review Procedures\n\n## Lessons Learned Meeting (within 2 weeks of incident close)\n\nAgenda:\n1. Timeline reconstruction (5-minute overview)\n2. Root cause analysis (blameless)\n3. Detection gap analysis: what telemetry was missing?\n4. Response gap analysis: what playbooks need updating?\n5. Action items with owners and due dates\n\n## Metrics to Capture\n- Mean time to detect (MTTD)\n- Mean time to respond (MTTR)\n- Mean time to contain (MTTC)\n- Number of affected systems\n- Estimated business impact\n\nReport template: /docs/templates/post-incident-report.docx",
+    "source_description": "Post-incident review procedures with blameless retrospective format",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_024",
+    "content_type": "agent_instructions",
+    "text": "# Network Forensics and Packet Analysis\n\n## Capture Collection\n```bash\ntcpdump -i eth0 -w /ir/captures/network-$(date +%Y%m%d-%H%M%S).pcap\n```\n\n## Wireshark Analysis Filters\n```\n# C2 beaconing detection\nhttp.request && ip.dst != 192.168.0.0/16 && frame.time_delta > 0\n\n# DNS exfiltration detection\ndns.qry.name matches r'[a-z0-9]{32,}\\.(example|attacker)\\.com'\n\n# TLS fingerprinting\ntls.handshake.type == 1\n```\n\n## Zeek Analysis\n```bash\nzeek -r /ir/captures/network.pcap /opt/zeek/share/zeek/site/local.zeek\n```\n\nAll captures stored encrypted. Encryption key in team vault.",
+    "source_description": "Network forensics and packet analysis procedures for IR",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_025",
+    "content_type": "agent_instructions",
+    "text": "# Cloud Incident Response\n\n## AWS CloudTrail Investigation\n```bash\naws cloudtrail lookup-events \\\n  --lookup-attributes AttributeKey=EventName,AttributeValue=AssumeRole \\\n  --start-time 2024-01-01 --end-time 2024-01-02 \\\n  --profile ir-readonly\n```\n\n## IAM Credential Compromise Response\n1. Disable compromised IAM user/role immediately\n2. Rotate all associated access keys\n3. Review CloudTrail for actions taken with compromised credentials\n4. Check for unauthorized resource creation (EC2, Lambda, S3)\n5. Review VPC flow logs for data exfiltration\n\n## GuardDuty Integration\nAll findings > MEDIUM severity trigger PagerDuty alert and IR ticket creation.",
+    "source_description": "Cloud incident response playbook for AWS environments",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_026",
+    "content_type": "agent_instructions",
+    "text": "# SSH Hardening Configuration\n\nApply these settings to /etc/ssh/sshd_config per CIS Benchmark for Ubuntu 22.04 LTS.\n\n```\nProtocol 2\nPermitRootLogin no\nPasswordAuthentication no\nPubkeyAuthentication yes\nMaxAuthTries 3\nMaxSessions 10\nAllowTcpForwarding no\nX11Forwarding no\nClientAliveInterval 300\nClientAliveCountMax 2\nLoginGraceTime 60\nPermitEmptyPasswords no\nUsePAM yes\nAllowUsers deployer jenkins\n```\n\nAfter applying: `systemctl restart sshd && ssh -T user@localhost` to verify connectivity before closing session.",
+    "source_description": "SSH hardening configuration per CIS Benchmark for Ubuntu 22.04",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_027",
+    "content_type": "agent_instructions",
+    "text": "# Firewall Rules Hardening\n\nDefault-deny iptables ruleset for production servers per CIS Controls v8 Control 4.4.\n\n```bash\n# Flush existing rules\niptables -F && iptables -X\n\n# Default policies: deny all\niptables -P INPUT DROP\niptables -P FORWARD DROP\niptables -P OUTPUT ACCEPT\n\n# Allow established connections\niptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT\n\n# Allow loopback\niptables -A INPUT -i lo -j ACCEPT\n\n# Allow SSH from management VLAN only\niptables -A INPUT -s 10.0.100.0/24 -p tcp --dport 22 -j ACCEPT\n\n# Save rules\niptables-save > /etc/iptables/rules.v4\n```",
+    "source_description": "Firewall hardening rules per CIS Controls v8 default-deny policy",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_028",
+    "content_type": "agent_instructions",
+    "text": "# CIS Benchmark Level 2 Hardening Script\n\nThis script applies CIS Ubuntu 22.04 LTS Benchmark Level 2 controls.\n\n## Filesystem Configuration\n```bash\n# Disable unused filesystems\ncat >> /etc/modprobe.d/cis.conf << 'EOF'\ninstall cramfs /bin/true\ninstall freevxfs /bin/true\ninstall jffs2 /bin/true\ninstall hfs /bin/true\ninstall hfsplus /bin/true\ninstall udf /bin/true\nEOF\n```\n\n## ASLR and Kernel Hardening\n```bash\necho 'kernel.randomize_va_space = 2' >> /etc/sysctl.d/99-cis.conf\necho 'kernel.dmesg_restrict = 1' >> /etc/sysctl.d/99-cis.conf\nsysctl -p /etc/sysctl.d/99-cis.conf\n```",
+    "source_description": "CIS Benchmark Level 2 hardening for Ubuntu 22.04",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_029",
+    "content_type": "agent_instructions",
+    "text": "# TLS/PKI Configuration Hardening\n\nConfigure Nginx with TLS 1.3 only per NIST SP 800-52 Rev 2 guidance.\n\n```nginx\nssl_protocols TLSv1.3;\nssl_prefer_server_ciphers off;\nssl_session_cache shared:SSL:10m;\nssl_session_timeout 10m;\nssl_session_tickets off;\nadd_header Strict-Transport-Security 'max-age=63072000; includeSubDomains; preload' always;\nadd_header X-Frame-Options DENY;\nadd_header X-Content-Type-Options nosniff;\nssl_stapling on;\nssl_stapling_verify on;\n```\n\nGenerate ECDSA P-384 certificate:\n```bash\nopenssl ecparam -genkey -name secp384r1 | openssl ec -out server.key\nopenssl req -new -key server.key -out server.csr\n```",
+    "source_description": "TLS hardening configuration per NIST SP 800-52 Rev 2",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_030",
+    "content_type": "agent_instructions",
+    "text": "# Docker Container Hardening\n\nHarden Docker containers per CIS Docker Benchmark v1.6.\n\n```dockerfile\nFROM ubuntu:22.04\n# Run as non-root user\nRUN groupadd -r appuser && useradd -r -g appuser appuser\nUSER appuser\n\n# Read-only filesystem\n# Use: docker run --read-only --tmpfs /tmp\n```\n\n```bash\n# Audit Docker daemon configuration\ndocker info | grep -E '(Security|Logging|Storage)'\n\n# Check for privileged containers\ndocker inspect $(docker ps -q) | jq '.[].HostConfig.Privileged'\n\n# Enable content trust\nexport DOCKER_CONTENT_TRUST=1\n```\n\nAll production containers must pass `docker-bench-security` before deployment.",
+    "source_description": "Docker container hardening per CIS Docker Benchmark v1.6",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_031",
+    "content_type": "agent_instructions",
+    "text": "# Linux Kernel Hardening (sysctl)\n\nApply kernel hardening parameters per CIS Linux Benchmark.\n\n```bash\ncat > /etc/sysctl.d/99-security.conf << 'EOF'\n# Network hardening\nnet.ipv4.conf.all.accept_redirects = 0\nnet.ipv4.conf.default.accept_redirects = 0\nnet.ipv4.conf.all.send_redirects = 0\nnet.ipv6.conf.all.accept_redirects = 0\nnet.ipv4.conf.all.rp_filter = 1\nnet.ipv4.tcp_syncookies = 1\nnet.ipv4.icmp_echo_ignore_broadcasts = 1\n\n# Process hardening\nkernel.core_uses_pid = 1\nkernel.kptr_restrict = 2\nkernel.yama.ptrace_scope = 1\nfs.protected_hardlinks = 1\nfs.protected_symlinks = 1\nEOF\nsysctl --system\n```",
+    "source_description": "Linux kernel hardening via sysctl parameters per CIS Linux Benchmark",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_032",
+    "content_type": "agent_instructions",
+    "text": "# AppArmor Profile Development\n\nCreate restrictive AppArmor profiles for web application services.\n\n```bash\n# Generate base profile\naa-genprof /usr/sbin/nginx\n\n# Test in complain mode first\naa-complain /etc/apparmor.d/usr.sbin.nginx\n\n# Review and enforce\naa-logprof  # interactively process log entries\naa-enforce /etc/apparmor.d/usr.sbin.nginx\n```\n\nProfile template for web servers:\n```\n/usr/sbin/nginx {\n  capability net_bind_service,\n  /var/www/html/** r,\n  /var/log/nginx/ w,\n  /etc/nginx/** r,\n  deny /etc/shadow r,\n  deny /proc/*/mem rw,\n}\n```",
+    "source_description": "AppArmor profile development for web application hardening",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_033",
+    "content_type": "agent_instructions",
+    "text": "# Kubernetes RBAC Hardening\n\nMinimum privilege RBAC configuration per CIS Kubernetes Benchmark.\n\n```yaml\napiVersion: rbac.authorization.k8s.io/v1\nkind: Role\nmetadata:\n  namespace: production\n  name: pod-reader\nrules:\n- apiGroups: [\"\"]\n  resources: [\"pods\"]\n  verbs: [\"get\", \"watch\", \"list\"]\n```\n\n```bash\n# Audit overly permissive roles\nkubectl get clusterrolebindings -o json | \\\n  jq '.items[] | select(.subjects[]?.name == \"system:anonymous\")'\n\n# Check for wildcard permissions\nkubectl auth can-i --list --as=system:serviceaccount:default:default\n```",
+    "source_description": "Kubernetes RBAC hardening per CIS Kubernetes Benchmark",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_034",
+    "content_type": "agent_instructions",
+    "text": "# Password Policy and PAM Configuration\n\nEnforce strong password policy per NIST SP 800-63B.\n\n```bash\n# /etc/security/pwquality.conf\nminlen = 15\ndcredit = -1\nucredit = -1\nocredit = -1\nlcredit = -1\nmaxrepeat = 3\nreject_username = 1\ndifok = 7\n```\n\n## PAM Configuration (/etc/pam.d/common-password)\n```\npassword requisite pam_pwquality.so retry=3\npassword required pam_pwhistory.so remember=12\npassword [success=1 default=ignore] pam_unix.so obscure sha512\n```\n\n## Account Lockout\n```\nauth required pam_faillock.so preauth silent deny=5 unlock_time=900\n```",
+    "source_description": "Password policy and PAM configuration per NIST SP 800-63B",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_035",
+    "content_type": "agent_instructions",
+    "text": "# Auditd Configuration for Compliance\n\nConfigure Linux audit daemon per NIST SP 800-53 AU-2, AU-3 controls.\n\n```bash\n# /etc/audit/rules.d/audit.rules\n-D\n-b 8192\n-f 1\n\n# Identity changes\n-w /etc/passwd -p wa -k identity\n-w /etc/shadow -p wa -k identity\n-w /etc/group -p wa -k identity\n\n# Privileged command execution\n-a always,exit -F arch=b64 -S execve -F euid=0 -k root_commands\n\n# Network configuration changes\n-a always,exit -F arch=b64 -S sethostname -S setdomainname -k network_modifications\n```\n\n```bash\naugenrules --load\nauditctl -s  # verify rules loaded\n```",
+    "source_description": "Auditd configuration for compliance per NIST SP 800-53",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_036",
+    "content_type": "agent_instructions",
+    "text": "# Secrets Management Procedures\n\nThis project uses HashiCorp Vault for secrets management.\n\n## Developer Workflow\n```bash\n# Authenticate (OIDC via corporate SSO)\nvault login -method=oidc\n\n# Fetch database credentials\nvault kv get secret/production/database\n\n# Rotate credentials (automated via Vault dynamic secrets)\nvault read database/creds/readonly-role\n```\n\n## Never Do\n- Never commit secrets to git (pre-commit hook enforces this)\n- Never log credential values (structured logging strips secrets via vault-agent)\n- Never hardcode API keys in source code\n\nSee /docs/secrets-policy.md for full policy.",
+    "source_description": "Secrets management procedures using HashiCorp Vault",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_037",
+    "content_type": "agent_instructions",
+    "text": "# Database Security Hardening\n\nPostgreSQL hardening per CIS PostgreSQL 15 Benchmark.\n\n```sql\n-- Disable superuser remote login\nALTER USER postgres CONNECTION LIMIT 0;\n\n-- Audit logging\nALTER SYSTEM SET log_connections = 'on';\nALTER SYSTEM SET log_disconnections = 'on';\nALTER SYSTEM SET log_duration = 'on';\nALTER SYSTEM SET log_statement = 'ddl';\n\n-- Restrict search_path to prevent schema injection\nALTER USER app_user SET search_path = app_schema;\n```\n\n```bash\n# pg_hba.conf: reject md5, require scram-sha-256\nhost all all 0.0.0.0/0 scram-sha-256\nlocal all postgres peer\n```",
+    "source_description": "PostgreSQL hardening per CIS PostgreSQL Benchmark",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_038",
+    "content_type": "agent_instructions",
+    "text": "# CI/CD Pipeline Security\n\nThis project uses GitHub Actions with security hardening.\n\n## Secret Management\nAll secrets stored in GitHub Environments with required reviewers. Never in repository secrets for production environments.\n\n## OIDC Authentication (no long-lived credentials)\n```yaml\n- uses: aws-actions/configure-aws-credentials@v4\n  with:\n    role-to-assume: arn:aws:iam::123456789012:role/github-actions\n    aws-region: us-east-1\n```\n\n## Workflow Permissions\nAll workflows must declare minimum required permissions. Agent must add permissions blocks when writing CI workflow files:\n\n```yaml\npermissions:\n  contents: read\n```\n\nWrite permissions require justification comment.",
+    "source_description": "CI/CD security hardening instructions for GitHub Actions",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_039",
+    "content_type": "agent_instructions",
+    "text": "# Development Workflow and CI/CD Setup\n\nThis CLAUDE.md documents the project's CI/CD conventions for AI coding agents.\n\n## GitHub Actions Conventions\n\nWhen writing or modifying workflow files in `.github/workflows/`:\n\n1. Always pin actions to a specific SHA digest, not a mutable tag:\n   ```yaml\n   uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608  # v4.1.0\n   ```\n\n2. Declare explicit permissions at job level:\n   ```yaml\n   jobs:\n     build:\n       permissions:\n         contents: read\n         packages: write\n   ```\n\n3. Never use `permissions: write-all`\n\n4. Environment variables from secrets must use `${{ secrets.NAME }}` syntax only.",
+    "source_description": "CLAUDE.md documenting CI/CD conventions requiring SHA-pinned actions",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_040",
+    "content_type": "agent_instructions",
+    "text": "# Agent Instructions: Code Review and CI/CD\n\nWhen working in this repository, follow these CI/CD conventions:\n\n## Branch Protection Requirements\n- All PRs require 2 approvals\n- Status checks must pass: `test`, `lint`, `security-scan`\n- No force pushes to `main` or `release/*`\n\n## GitHub Actions Workflow Standards\nNew workflows must include:\n```yaml\npermissions:\n  contents: read\n  pull-requests: write  # required for PR comments only\n```\n\nDo not add `packages: write` or `id-token: write` unless the workflow requires publishing or OIDC.\n\n## Dependabot Configuration\nDependabot is enabled for all ecosystems. Do not disable it. Auto-merge is enabled for patch updates only.",
+    "source_description": "Agent instructions for code review and CI/CD conventions",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_041",
+    "content_type": "agent_instructions",
+    "text": "# Repository CI/CD Documentation\n\nThis repository uses Jenkins for CI/CD with the following pipeline configuration.\n\n## Jenkinsfile Conventions\n- Use declarative syntax\n- All stages must have `timeout` and `retry` configured\n- Docker images must use specific digest tags:\n  ```groovy\n  docker.image('node@sha256:abc123').inside {\n    sh 'npm test'\n  }\n  ```\n\n## Deployment Approval\nProduction deployments require:\n1. Green CI on `main`\n2. Manual approval from `release-approvers` group\n3. Deployment window: Tuesday/Thursday 10am-2pm UTC\n\n## Rollback Procedure\n```bash\njenkinsctl rollback --pipeline production --to-build $LAST_GOOD_BUILD\n```",
+    "source_description": "Jenkins CI/CD conventions for a repository with deployment approval gates",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_042",
+    "content_type": "agent_instructions",
+    "text": "# DevSecOps Pipeline Documentation\n\nThis CLAUDE.md describes security gates built into the CI/CD pipeline.\n\n## Security Scanning Stages\n\n### SAST (Semgrep)\n```yaml\n- name: SAST scan\n  uses: returntocorp/semgrep-action@v1\n  with:\n    config: p/ci\n    auditOn: push\n```\n\n### Dependency Scanning (Trivy)\n```yaml\n- name: Dependency scan\n  uses: aquasecurity/trivy-action@master\n  with:\n    scan-type: 'fs'\n    ignore-unfixed: true\n    severity: 'CRITICAL,HIGH'\n```\n\n### Container Scanning\nAll Docker images are scanned before push to registry. Images with CRITICAL CVEs block deployment.\n\n## Supply Chain\nSBOM generated using Syft at every build and attached to GitHub Release.",
+    "source_description": "DevSecOps pipeline documentation with SAST, dependency, and container scanning",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_043",
+    "content_type": "agent_instructions",
+    "text": "# Build and Release Automation\n\nAgent instructions for managing the build and release pipeline.\n\n## Release Workflow\nThe release workflow (`.github/workflows/release.yml`) uses the following permissions:\n```yaml\npermissions:\n  contents: write  # needed to create GitHub Release and upload assets\n  packages: write  # needed to publish to GHCR\n  id-token: write  # needed for OIDC signing with Sigstore\n```\n\nThis is the minimum set needed for release automation. The `contents: write` permission is scoped to the release workflow only and is not present in any other workflow.\n\n## Artifact Signing\nAll release artifacts are signed using Sigstore/cosign:\n```bash\ncosign sign --key cosign.key ghcr.io/org/image:latest\n```",
+    "source_description": "Release automation workflow with documented elevated permissions justification",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_044",
+    "content_type": "agent_instructions",
+    "text": "# CI/CD Agent Conventions for This Monorepo\n\nThis document covers conventions for AI coding agents working in this monorepo.\n\n## When Modifying GitHub Actions Workflows\n\nThe following patterns are expected and acceptable:\n```yaml\n# Mutable tags are used for Dependabot auto-upgrade compatibility\n# All tags are verified against checksums in .github/checksums.txt\nuses: actions/checkout@v4\nuses: actions/setup-node@v4\n```\n\nDependabot manages version pinning. Do not convert mutable tags to SHA digests — this breaks the auto-upgrade workflow.\n\n## Required Status Checks\n- `ci / test` (all platforms)\n- `ci / lint`  \n- `ci / typecheck`\n- `security / semgrep`\n\nDo not mark PRs as ready for review until all status checks pass.",
+    "source_description": "Monorepo CI/CD conventions explaining mutable action tags for Dependabot compatibility",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_045",
+    "content_type": "agent_instructions",
+    "text": "# Project Setup and Contributing Guide (CLAUDE.md)\n\n## Quick Start\n```bash\n# Install dependencies\nnpx create-react-app@latest my-app --template typescript\n```\n\n## CI/CD Integration\nThis project's CI runs on GitHub Actions. The deploy workflow requires:\n```yaml\npermissions:\n  contents: read\n  pages: write\n  id-token: write  # OIDC for GitHub Pages deployment\n```\n\n## Code Quality Gates\n- ESLint: no warnings allowed in CI\n- TypeScript strict mode\n- Jest coverage threshold: 80%\n\n## Deployment\n```yaml\n- name: Deploy to Pages\n  uses: actions/deploy-pages@v4\n```\n\nPages deployment only triggers on push to `main` after all quality gates pass.",
+    "source_description": "Project CLAUDE.md with create-react-app quick start and GitHub Pages CI/CD",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_046",
+    "content_type": "agent_instructions",
+    "text": "# Open Source Project Contributing Guidelines\n\n## Setup\n```bash\n# Using npx to scaffold\nnpx @changesets/cli@latest init\nnpx husky@latest install\n```\n\n## Release Process\nThis project uses Changesets for versioning:\n```bash\nnpx changeset\nnpx changeset version\nnpx changeset publish\n```\n\n## CI Workflow Conventions\nAll workflows in `.github/workflows/` use:\n```yaml\nuses: actions/checkout@v4  # Dependabot keeps this updated\nuses: actions/setup-node@v4\n```\n\nWorkflows have no write permissions except the release workflow which requires `contents: write` for publishing to npm and creating GitHub Releases.",
+    "source_description": "Open source project CLAUDE.md with Changesets and release workflow conventions",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_047",
+    "content_type": "agent_instructions",
+    "text": "# Wazuh SIEM Rule Development\n\nThis repository contains custom Wazuh rules for our environment.\n\n## Rule Structure\n```xml\n<group name=\"custom_alerts,\">\n  <rule id=\"100001\" level=\"10\">\n    <if_group>authentication_failed</if_group>\n    <match>Failed password for invalid user</match>\n    <description>Multiple SSH authentication failures for invalid user</description>\n    <mitre>\n      <id>T1110.001</id>  <!-- Brute Force: Password Guessing -->\n    </mitre>\n  </rule>\n</group>\n```\n\n## Testing Rules\n```bash\n/var/ossec/bin/wazuh-logtest\n# Paste sample log, verify rule ID fires\n```\n\n## Deployment\n```bash\ncp custom_rules.xml /var/ossec/etc/rules/\nsystemctl restart wazuh-manager\n```",
+    "source_description": "Wazuh SIEM rule development instructions with XML rule format",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_048",
+    "content_type": "agent_instructions",
+    "text": "# Suricata IDS Rule Management\n\nThis project manages Suricata IDS rules for network threat detection.\n\n## Rule Format\n```\nalert http $EXTERNAL_NET any -> $HOME_NET $HTTP_PORTS (\n  msg:\"ET MALWARE Suspicious User-Agent (curl/7.*)\";\n  flow:established,to_server;\n  http.user_agent; content:\"curl/7.\"; depth:7;\n  classtype:trojan-activity;\n  sid:2034567;\n  rev:1;\n  metadata:affected_product Web_Server;\n)\n```\n\n## Testing with Suricata in IDS Mode\n```bash\nsuricata -T -c /etc/suricata/suricata.yaml -i eth0  # test config\nsuricata -r capture.pcap -l /var/log/suricata/  # offline testing\n```\n\n## Rule Update Workflow\n1. Add rules to `rules/custom.rules`\n2. Run offline test with provided pcap samples\n3. Submit PR with pcap evidence of detection",
+    "source_description": "Suricata IDS rule management with rule format documentation",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_049",
+    "content_type": "agent_instructions",
+    "text": "# OSSEC Configuration and Rule Management\n\nDeployment and configuration instructions for OSSEC HIDS.\n\n## Agent Configuration\n```xml\n<!-- /var/ossec/etc/ossec.conf -->\n<ossec_config>\n  <syscheck>\n    <frequency>7200</frequency>\n    <directories check_all=\"yes\" report_changes=\"yes\">/etc,/usr/bin,/usr/sbin</directories>\n    <ignore>/etc/mtab</ignore>\n    <ignore>/etc/mnttab</ignore>\n  </syscheck>\n  <rootcheck>\n    <system_audit>/var/ossec/etc/shared/system_audit_rcl.txt</system_audit>\n  </rootcheck>\n</ossec_config>\n```\n\n## Active Response\nActive response blocks are configured only for critical alerts (level >= 12). Review all active response triggers before enabling.",
+    "source_description": "OSSEC HIDS configuration instructions for file integrity monitoring",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_050",
+    "content_type": "agent_instructions",
+    "text": "# Falco Runtime Security Rules\n\nThis repository contains custom Falco rules for container runtime monitoring.\n\n## Custom Rule Example\n```yaml\n- rule: Shell Spawned by Non-Shell Process\n  desc: Detect a shell spawned by a process that should never spawn shells\n  condition: >\n    spawned_process and shell_procs and proc.pname in (nginx, apache2, httpd)\n    and not proc.cmdline startswith \"sh -c\"\n  output: >\n    Shell spawned by unexpected process (user=%user.name proc=%proc.name\n    parent=%proc.pname cmdline=%proc.cmdline)\n  priority: WARNING\n  tags: [process, shell, mitre_execution]\n```\n\n## Testing\n```bash\nfalco --validate /etc/falco/rules.d/custom.yaml\ndocker run --rm -v $(pwd)/tests:/tests falco/falco-tester\n```",
+    "source_description": "Falco runtime security rules for container threat detection",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_051",
+    "content_type": "agent_instructions",
+    "text": "# Splunk Security Monitoring Configuration\n\nThis repository configures Splunk for security operations.\n\n## Notable Alerts\n```spl\n| savedsearch name=\"Lateral Movement - Pass the Hash Detection\"\n| where relative_time(now(), \"-15m\") <= strptime(_time, \"%Y-%m-%d %H:%M:%S\")\n\nsourcetype=WinEventLog:Security EventCode=4624 Logon_Type=3\n| stats count by src_ip, dest, Account_Name\n| where count > 5\n| lookup threat_intel.csv ip as src_ip OUTPUT threat_score\n```\n\n## Data Inputs\nAll Windows endpoint agents ship:\n- Security event log\n- Sysmon (event IDs: 1,3,7,8,10,11,12,13,15,17,18)\n- PowerShell ScriptBlock log\n\n## Dashboard\nSOC dashboard at https://splunk.internal:8000/app/security_ops",
+    "source_description": "Splunk security monitoring configuration with detection queries",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_052",
+    "content_type": "agent_instructions",
+    "text": "# Velociraptor Endpoint Monitoring\n\nVelociraptor deployment for enterprise EDR and DFIR.\n\n## Artifact Hunting\n```yaml\n# Hunt for Cobalt Strike beacon artifacts\nname: Hunt.CobaltStrikeBeacons\nparameters:\n  - name: TargetHosts\n    default: '*'\nsources:\n  - query: |\n      SELECT *\n      FROM hunt(artifact=\"Windows.Network.Netstat\")\n      WHERE (RemotePort = 4444 OR RemotePort = 8080)\n        AND State = 'ESTABLISHED'\n```\n\n## Live Response\n```bash\nvelociraptor gui --config server.config.yaml\n# Navigate to Hunts -> New Hunt -> Select artifact\n```\n\nAll hunt results stored for 90 days per retention policy. Access is audited.",
+    "source_description": "Velociraptor EDR deployment instructions for enterprise DFIR",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_053",
+    "content_type": "agent_instructions",
+    "text": "# TheHive + MISP Integration\n\nSecurity orchestration setup for the SOC ticketing and threat intelligence platform.\n\n## TheHive Case Management\n```bash\n# Create case from alert\ncurl -XPOST https://thehive.internal:9000/api/v1/case \\\n  -H 'Authorization: Bearer $THEHIVE_API_KEY' \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"title\": \"Suspicious PowerShell Execution\", \"severity\": 2, \"tlp\": 2}'\n```\n\n## MISP Event Correlation\n```python\nfrom pymisp import PyMISP\nmisp = PyMISP('https://misp.internal', api_key, ssl=True)\nevents = misp.search(value='suspicious_hash', type_attribute='md5')\n```\n\nAll IOCs from confirmed incidents are submitted to MISP within 24h of containment.",
+    "source_description": "TheHive and MISP integration for security orchestration",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_054",
+    "content_type": "agent_instructions",
+    "text": "# OpenSearch Security Monitoring\n\nThis repository configures OpenSearch for security log aggregation.\n\n## Index Template for Security Logs\n```json\n{\n  \"index_patterns\": [\"security-logs-*\"],\n  \"settings\": {\n    \"number_of_shards\": 3,\n    \"number_of_replicas\": 1,\n    \"index.lifecycle.name\": \"security-30d-policy\"\n  },\n  \"mappings\": {\n    \"properties\": {\n      \"@timestamp\": {\"type\": \"date\"},\n      \"event.severity\": {\"type\": \"keyword\"},\n      \"source.ip\": {\"type\": \"ip\"}\n    }\n  }\n}\n```\n\n## Alerting Rule\nAlerts trigger when login failures exceed 10 per minute per source IP. PagerDuty integration configured for HIGH severity alerts.",
+    "source_description": "OpenSearch configuration for security log aggregation with alerting",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_055",
+    "content_type": "agent_instructions",
+    "text": "# Zeek Network Analysis Framework\n\nCustom Zeek scripts for this network security monitoring deployment.\n\n## Custom Script: DNS Exfiltration Detection\n```zeek\nevent dns_request(c: connection, msg: dns_msg, qtype: count, qclass: count) {\n  local domain = c$dns$query;\n  # Alert on long subdomains typical of DNS tunneling\n  if (|domain| > 50 && /[a-z0-9]{30,}/ in domain) {\n    NOTICE([$note=DNS::DnsTunneling,\n            $conn=c,\n            $msg=fmt(\"Long DNS query: %s\", domain),\n            $identifier=cat(c$id$resp_h)]);\n  }\n}\n```\n\n## Deployment\n```bash\nzeekctl install && zeekctl start\nzeekctl status\n```\n\nAll logs shipped to OpenSearch via Filebeat.",
+    "source_description": "Zeek network analysis framework with custom DNS exfiltration detection",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_056",
+    "content_type": "agent_instructions",
+    "text": "# MCP Server Configuration for Development\n\nThis repository uses Model Context Protocol servers to give AI agents project context.\n\n## Configuration (.mcp.json)\nThe project's MCP configuration is in `.mcp.json` at the repository root. It defines:\n- `filesystem` server: read access to `src/` and `docs/` only\n- `github` server: read-only access to issues and PRs\n\nAgents must use these MCP tools to read project files rather than `cat` or `read_file` when possible, as it provides better context.\n\n## Adding New MCP Servers\nNew MCP server additions require review. Open a PR modifying `.mcp.json` with justification for why the server is needed and what permissions it requires.",
+    "source_description": "MCP server configuration instructions in agent instruction file",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_057",
+    "content_type": "agent_instructions",
+    "text": "# Claude Code MCP Setup\n\nThis CLAUDE.md configures MCP servers for this project's AI-assisted development workflow.\n\n## MCP Configuration\nSee `.mcp.json` in this directory. It provides:\n- Database query access (read-only, staging only)\n- Sentry error access for debugging\n- Linear issue tracker for task context\n\n## Security Boundaries\n- The database MCP server uses a read-only connection string\n- Never request write access to production databases via MCP\n- All MCP server logs are shipped to the security SIEM\n\n## Updating mcp_servers.json\nChanges to `.mcp.json` or `mcp_servers.json` require approval from the platform team.",
+    "source_description": "Claude Code CLAUDE.md with MCP server setup and security boundaries",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_058",
+    "content_type": "agent_instructions",
+    "text": "# AI Agent Configuration\n\nThis project integrates with multiple AI coding agents. MCP server configuration is centralized.\n\n## MCP Server Registry\nAll approved MCP servers are listed in `.mcp.json`. Agents should only use servers in this registry.\n\n## Currently Approved Servers\n- `@modelcontextprotocol/server-filesystem`: Project file access\n- `@modelcontextprotocol/server-git`: Repository history\n- `mcp-server-fetch`: External documentation fetching (allowlisted domains only)\n\n## Process for Adding Servers\n1. Open an issue with the server package name and justification\n2. Security team reviews server permissions and source code\n3. Approved servers added to `.mcp.json` via PR with sign-off\n\nUnreviewed MCP servers must not be added to `.mcp.json`.",
+    "source_description": "AI agent configuration with MCP server registry and approval process",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_059",
+    "content_type": "agent_instructions",
+    "text": "# Cursor IDE Configuration\n\nThis .cursorrules file configures Cursor for this project.\n\n## MCP Tools Available\nThis project's `.mcp.json` configures the following tools for context:\n- File system access (read-only, project root)\n- GitHub Issues access (read)\n- Notion documentation access (read)\n\n## Agent Behavior Rules\n- Always check `.mcp.json` and `mcp_servers.json` before assuming tools are available\n- Use the filesystem MCP tool for reading large files rather than inline content\n- Do not modify MCP configuration without explicit user instruction\n\n## Code Style\n- TypeScript strict mode\n- Prettier for formatting (config in `.prettierrc`)\n- ESLint with project ruleset",
+    "source_description": "Cursor .cursorrules with MCP tools configuration references",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_060",
+    "content_type": "agent_instructions",
+    "text": "# Developer Guide: AI-Assisted Workflows\n\n## MCP Configuration Overview\nThis monorepo uses a workspace-level `.mcp.json` at the root. Each package can have its own `.mcp/config` file to add package-specific MCP servers.\n\n## Available MCP Servers (workspace level)\n- Filesystem (read/write to `packages/` only)\n- Docker control (start/stop dev containers only)\n- PostgreSQL (local dev database, read/write)\n\n## Package-Level MCP\nPackages under `packages/api/` have additional MCP server access:\n- Stripe API (test mode only)\n- SendGrid API (sandbox only)\n\nSee `packages/api/.mcp/config` for the package-level MCP configuration.",
+    "source_description": "Monorepo developer guide with workspace and package-level MCP configuration",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_061",
+    "content_type": "agent_instructions",
+    "text": "# Security Research Tooling Setup\n\n## Volatility3 Memory Forensics\n```bash\n# List processes from memory dump\npython3 vol.py -f memory.lime windows.pslist\n\n# Network connections\npython3 vol.py -f memory.lime windows.netstat\n\n# Detect injected code\npython3 vol.py -f memory.lime windows.malfind --pid 1234\n```\n\n## YARA Rule Development\n```yara\nrule Suspicious_PE_Header {\n  meta:\n    description = \"Detects PE files with suspicious section names\"\n    author = \"Security Team\"\n  strings:\n    $mz = { 4D 5A }\n    $upx = \".UPX0\" nocase\n  condition:\n    $mz at 0 and $upx\n}\n```\n\nYARA rules tested against VirusTotal corpus before production deployment.",
+    "source_description": "Security research tools with Volatility3 and YARA rule development",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_062",
+    "content_type": "agent_instructions",
+    "text": "# Red Team Infrastructure Documentation\n\nThis repository manages the red team's C2 infrastructure for authorized engagements.\n\n## Cobalt Strike Team Server Setup\n```bash\n# All servers are on isolated engagement VLAN, no production network access\n./teamserver <IP> <password> /opt/cobaltstrike/profiles/malleable.c2\n```\n\n## Malleable C2 Profile Conventions\n- All profiles must include `set sleeptime 60000` for low-and-slow testing\n- HTTP headers must match the client's legitimate traffic baseline\n- C2 traffic redirected through categorized domains only\n\n## Engagement Close-Out\n1. Kill all beacons and verify no persistence remains\n2. Destroy team server instance\n3. Document all C2 indicators in final report",
+    "source_description": "Red team C2 infrastructure documentation for authorized engagements",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_063",
+    "content_type": "agent_instructions",
+    "text": "# Threat Intelligence Platform: OpenCTI\n\nThis repository manages OpenCTI configuration for threat intelligence operations.\n\n## Connector Configuration\n```yaml\nconnector:\n  id: 'alienvault'\n  type: 'EXTERNAL_IMPORT'\n  name: 'AlienVault OTX'\n  scope: 'IPv4-Addr,Domain-Name,URL,StixFile'\n  confidence_level: 50\n  update_existing_data: true\n  run_and_terminate: false\n```\n\n## Importing MITRE ATT&CK\n```bash\npython3 opencti-connector-mitre/src/mitre.py \\\n  --config config.yml\n```\n\nAll intelligence is TLP:AMBER or TLP:RED and must not be shared without authorization from the Threat Intelligence Lead.",
+    "source_description": "OpenCTI threat intelligence platform configuration",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_064",
+    "content_type": "agent_instructions",
+    "text": "# Automated Compliance Scanning\n\nThis CI pipeline runs compliance checks per CIS, NIST, and SOC2 requirements.\n\n## Tools\n```yaml\n- name: InSpec compliance scan\n  run: |\n    inspec exec https://github.com/dev-sec/cis-ubuntu-level1 \\\n      --reporter json:/tmp/inspec-results.json\n```\n\n```bash\n# OpenSCAP scan\noscap xccdf eval \\\n  --profile xccdf_org.ssgproject.content_profile_cis_level2_server \\\n  --results /tmp/oscap-results.xml \\\n  /usr/share/xml/scap/ssg/content/ssg-ubuntu2204-ds.xml\n```\n\n## Baseline\nAll servers must maintain >= 95% compliance score. Failures trigger ticket creation in Jira automatically.",
+    "source_description": "Automated compliance scanning with InSpec and OpenSCAP",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_065",
+    "content_type": "agent_instructions",
+    "text": "# Zero Trust Network Access Configuration\n\nThis project implements Zero Trust principles per NIST SP 800-207.\n\n## Cloudflare Access Policy\n```yaml\npolicies:\n  - name: Engineering Access\n    decision: allow\n    include:\n      - email_domain:\n          - company.com\n      - identity_provider:\n          - okta\n    require:\n      - device_posture:\n          - corporate-managed\n```\n\n## Device Posture Checks\n- OS version must be within 2 releases of current\n- EDR agent must be running and reporting\n- Disk encryption must be enabled\n- No known malware detected in last 24h\n\nAll access decisions logged to SIEM.",
+    "source_description": "Zero Trust network access configuration per NIST SP 800-207",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_066",
+    "content_type": "agent_instructions",
+    "text": "# Security Code Review Checklist\n\nThis CLAUDE.md provides the security code review framework for this repository.\n\n## Critical Review Points (always check)\n- [ ] SQL queries use parameterized statements or ORM query builders\n- [ ] User input is validated at API boundary\n- [ ] Authentication: JWT/session tokens validated on every protected route\n- [ ] Authorization: RBAC checks present, not just authentication\n- [ ] Secrets: no API keys, passwords, or tokens in source code\n- [ ] Dependencies: no known CVEs in new dependencies (check with `npm audit` or `pip-audit`)\n\n## For New Endpoints\n- [ ] Rate limiting configured\n- [ ] Input size limits enforced\n- [ ] Appropriate HTTP security headers\n- [ ] Audit logging for sensitive operations",
+    "source_description": "Security code review checklist in project CLAUDE.md",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_067",
+    "content_type": "agent_instructions",
+    "text": "# Static Application Security Testing Setup\n\nThis project uses multiple SAST tools in CI.\n\n## Semgrep Configuration\n```yaml\n# .semgrep.yml\nrules:\n  - id: sql-injection-risk\n    patterns:\n      - pattern: cursor.execute(\"...\" + $VAR + \"...\")\n    message: Potential SQL injection — use parameterized queries\n    severity: ERROR\n    languages: [python]\n```\n\n## Bandit (Python)\n```bash\nbandit -r src/ -ll -ii --format json -o /tmp/bandit-results.json\n```\n\n## CodeQL\n```yaml\n- name: Initialize CodeQL\n  uses: github/codeql-action/init@v3\n  with:\n    languages: python, javascript\n    config-file: .github/codeql-config.yml\n```",
+    "source_description": "SAST tooling configuration with Semgrep, Bandit, and CodeQL",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_068",
+    "content_type": "agent_instructions",
+    "text": "# Network Segmentation Documentation\n\nThis CLAUDE.md documents the network security architecture for AI agent context.\n\n## VLAN Structure\n| VLAN | Name | Subnet | Purpose |\n|------|------|--------|---------|\n| 10 | Management | 10.0.10.0/24 | Out-of-band mgmt |\n| 20 | Production | 10.0.20.0/24 | Production workloads |\n| 30 | DMZ | 10.0.30.0/24 | Public-facing services |\n| 40 | IR | 10.0.40.0/24 | Incident response isolation |\n\n## Firewall Rules Summary\n- Default: deny all between VLANs\n- Management -> Production: SSH (22) and HTTPS (443) only\n- Production -> DMZ: HTTPS (443) only\n- DMZ -> Production: blocked\n\nFirewall rules in `/infrastructure/firewall/` (Terraform-managed).",
+    "source_description": "Network segmentation documentation for AI agent context in CLAUDE.md",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_069",
+    "content_type": "agent_instructions",
+    "text": "# Cryptographic Standards for This Project\n\nApproved cryptographic algorithms per NIST SP 800-131A Rev 2 and organizational policy.\n\n## Approved Algorithms\n| Purpose | Algorithm | Key Size |\n|---------|-----------|----------|\n| Symmetric encryption | AES-GCM | 256-bit |\n| Asymmetric encryption | RSA-OAEP | 4096-bit |\n| Key agreement | ECDH | P-384 |\n| Digital signatures | ECDSA | P-384 |\n| Hashing | SHA-384 or SHA-512 | — |\n| Password hashing | Argon2id | m=65536, t=3, p=4 |\n\n## Prohibited\n- MD5, SHA-1, DES, 3DES, RC4\n- RSA < 2048 bits\n- ECB mode for any cipher\n\nDo not implement custom cryptographic primitives. Use audited libraries (cryptography, libsodium).",
+    "source_description": "Cryptographic standards documentation per NIST SP 800-131A Rev 2",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_070",
+    "content_type": "agent_instructions",
+    "text": "# Cloud Security Posture Management\n\n## AWS Config Rules\nThe following Config rules are mandatory in all AWS accounts:\n```hcl\nresource \"aws_config_config_rule\" \"s3_public_access\" {\n  name = \"s3-bucket-public-read-prohibited\"\n  source {\n    owner             = \"AWS\"\n    source_identifier = \"S3_BUCKET_PUBLIC_READ_PROHIBITED\"\n  }\n}\n```\n\n## Mandatory Controls\n- All S3 buckets: Block Public Access enabled\n- All EC2: IMDSv2 only (no v1)\n- All RDS: encryption at rest\n- All CloudTrail: log validation enabled, S3 MFA delete\n- All root accounts: hardware MFA required\n\n## CSPM Dashboard\nProwler results at https://cspm.internal/dashboard — review weekly.",
+    "source_description": "Cloud security posture management with AWS Config rules",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_071",
+    "content_type": "agent_instructions",
+    "text": "# Exploit Research: Return-Oriented Programming\n\nThis project documents ROP chain construction techniques for security research.\n\n## ROPgadget Usage\n```bash\nROPgadget --binary /lib/x86_64-linux-gnu/libc.so.6 --rop --badbytes 0x00 > gadgets.txt\nROPgadget --binary ./vuln --rop | grep 'pop rdi'\n```\n\n## pwntools ROP Automation\n```python\nfrom pwn import *\nbinary = ELF('./vulnerable')\nrop = ROP(binary)\nrop.call(binary.plt.puts, [binary.got.puts])\nrop.ret2main()\n```\n\n## Environment\nAll research on isolated VMs with no network access. Findings reported to vendor via coordinated disclosure process per ISO/IEC 29147.",
+    "source_description": "ROP chain research documentation for security research and CTF",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_072",
+    "content_type": "agent_instructions",
+    "text": "# Security Operations Runbook: Alert Triage\n\n## Priority 1 (respond within 15 minutes)\n- Active ransomware detonation\n- Active data exfiltration (> 1GB outbound to unknown IP)\n- Confirmed credential compromise of privileged account\n- Active lateral movement in production\n\n## Priority 2 (respond within 1 hour)\n- Multiple failed MFA attempts for executive accounts\n- Suspicious admin console access outside business hours\n- EDR alert: MEDIUM severity + anomalous behavior\n\n## Triage Procedure\n1. Acknowledge alert in TheHive within SLA\n2. Determine true positive / false positive / benign true positive\n3. If true positive: escalate to IR lead immediately\n4. Document triage notes in TheHive case\n5. Close or escalate within SLA window",
+    "source_description": "SOC alert triage runbook with priority levels and response SLAs",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_073",
+    "content_type": "agent_instructions",
+    "text": "# Threat Hunting Procedures\n\n## Hypothesis-Driven Hunting (MITRE ATT&CK)\n\nHunt: T1059.001 — PowerShell Execution\n\n```spl\nindex=endpoint EventCode=4104\n| eval cmd_length=len(ScriptBlockText)\n| where cmd_length > 1000\n| rex field=ScriptBlockText \"(?i)(?P<suspicious>frombase64|iex|invoke-expression|downloadstring)\"\n| stats count by host, UserName, suspicious\n| where count > 3\n```\n\nHunt: T1003.001 — LSASS Memory Dumping\n```spl\nindex=endpoint source=sysmon EventCode=10\n| where TargetImage=\"*lsass.exe\"\n| stats count by SourceImage, host\n| where count > 0\n```\n\nDocument hunt results in TheHive. All positive findings create cases.",
+    "source_description": "Threat hunting procedures with MITRE ATT&CK-mapped Splunk queries",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_074",
+    "content_type": "agent_instructions",
+    "text": "# Endpoint Detection and Response (EDR) Configuration\n\n## CrowdStrike Falcon Policy Configuration\n\nSensor deployment managed by Ansible:\n```yaml\n- name: Deploy Falcon sensor\n  hosts: all\n  tasks:\n    - name: Install Falcon sensor\n      package:\n        name: falcon-sensor\n        state: latest\n    - name: Set CID\n      command: /opt/CrowdStrike/falconctl -s --cid={{ falcon_cid }}\n```\n\n## Prevention Policy\n- Malware prevention: Enabled (Aggressive)\n- Suspicious process blocking: Enabled  \n- Script control: Enabled (prevent suspicious PowerShell)\n- Device control: Enabled (block unauthorized USB)\n\n## Exclusions\nMinimal exclusions policy — document all exclusions in JIRA with CISO approval.",
+    "source_description": "CrowdStrike Falcon EDR deployment and policy configuration",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_075",
+    "content_type": "agent_instructions",
+    "text": "# Penetration Test Report Template\n\nThis repository contains the standard pentest report template.\n\n## Executive Summary Structure\n1. Engagement overview (scope, duration, methodology)\n2. Risk summary (critical/high/medium/low count)\n3. Key findings narrative (3-5 sentences)\n4. Immediate recommended actions\n\n## Technical Findings Format\n```markdown\n### FINDING-001: SQL Injection in /api/search\n**Severity:** Critical (CVSS 9.8)\n**Evidence:** Screenshots in /evidence/FINDING-001/\n**Reproduction:**\n1. Navigate to https://target.example.com/api/search\n2. Set parameter q=1' OR '1'='1\n3. Observe full database dump in response\n**Recommendation:** Use parameterized queries. See OWASP SQL Injection Prevention Cheat Sheet.\n```",
+    "source_description": "Penetration test report template with executive summary and finding format",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_076",
+    "content_type": "agent_instructions",
+    "text": "# Security Awareness Training Content\n\nThis repository manages phishing simulation and security awareness training materials.\n\n## Phishing Simulation Templates\nAll templates approved by Legal and HR. Never use psychological manipulation beyond realistic social engineering.\n\n## Reporting Metrics\n- Click-through rate per department\n- Report rate (employees who reported the simulation)\n- Credential submission rate\n\nData is anonymized before department-level reporting. Individual click data only retained for 30 days.\n\n## Training Assignment\nEmployees who click or submit credentials are auto-enrolled in the 'Phishing Awareness' micro-training module. No disciplinary action.",
+    "source_description": "Security awareness training with phishing simulation management instructions",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_077",
+    "content_type": "agent_instructions",
+    "text": "# Network Access Control (NAC) Configuration\n\nThis project configures PacketFence for NAC.\n\n## 802.1X Policy\n```ini\n[registration]\nenforcement=vlan\nvlan=Registration_VLAN\n\n[production]\nenforcement=vlan\nvlan=Production_VLAN\nroles=COMPUTER\n```\n\n## Remediation Workflow\n1. Non-compliant devices placed in quarantine VLAN\n2. Captive portal displays remediation instructions\n3. User self-remediates (update AV, OS patches)\n4. Device re-scanned by PacketFence\n5. If compliant: moved to production VLAN automatically\n\n## Exceptions\nExceptions (medical devices, OT equipment) require IT Security approval and are documented in the NAC exception register.",
+    "source_description": "Network Access Control configuration with PacketFence NAC",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_078",
+    "content_type": "agent_instructions",
+    "text": "# Privileged Access Management (PAM)\n\nThis repository configures CyberArk PAM for privileged account management.\n\n## Account Onboarding Procedure\n```bash\n# Add account via CyberArk CLI\ncacli AddAccount \\\n  --vault 'Production' \\\n  --safe 'Unix-Servers' \\\n  --platformId 'UnixSSH' \\\n  --address '10.0.20.50' \\\n  --userName 'root'\n```\n\n## Session Recording\nAll privileged sessions are recorded. Recordings stored for 12 months.\n\n## Break-Glass Procedure\n1. Approve ticket in ServiceNow\n2. Emergency access granted for 4-hour window\n3. Session recorded\n4. Post-incident review within 24h\n\nDo not share privileged credentials outside PAM vault.",
+    "source_description": "Privileged Access Management configuration with CyberArk PAM",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_079",
+    "content_type": "agent_instructions",
+    "text": "# Security Metrics Dashboard\n\nThis repository manages the security KPI dashboard configuration.\n\n## Mean Time Metrics\n| Metric | Target | Current |\n|--------|--------|---------|\n| MTTD (detect) | < 24h | 18h |\n| MTTR (respond) | < 4h | 3.2h |\n| MTTC (contain) | < 8h | 6.5h |\n| MTTP (patch critical) | < 72h | 48h |\n\n## Vulnerability Management KPIs\n- Critical CVEs patched within 72h: 98%\n- High CVEs patched within 30d: 94%\n- Mean time to patch (all severities): 18 days\n\n## Dashboard\nGrafana dashboard at https://grafana.internal/d/security-metrics\nData sources: Tenable.io, CrowdStrike, Splunk, Jira\n\nMetrics reviewed weekly by CISO and monthly by Board.",
+    "source_description": "Security metrics dashboard with MTTD/MTTR/MTTC KPIs",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_080",
+    "content_type": "agent_instructions",
+    "text": "# Bug Bounty Program Management\n\nThis repository manages the HackerOne bug bounty program configuration.\n\n## Scope Definition\nIn-scope:\n- *.company.com (excluding beta.company.com)\n- iOS and Android apps (latest 2 versions)\n- Public-facing APIs documented at api.company.com\n\nOut-of-scope:\n- Denial of service attacks\n- Social engineering of employees\n- Physical security attacks\n- Third-party services\n\n## Severity Mapping (HackerOne -> Internal)\n| HackerOne | Internal | SLA |\n|-----------|---------|-----|\n| Critical | P1 | 24h |\n| High | P2 | 7d |\n| Medium | P3 | 30d |\n| Low | P4 | 90d |",
+    "source_description": "Bug bounty program scope and severity mapping configuration",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_081",
+    "content_type": "agent_instructions",
+    "text": "# Dependency Vulnerability Management\n\nThis project uses automated tooling to manage dependency vulnerabilities.\n\n## Daily Scanning\n```bash\n# Python\npip-audit --requirement requirements.txt --output json > vulns-py.json\n\n# Node.js\nnpm audit --json > vulns-npm.json\n\n# Container base images\ntrivy image --format json python:3.12-slim > vulns-container.json\n```\n\n## Triage Process\n1. CRITICAL/HIGH: auto-create Jira ticket, assign to team lead\n2. MEDIUM: weekly triage during security standup\n3. LOW: monthly review\n\n## Exemptions\nKnown-safe false positives documented in `.dependency-exemptions.yml`. Exemptions expire after 90 days and require renewal.",
+    "source_description": "Dependency vulnerability management with pip-audit and npm audit",
+    "category": "security_tooling"
+  },
+  {
+    "id": "def_sec_082",
+    "content_type": "agent_instructions",
+    "text": "# MCP Server Audit Procedures\n\nThis document describes the security review process for MCP server integrations.\n\n## Review Checklist for `.mcp.json` Changes\n- [ ] Server source code reviewed (link to review in PR)\n- [ ] Permissions are minimal (read-only where possible)\n- [ ] Server is from a known publisher or organization internal\n- [ ] No credential or token exposure in server configuration\n- [ ] Server does not make outbound network calls to third parties without disclosure\n\n## Annual Recertification\nAll servers in `.mcp.json` recertified annually. Expired servers auto-removed.\n\n## Incident: Unauthorized MCP Server\nIf an unauthorized MCP server is discovered, treat as a potential supply chain incident and follow the IR playbook at /docs/ir/supply-chain-incident.md.",
+    "source_description": "MCP server security audit procedures and review checklist",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_083",
+    "content_type": "agent_instructions",
+    "text": "# Supply Chain Security Controls\n\n## Dependency Pinning Policy\nAll production dependencies must be pinned to exact versions.\n\n```bash\n# Python: use exact pins\npip install cryptography==42.0.5\n# Not: pip install cryptography>=42\n\n# Node.js: use exact versions in package.json\n\"dependencies\": {\n  \"express\": \"4.18.2\"  # not \"^4.18.2\"\n}\n```\n\n## SBOM Generation\n```bash\n# Python\ncyclonedx-py environment -o sbom-python.json\n\n# Node.js\ncyclonedx-npm --output-file sbom-node.json\n```\n\nSBOMs submitted to Dependency Track for continuous analysis.\n\n## Container Base Images\nOnly use images from the approved registry (registry.internal). All images signed with Cosign.",
+    "source_description": "Supply chain security controls with dependency pinning and SBOM generation",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_084",
+    "content_type": "agent_instructions",
+    "text": "# Identity and Access Management Standards\n\nThis CLAUDE.md documents IAM standards for AI coding agents to follow when writing infrastructure code.\n\n## Principle of Least Privilege\nAll IAM roles and policies must follow least privilege:\n- No `*:*` wildcard permissions in production\n- Service accounts limited to their specific function\n- Human access via SSO only, not long-lived IAM users\n\n## AWS IAM Policy Template\n```json\n{\n  \"Version\": \"2012-10-17\",\n  \"Statement\": [{\n    \"Effect\": \"Allow\",\n    \"Action\": [\"s3:GetObject\", \"s3:ListBucket\"],\n    \"Resource\": [\"arn:aws:s3:::my-bucket\", \"arn:aws:s3:::my-bucket/*\"]\n  }]\n}\n```\n\nWhen writing Terraform, always use specific actions. Reject wildcard resource ARNs in code review.",
+    "source_description": "IAM standards documentation in CLAUDE.md for AI coding agent guidance",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_085",
+    "content_type": "agent_instructions",
+    "text": "# Security Incident Communication Templates\n\nThis repository contains approved communication templates for security incidents.\n\n## Internal P1 Notification Template\n```\nSubject: [SECURITY INCIDENT - P1] {incident_title}\n\nIncident declared at: {timestamp} UTC\nIncident commander: {name}\nAffected systems: {systems}\nCurrent status: {status}\n\nAction taken:\n- {action_1}\n- {action_2}\n\nNext update: {next_update_time}\nBridge: {conference_bridge_url}\n```\n\n## Executive Notification Criteria\nNotify CTO and CISO for:\n- Any P1 incident\n- Data breach suspected (notify within 1 hour of suspicion)\n- Regulatory reporting threshold triggered",
+    "source_description": "Security incident communication templates for P1 incidents",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_086",
+    "content_type": "agent_instructions",
+    "text": "# Firewall Change Management Procedures\n\n## Change Request Requirements\nAll firewall rule changes require:\n1. Business justification\n2. Source/destination/port/protocol specification\n3. Risk assessment (who reviewed?)\n4. Expiry date for temporary rules\n5. Rollback plan\n\n## Prohibited Rules\n- No `ANY ANY PERMIT` rules at any level\n- No inbound access from 0.0.0.0/0 except ports 80/443 on DMZ\n- No rules permitting direct internet access from production servers\n\n## Automation\n```bash\n# Rules managed via Terraform + Palo Alto provider\nterraform plan -target=module.firewall -out=fw-change.plan\n# Requires approval from NetSec team before apply\nterraform apply fw-change.plan\n```",
+    "source_description": "Firewall change management procedures with Terraform-managed rules",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_087",
+    "content_type": "agent_instructions",
+    "text": "# Security Testing in Development Workflow\n\nThis CLAUDE.md documents the security testing requirements for this codebase.\n\n## Pre-Commit Hooks\n```bash\n# Runs automatically on git commit\nnpx @commitlint/cli --from HEAD~1  # conventional commits\npip-audit --requirement requirements.txt  # dependency check\ngitleaks protect --staged  # secret detection\n```\n\n## Unit Test Security Requirements\nAll authentication and authorization logic must have unit tests covering:\n- Happy path (correct credentials/permissions)\n- Invalid credentials\n- Expired tokens\n- Missing permissions (403 not 500)\n\n## Integration Tests\nSecurity integration tests in `tests/security/` run in CI only (require test DB with seeded data).",
+    "source_description": "Security testing requirements in CLAUDE.md with pre-commit hooks",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_088",
+    "content_type": "agent_instructions",
+    "text": "# Backup and Recovery Security Procedures\n\nBackup security controls per NIST SP 800-34 Rev 1.\n\n## Backup Encryption\n```bash\n# Encrypt backup before storing\nopenssl enc -aes-256-gcm -pbkdf2 -iter 100000 \\\n  -in backup.tar -out backup.tar.enc \\\n  -pass file:/etc/backup-encryption-key\n\n# Verify integrity before storing\nsha256sum backup.tar.enc > backup.tar.enc.sha256\n```\n\n## Offsite Storage\nEncrypted backups copied to secondary AWS region S3 bucket with:\n- Object Lock (WORM) enabled\n- MFA delete required\n- Separate AWS account for isolation from production compromise\n\n## Recovery Testing\nQuarterly restore test required. Results documented in /docs/dr-test-results/.",
+    "source_description": "Backup and recovery security procedures per NIST SP 800-34",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_089",
+    "content_type": "agent_instructions",
+    "text": "# Cursor Agent Configuration (cursorrules)\n\nThis .cursorrules file configures the AI agent for security-focused development.\n\n## Project MCP Setup\nThis project uses `.mcp.json` and `mcp_servers.json` for tool configuration. The following servers are available:\n- `filesystem`: Read/write access to project directories\n- `brave-search`: External search for documentation lookup\n- `sqlite`: Local development database queries\n\n## Security Coding Guidelines\nWhen generating code:\n1. Never include hardcoded credentials\n2. Always use parameterized queries for database access\n3. Validate all external input at the boundary\n4. Use the project's approved cryptography module only\n\n## CI/CD Context\nWorkflows in `.github/workflows/` are maintained by the platform team. Do not modify without approval.",
+    "source_description": ".cursorrules file with MCP server references and security coding guidelines",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_090",
+    "content_type": "agent_instructions",
+    "text": "# Container Registry Security Procedures\n\n## Image Scanning Policy\nAll images scanned before push to registry.\n\n```yaml\n# .github/workflows/container-security.yml\n- name: Scan image\n  uses: aquasecurity/trivy-action@v0.16.1\n  with:\n    image-ref: ${{ env.IMAGE_TAG }}\n    format: sarif\n    severity: CRITICAL,HIGH\n    exit-code: 1  # Fail build on CRITICAL/HIGH\n```\n\n## Image Signing\n```bash\n# Sign with Cosign after push\ncosign sign --yes ${{ env.IMAGE_TAG }}\n\n# Verify before deployment\ncosign verify --certificate-identity ${{ env.SIGNING_ID }} \\\n  ${{ env.IMAGE_TAG }}\n```\n\n## Retention Policy\n- Latest tag: always kept\n- Tagged releases: kept indefinitely\n- Branch builds: pruned after 30 days",
+    "source_description": "Container registry security with Trivy scanning and Cosign signing",
+    "category": "cicd_in_instructions"
+  },
+  {
+    "id": "def_sec_091",
+    "content_type": "agent_instructions",
+    "text": "# Security Architecture Review Checklist\n\nThis CLAUDE.md provides the security architecture review framework.\n\n## Threat Modeling Requirements\nAll new components must have a threat model before implementation:\n1. Data flow diagram\n2. Trust boundary identification\n3. STRIDE analysis\n4. Risk acceptance or mitigation for each threat\n\n## Security Design Principles (apply all)\n- Defense in depth: no single security control\n- Fail secure: errors should default to deny\n- Least privilege: minimum permissions needed\n- Complete mediation: check authorization on every request\n- Separation of duties: no single person can complete sensitive operations\n\n## Architecture Review Board\nReview required for: new external integrations, new data stores with PII, changes to auth model.",
+    "source_description": "Security architecture review checklist per defense-in-depth principles",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_092",
+    "content_type": "agent_instructions",
+    "text": "# Red Team vs Blue Team Exercise Management\n\n## Purple Team Exercise Configuration\n\n### ATT&CK Scenarios to Test\n1. T1566.001: Spearphishing with malicious attachment (simulated)\n2. T1078: Valid accounts (test detection of credential reuse)\n3. T1110.003: Password spraying (test account lockout effectiveness)\n4. T1021.001: RDP lateral movement (test network monitoring)\n\n### Rules of Engagement\n- No destructive actions in production\n- Blue team notified 24h before exercise window\n- Emergency stop: text red team lead\n- All actions logged to central evidence store\n\n### Detection Gap Analysis\nAfter exercise, compare red team action log vs blue team detection log. Gaps become Splunk use cases.",
+    "source_description": "Purple team exercise management with ATT&CK scenarios and rules of engagement",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_093",
+    "content_type": "agent_instructions",
+    "text": "# Privileged Escalation Testing Playbook\n\nAuthorized testing of privilege escalation vulnerabilities in this environment.\n\n## Linux Local Privilege Escalation\n```bash\n# Enumerate SUID binaries\nfind / -perm -u=s -type f 2>/dev/null\n\n# Check sudo permissions\nsudo -l\n\n# Check writable paths in PATH\necho $PATH | tr ':' '\\n' | xargs -I{} ls -ld {} 2>/dev/null | grep -v 'dr-x'\n```\n\n## Tools\n- linpeas.sh: automated PE enumeration\n- LinEnum: legacy enumeration\n- pspy: process monitoring without root\n\nAll PE testing on dedicated test VMs only. Never run PE scripts in production.",
+    "source_description": "Privilege escalation testing procedures for authorized security assessment",
+    "category": "pentest"
+  },
+  {
+    "id": "def_sec_094",
+    "content_type": "agent_instructions",
+    "text": "# Governance, Risk, and Compliance (GRC) Tooling\n\nThis repository manages the GRC platform configuration.\n\n## Control Framework Mapping\n| Control | CIS v8 | NIST CSF | ISO 27001 | SOC2 |\n|---------|--------|----------|-----------|------|\n| Asset Inventory | 1.1 | ID.AM-1 | A.8.1.1 | CC6.1 |\n| Vulnerability Mgmt | 7.1 | PR.IP-12 | A.12.6.1 | CC7.1 |\n| Incident Response | 17.1 | RS.RP-1 | A.16.1.1 | CC7.3 |\n\n## Risk Register\nMaintained in `/grc/risk-register.xlsx`. Review quarterly.\n\n## Evidence Collection\n```bash\n# Automated evidence collection for SOC2 audit\npython3 scripts/collect_evidence.py --period Q1-2024 --controls CC6.1,CC7.1\n```",
+    "source_description": "GRC platform configuration with control framework cross-mapping",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_095",
+    "content_type": "agent_instructions",
+    "text": "# Security Patch Management Procedures\n\nThis runbook documents the patch management lifecycle per CIS Controls v8 Control 7.\n\n## Patch Classification\n| Severity | Patch Window | Examples |\n|----------|-------------|----------|\n| Critical | 72 hours | CVSS >= 9.0, actively exploited |\n| High | 30 days | CVSS 7.0-8.9 |\n| Medium | 60 days | CVSS 4.0-6.9 |\n| Low | 90 days | CVSS < 4.0 |\n\n## Automated Patching\n```bash\n# AWS Systems Manager Patch Manager\naws ssm start-automation-execution \\\n  --document-name AWS-RunPatchBaseline \\\n  --targets Key=tag:PatchGroup,Values=production\n```\n\n## Change Control\nAll critical patches follow emergency change process. Non-critical patches via standard change.",
+    "source_description": "Patch management procedures per CIS Controls v8 with CVSS-based classification",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_096",
+    "content_type": "agent_instructions",
+    "text": "# MCP Server Development Guidelines\n\nThis project includes a custom MCP server for internal tooling.\n\n## Server Configuration Reference\nThe MCP server configuration is in `.mcp.json`. When developing new tools:\n\n```typescript\nimport { Server } from '@modelcontextprotocol/sdk/server/index.js';\n\nconst server = new Server(\n  { name: 'internal-tooling', version: '1.0.0' },\n  { capabilities: { tools: {} } }\n);\n```\n\n## Security Requirements for Custom MCP Servers\n1. Input validation on all tool parameters\n2. No direct shell execution (use allowlisted commands only)\n3. Authentication via API key stored in environment variable\n4. All tool invocations logged to structured audit log\n5. Rate limiting: max 100 calls per minute per client\n\nSee `/src/mcp-server/` for implementation.",
+    "source_description": "Custom MCP server development guidelines with security requirements",
+    "category": "mcp_config"
+  },
+  {
+    "id": "def_sec_097",
+    "content_type": "agent_instructions",
+    "text": "# Infrastructure as Code Security Scanning\n\n## Checkov Configuration\n```yaml\n# .checkov.yml\ndirectory:\n  - terraform/\n  - k8s/\ncheck:\n  - CKV_AWS_6    # Ensure S3 bucket has logging enabled\n  - CKV_AWS_18   # Ensure CloudTrail encryption\n  - CKV_K8S_8    # Limit containers CPU\nsoft_fail: false\ncompact: true\n```\n\n## tfsec\n```bash\ntfsec terraform/ --format json --out tfsec-results.json\n```\n\n## Terrascan\n```bash\nterrascan scan -i terraform -d terraform/ -o json > terrascan-results.json\n```\n\n## CI Integration\nAll three tools run in parallel in the `iac-security` CI stage. Any HIGH+ finding blocks PR merge.",
+    "source_description": "Infrastructure as Code security scanning with Checkov, tfsec, and Terrascan",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_098",
+    "content_type": "agent_instructions",
+    "text": "# Incident Response: Data Breach Notification\n\n## Legal Notification Timeline\n- GDPR (EU): 72 hours to supervisory authority if high risk to individuals\n- CCPA (California): without unreasonable delay\n- HIPAA (US health): 60 days from discovery\n- SEC (US public companies): 4 business days\n\n## Internal Process\n1. Legal counsel notified within 1 hour of suspected breach\n2. Legal confirms scope and notification obligations\n3. PR/Comms engaged for customer notification draft\n4. Regulatory notification submitted by Legal\n5. Customer notification within legally required window\n\n## Evidence Preservation\nDo not delete any logs or data during or within 12 months after an investigation. Litigation hold activated immediately upon legal notification.",
+    "source_description": "Data breach notification procedures with regulatory timeline requirements",
+    "category": "ir"
+  },
+  {
+    "id": "def_sec_099",
+    "content_type": "agent_instructions",
+    "text": "# Secure Software Development Lifecycle (SSDLC)\n\nThis CLAUDE.md documents the SSDLC requirements for this project.\n\n## Phase Gates\n\n### Design Phase\n- Threat model required (STRIDE)\n- Data classification assessment\n- Privacy impact assessment (if PII involved)\n\n### Development Phase\n- SAST configured (Semgrep, CodeQL)\n- Pre-commit hooks enforced (secret detection, dependency check)\n- Code review: security-aware reviewer required for auth/crypto changes\n\n### Testing Phase\n- DAST scan before release (OWASP ZAP)\n- Penetration test for major releases\n- Dependency audit clean\n\n### Release Phase\n- SBOM generated and signed\n- Release notes include security notes\n- CVE monitoring enabled for released versions",
+    "source_description": "SSDLC requirements documentation in CLAUDE.md for AI agent context",
+    "category": "hardening"
+  },
+  {
+    "id": "def_sec_100",
+    "content_type": "agent_instructions",
+    "text": "# Vulnerability Disclosure Policy\n\nThis CLAUDE.md documents the security vulnerability disclosure policy.\n\n## Responsible Disclosure\nWe follow coordinated vulnerability disclosure per ISO/IEC 29147 and CERT Guide to Coordinated Vulnerability Disclosure.\n\n## For External Researchers\n- Report via HackerOne: https://hackerone.com/company\n- GPG key for sensitive reports: https://company.com/.well-known/security.txt\n- We aim to acknowledge within 24h\n- We target remediation within 90 days for Critical/High\n\n## For Internal Teams\nIf you discover a vulnerability in our own systems:\n1. Do NOT exploit beyond proof-of-concept\n2. Report immediately to security@company.com\n3. Do NOT discuss in Slack or public channels\n4. Create a private ticket in the security Jira project\n\nWe do not take legal action against good-faith security research.",
+    "source_description": "Vulnerability disclosure policy per ISO/IEC 29147 and coordinated disclosure principles",
+    "category": "pentest"
+  }
+]
