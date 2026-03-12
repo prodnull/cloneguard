@@ -445,9 +445,9 @@ def main() -> None:
         print(f"  Combined FPR (LENIENT): {combined_lnt}")
 
         print("\n=== Combined Pipeline FPR Summary ===")
-        print("NOTE: Tier 0 FPR on workflows is ~23.9% (CI-001-dominated) — a structural floor")
-        print("that Phase 5 Tier 1.5 tuning cannot address. This is the expected honest outcome.")
-        print("Tier 0 pattern fixes are deferred to Phase 6.")
+        print("NOTE: Tier 0 workflow FPR ~10.7%")
+        print("(residual from EX-001, CI-002, PE-005, CH-009, VP-007).")
+        print("CI-001 floor eliminated in Phase 6 via strict-mode restriction.")
         print()
         for label, result in [("STANDARD", combined_std), ("LENIENT", combined_lnt)]:
             print(f"  {label} combined FPR:")
@@ -459,8 +459,9 @@ def main() -> None:
             "LENIENT": combined_lnt,
             "note": (
                 "Combined Tier 0 + Tier 1.5 FPR. Tier 1.5 runs only when Tier 0 is clean. "
-                "Tier 0 workflow FPR ~23.9% (CI-001) is a structural floor not addressable "
-                "by Phase 5 Tier 1.5 threshold tuning. Tier 0 fixes deferred to Phase 6."
+                "Tier 0 workflow FPR ~10.7% "
+                "(residual: EX-001, CI-002, PE-005, CH-009, VP-007). "
+                "CI-001 floor eliminated in Phase 6 (strict-mode)."
             ),
         }
 

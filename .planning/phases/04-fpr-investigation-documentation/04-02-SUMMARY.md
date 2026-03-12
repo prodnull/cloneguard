@@ -20,6 +20,7 @@ decisions:
   - "Frame Campbell citation as independent empirical test, not validation of CloneGuard — honest framing per RESEARCH.md Pitfall 5"
   - "Add 4 test assertions in test_security_doc.py including INV-01 measured values, not just citation presence"
   - "Medium draft update rephrases 'less secure' to 'detection regression' to satisfy framing violation test"
+requirements_completed: [INV-03, DOC-01, DOC-02]
 metrics:
   duration: "~15 minutes"
   completed: "2026-03-11"
