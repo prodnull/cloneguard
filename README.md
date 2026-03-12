@@ -13,7 +13,7 @@
   <a href="https://github.com/prodnull/cloneguard/releases/latest"><img src="https://img.shields.io/github/v/release/prodnull/cloneguard" alt="Release"></a>
   <a href="https://github.com/prodnull/cloneguard/blob/main/LICENSE"><img src="https://img.shields.io/github/license/prodnull/cloneguard" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python">
-  <img src="https://img.shields.io/badge/tests-1078%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1261%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/F1-94.3%25%20(5--fold%20CV)-blue" alt="F1 Score">
   <a href="https://huggingface.co/prodnull/minilm-prompt-injection-classifier"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Model-yellow.svg" alt="HuggingFace Model"></a>
   <a href="https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Dataset-yellow.svg" alt="HuggingFace Dataset"></a>
@@ -167,7 +167,28 @@ When `--dangerously-skip-permissions` is detected, CloneGuard escalates scan str
 | STANDARD | README.md, package.json, Makefile | HIGH findings = WARNING; CI hygiene patterns suppressed |
 | LENIENT | Test files, fixtures | Severity downgraded |
 
-Some patterns (CI-004, CI-006, SC-001, MCP-005) are restricted to STRICT mode via the `modes` field — they detect CI security hygiene issues that are relevant in agent instruction files but produce excessive false positives on regular code and workflows.
+Some patterns (CI-001, CI-004, CI-006, SC-001, MCP-005, LTL-004) are restricted to STRICT mode via the `modes` field — they detect CI security hygiene issues that are relevant in agent instruction files but produce excessive false positives on regular code and workflows.
+
+**Per-ScanMode detection thresholds** (Tier 1.5 ONNX):
+
+| Mode | Suspicious threshold | Malicious threshold |
+|------|:---:|:---:|
+| STRICT | 0.50 | 0.80 |
+| STANDARD | 0.65 | 0.88 |
+| LENIENT | 0.75 | 0.92 |
+
+### CaMeL-lite Tool Call Monitor
+
+Advisory monitoring of agent tool call sequences for suspicious patterns (v0.4). Inspired by [CaMeL](https://arxiv.org/abs/2503.18813) — lightweight, log-only, no blocking.
+
+| Rule | Detects |
+|------|---------|
+| SEQ-001 | Read sensitive file followed by exfiltration command |
+| SEQ-002 | Config modification followed by permission escalation |
+| SEQ-003 | Multiple credential file reads in sequence |
+| SEQ-004 | Tool output containing injection followed by write |
+
+Logs to `~/.cloneguard/monitor.jsonl` with <0.5ms overhead per hook invocation. Currently advisory-only (log, no block) — enforcement deferred until FPR is validated in production.
 
 ### Empirical Validation
 
@@ -262,10 +283,10 @@ pytest
 
 ## Testing
 
-1,078 tests covering all components:
+1,261 tests covering all components:
 
 ```bash
-pytest                                   # all tests (1,078)
+pytest                                   # all tests (1,261)
 pytest tests/test_security_vectors.py    # security proof tests
 pytest tests/test_integration_all_patterns.py  # all 197 patterns through full pipeline
 pytest tests/test_evasion_resistance.py  # trust cache + evasion boundary tests

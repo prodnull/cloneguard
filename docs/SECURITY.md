@@ -65,7 +65,7 @@ Gates dangerous operations before they execute:
 
 ### Tier 1: Pattern Engine (Regex)
 
-193 compiled regex patterns across 24 categories. Executes in under 50ms. Each pattern has an ID, severity (LOW/MEDIUM/HIGH/CRITICAL), and description.
+197 compiled regex patterns across 25 categories. Executes in under 50ms. Each pattern has an ID, severity (LOW/MEDIUM/HIGH/CRITICAL), and description.
 
 **Categories include:** instruction override, authority impersonation, credential harvesting, exfiltration, behavioral manipulation, viral propagation, config file injection, privilege escalation, encoding obfuscation, HTML/SVG injection, build script attacks, CI/CD poisoning, environment variable hijacking, devcontainer abuse, MCP tool poisoning, and more.
 

@@ -18,8 +18,8 @@ Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stor
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 1,078 tests (Tier 0 + Tier 1.5, no external deps)
-pytest --co -q | tail -1    # verify count: "1,078 tests collected"
+pytest                      # 1,261 tests (Tier 0 + Tier 1.5, no external deps)
+pytest --co -q | tail -1    # verify count: "1,261 tests collected"
 ```
 
 Expected: all pass in < 30 seconds. Tests requiring Ollama or Docker auto-skip via markers in `tests/conftest.py`.
@@ -80,7 +80,7 @@ Compares Tier 0, Tier 1.5, and Tier 2 (if Ollama available) on the full dataset.
 
 ## 2. Payload Generation Methodology
 
-The training dataset (`data/training/dataset.jsonl`) contains 5,671 labeled samples (2,916 malicious, 2,755 benign) built in six rounds plus two cleanup phases. Each round addressed gaps discovered by adversarial audit. The dataset is also published on HuggingFace: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset).
+The training dataset contains 6,472 labeled samples (v4: 3,165 malicious, 3,307 benign) built across eight rounds. The original 5,671 samples (v2) are in `data/training/dataset.jsonl`; the current v4 dataset (6,472 samples, adversarially hardened via PWWS augmentation) is in `data/training/dataset_v4_r2.jsonl`. Each round addressed gaps discovered by adversarial audit. The dataset is also published on HuggingFace: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset).
 
 **Note:** The per-round construction scripts (`build_dataset.py`, `fill_*.py`, `clean_*.py`, `fix_and_augment.py`) were one-time artifacts removed from the working tree after the dataset was finalized. They remain in git history for full reproducibility.
 
@@ -282,26 +282,44 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 ## 6. Test Suite Structure
 
-1,078 tests across 14 test files. All in `tests/`.
+1,261 tests across 34 test files. All in `tests/`.
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|
-| `test_security_vectors.py` | 130 | Real-world attack vector proofs across 13+ categories (credential harvesting, exfiltration, behavioral manipulation, viral propagation, config injection, privilege escalation, encoding obfuscation, HTML/SVG injection, build script attacks, CI/CD poisoning, env hijacking, devcontainer abuse, MCP poisoning) |
-| `test_patterns.py` | 99 | Pattern engine unit tests: loading, matching, severity mapping, scan modes |
-| `test_hooks.py` | 36 | Layer 1-3 hook behavior: InstructionsLoaded, PostToolUse, PreToolUse, protected paths, build command gating, allowlist protection, bypass prevention |
+| `test_integration_all_patterns.py` | 355 | All 197 patterns through full scan pipeline: end-to-end pattern coverage |
+| `test_security_vectors.py` | 130 | Real-world attack vector proofs across 13+ categories |
+| `test_patterns.py` | 126 | Pattern engine unit tests: loading, matching, severity mapping, scan modes |
+| `test_new_patterns.py` | 74 | Gap closure patterns from PoC validation |
+| `test_hooks.py` | 62 | Layer 1-3 hook behavior: InstructionsLoaded, PostToolUse, PreToolUse, protected paths, build command gating, allowlist protection, bypass prevention |
+| `test_monitor_nyquist.py` | 50 | CaMeL-lite ToolCallMonitor validation coverage |
+| `test_monitor.py` | 37 | CaMeL-lite ToolCallMonitor: SEQ-001–SEQ-004 rules, JSONL logging |
+| `test_mini_semantic.py` | 32 | Tier 1.5 ONNX classifier: loading, classification, thresholds, code block scanning, sliding window |
 | `test_cli.py` | 31 | CLI interface: scan, allow, list, remove, --tier2, --bypass, exit codes |
 | `test_settings_scanner.py` | 28 | `.claude/settings.json` defense: hook disabling, blanket permissions, MCP server injection |
 | `test_devcontainer_scanner.py` | 28 | `devcontainer.json` defense: Docker socket, --privileged, credential mounts, remote bootstrap |
 | `test_env_scanner.py` | 28 | `.env` file defense: ANTHROPIC_BASE_URL redirect, API key presence, proxy injection |
+| `test_full_pattern_coverage.py` | 28 | Pattern-to-test mapping audit |
+| `test_semantic.py` | 26 | Tier 2 semantic classifier interface |
+| `test_transfer_experiment.py` | 25 | Cross-domain transfer evaluation |
+| `test_adaptive_benchmark.py` | 23 | Adaptive PWWS attack benchmark validation |
 | `test_allowlist.py` | 22 | Content-hash allowlist: add, remove, hash invalidation, TTY enforcement |
 | `test_trust_cache.py` | 18 | SHA-256 trust cache: store, verify, invalidation, corruption recovery, repo-path binding |
-| `test_mini_semantic.py` | 12 | Tier 1.5 ONNX classifier: loading, classification, thresholds, code block scanning |
+| `test_log_to_leak.py` | 18 | Log-to-leak attack pattern detection |
+| `test_mcp_plugin.py` | 15 | MCP Gateway guardrail plugin |
+| `test_fpr_investigation.py` | 13 | FPR investigation: authorization paradox, per-content-type FPR |
+| `test_hardened_benchmark.py` | 11 | Adversarial hardening benchmark validation |
 | `test_evasion_resistance.py` | 11 | Trust cache evasion + boundary tests: TOCTOU, cache poisoning, path traversal |
 | `test_tier2_live.py` | 10 | Ollama integration: classification, confidence scores, verdict mapping (requires Ollama) |
-| `test_integration_all_patterns.py` | 7 | All 197 patterns through full scan pipeline: end-to-end pattern coverage |
+| `test_mahalanobis.py` | 9 | Mahalanobis anomaly detector |
+| `test_framing.py` | 8 | Authorization framing FPR tests |
+| `test_phase5_validation.py` | 8 | Phase 5 (FPR investigation) validation |
+| `test_correlated_failures.py` | 7 | Correlated failure analysis validation |
+| `test_train_freelb.py` | 7 | FreeLB adversarial training validation |
+| `test_augmentation.py` | 6 | PWWS augmentation pipeline validation |
+| `test_latency.py` | 4 | Latency benchmarks: p95 gate |
+| `test_phase4_validation.py` | 4 | Phase 4 (pattern expansion) validation |
+| `test_security_doc.py` | 4 | Security documentation accuracy |
 | `test_docker_integration.py` | 3 | Container tests: build, scan, hook execution (requires Docker) |
-
-Additional test files: `test_full_pattern_coverage.py` (pattern-to-test mapping audit), `test_new_patterns.py` (gap closure patterns from PoC validation), `test_semantic.py` (Tier 2 semantic classifier interface).
 
 ## 7. Running Specific Test Categories
 

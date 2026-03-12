@@ -4,17 +4,19 @@ type: software
 title: "CloneGuard"
 abstract: >-
   CloneGuard raises the cost of prompt injection attacks against AI coding
-  agents through multi-tier detection: regex pattern matching (191 patterns,
-  24 categories), a fine-tuned MiniLM-L6-v2 ONNX classifier (CV F1=95.80%),
-  and runtime hook integration for Claude Code, with planned support for
-  Gemini CLI, Cursor, Windsurf, and VS Code Copilot.
+  agents through multi-tier detection: regex pattern matching (197 patterns,
+  25 categories), an adversarially hardened MiniLM-L6-v2 ONNX classifier
+  (CV F1=94.34%, 90.3% recall, 9.7% ASR via PWWS+FreeLB hardening),
+  CaMeL-lite tool call monitoring, and runtime hook integration for
+  Claude Code, with planned support for Gemini CLI, Cursor, Windsurf,
+  and VS Code Copilot.
 authors:
   - alias: "prodnull"
 url: "https://github.com/prodnull/cloneguard"
 repository-code: "https://github.com/prodnull/cloneguard"
 license: "Apache-2.0"
-version: "0.2.2"
-date-released: "2026-03-09"
+version: "0.4.0"
+date-released: "2026-03-12"
 keywords:
   - prompt-injection
   - ai-security
@@ -23,3 +25,5 @@ keywords:
   - defense-in-depth
   - onnx
   - mcp-gateway
+  - adversarial-robustness
+  - tool-call-monitoring

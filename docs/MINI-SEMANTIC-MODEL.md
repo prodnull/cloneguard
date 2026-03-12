@@ -316,11 +316,21 @@ Output: 2-class logits (safe, malicious). Softmax applied at inference.
 
 ### Decision Thresholds
 
+Default thresholds (used when no scan mode context is available):
+
 | Malicious Probability | Verdict |
 |:---------------------:|---------|
 | > 0.8 | MALICIOUS |
 | > 0.5 | SUSPICIOUS |
 | ≤ 0.5 | SAFE |
+
+**Per-ScanMode thresholds** (v0.4) — applied when scan mode context is available. Stricter modes use lower thresholds to catch more attacks on high-risk files:
+
+| Mode | Suspicious threshold | Malicious threshold | Applied to |
+|------|:---:|:---:|------------|
+| STRICT | 0.50 | 0.80 | CLAUDE.md, .cursorrules, GEMINI.md, AGENTS.md, .junie/guidelines.md |
+| STANDARD | 0.65 | 0.88 | README.md, package.json, Makefile |
+| LENIENT | 0.75 | 0.92 | Test files, fixtures |
 
 Confidence is reported as the probability of the predicted class (malicious_prob for MALICIOUS/SUSPICIOUS, 1-malicious_prob for SAFE).
 
@@ -489,7 +499,9 @@ scripts/
 
 data/training/
 ├── dataset.jsonl             # 5,671 labeled samples (v2, also on HuggingFace)
-└── dataset_augmented_r2.jsonl # 6,340 labeled samples (v3, current training set)
+├── dataset_augmented_r2.jsonl # 6,340 labeled samples (v3)
+├── dataset_v4_r1.jsonl       # 6,428 labeled samples (v4 round 1)
+└── dataset_v4_r2.jsonl       # 6,472 labeled samples (v4, current training set)
 ```
 
 ## Reproducing
