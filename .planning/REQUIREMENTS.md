@@ -28,7 +28,7 @@
 
 ### Tool Call Monitoring
 
-- [ ] **TCM-01**: Implement tool call behavioral monitoring at hook layer (CaMeL-lite)
+- [x] **TCM-01**: Implement tool call behavioral monitoring at hook layer (CaMeL-lite)
 
 ## Future Requirements
 
@@ -56,7 +56,7 @@
 | FPR-02 | Phase 5 | Complete |
 | PAT-01 | Phase 6 | Complete |
 | PAT-02 | Phase 6 | Complete |
-| TCM-01 | Phase 7 | Pending |
+| TCM-01 | Phase 7 | Complete |
 
 **Coverage:**
 - v0.4 requirements: 10 total

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: FPR Investigation, Pattern Expansion & Tool Call Monitoring
 status: planning
-stopped_at: "Completed 06-02-PLAN.md — FPR verification: workflow combined 18.9% STANDARD (target was <24%)"
-last_updated: "2026-03-11T21:29:24.061Z"
+stopped_at: Completed 07-01-PLAN.md — ToolCallMonitor with SEQ-001 through SEQ-004 implemented and tested
+last_updated: "2026-03-12T19:13:28.205Z"
 last_activity: 2026-03-10 — Roadmap created, v0.4 phases 4-7 defined
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 6
-  completed_plans: 6
+  total_plans: 8
+  completed_plans: 7
   percent: 0
 ---
 
@@ -54,6 +54,8 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase 06-01]: CI-001 moved to modes: [strict] — Option B per RESEARCH.md — CI-002 owns run-context detection in all modes
 - [Phase 06-01]: LTL-004 compliance-framed exfiltration is strict-only to avoid FPR on legitimate compliance docs in STANDARD mode
 - [Phase Phase 06-02]: Workflow combined FPR (STANDARD) confirmed at 18.9% after CI-001 strict restriction — 24% target met with 5.1pp margin; Tier 0 standalone FPR reduced to 0.0% across all content types
+- [Phase 07-01]: SEQ-003 threshold >5 (strictly greater than 5); exactly 5 MCP calls does not fire — avoids FPR on legitimate polling patterns
+- [Phase 07-01]: ToolCallMonitor uses log-only design (CaMeL-lite): JSONL to ~/.cloneguard/monitor.log, never blocking — FPR risk for sequence rules is too high for blocking enforcement at this phase
 
 ### Pending Todos
 
@@ -65,6 +67,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-11T12:17:03.679Z
-Stopped at: Completed 06-02-PLAN.md — FPR verification: workflow combined 18.9% STANDARD (target was <24%)
+Last session: 2026-03-12T19:13:28.203Z
+Stopped at: Completed 07-01-PLAN.md — ToolCallMonitor with SEQ-001 through SEQ-004 implemented and tested
 Resume file: None
