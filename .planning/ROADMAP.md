@@ -83,12 +83,17 @@ Plans:
 **Goal**: CloneGuard's hook layer detects anomalous tool call sequences consistent with prompt-injection-driven lateral movement or exfiltration, raising attacker cost without adding blocking latency to the hot path
 **Depends on**: Phase 6
 **Requirements**: TCM-01
+**Plans:** 2 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Create ToolCallMonitor module with sequence rules SEQ-001 through SEQ-004 and unit tests (TCM-01)
+- [ ] 07-02-PLAN.md — Integrate monitor into hooks.py, add integration tests, verify full regression (TCM-01)
+
 **Success Criteria** (what must be TRUE):
   1. A CaMeL-lite behavioral monitor is implemented at the hook layer and fires on known anomalous tool call sequences (e.g., unexpected network calls following file reads)
   2. The monitor does not add blocking latency above the 25ms budget for the existing Tier 0+1.5 pipeline
   3. Monitor events are logged with sufficient context for a security analyst to reconstruct the sequence
-  4. All existing 1,053 tests continue to pass with the monitor integrated
-**Plans**: TBD
+  4. All existing 1,159 tests continue to pass with the monitor integrated
 
 ## Progress
 
@@ -102,4 +107,4 @@ Plans:
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
 | 5. FPR Tuning | 2/2 | Complete   | 2026-03-11 | - |
 | 6. Pattern Expansion | 2/2 | Complete   | 2026-03-11 | - |
-| 7. Tool Call Monitoring | v0.4 | 0/TBD | Not started | - |
+| 7. Tool Call Monitoring | v0.4 | 0/2 | Not started | - |
