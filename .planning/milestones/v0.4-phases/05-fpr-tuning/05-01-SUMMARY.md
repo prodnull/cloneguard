@@ -120,6 +120,17 @@ None. Calibration script ran cleanly on first attempt. The pre-commit hook caugh
 - Plan 02 (`05-02-PLAN.md`) can now wire ScanMode from hooks.py (`_classify_with_tier15()`) and scanner.py (`_run_tier2()`) into `classify()` and `classify_files()` — the receiving signatures are ready
 - Calibration results are the empirical basis for Phase 6 Tier 0 pattern tuning scope decisions
 
+## Self-Check: PASSED
+
+- FOUND: src/cloneguard/mini_semantic.py
+- FOUND: scripts/calibrate_thresholds.py
+- FOUND: tests/test_mini_semantic.py
+- FOUND: .planning/phases/05-fpr-tuning/05-01-SUMMARY.md
+- FOUND: commit a296417 (test RED)
+- FOUND: commit 74e34e1 (feat GREEN)
+- FOUND: commit f852ce7 (feat calibration script)
+- FOUND: commit 8bb605a (docs metadata)
+
 ---
 *Phase: 05-fpr-tuning*
 *Completed: 2026-03-11*

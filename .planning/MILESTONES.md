@@ -1,5 +1,29 @@
 # Milestones
 
+## v0.4 FPR Investigation, Pattern Expansion & Tool Call Monitoring (Shipped: 2026-03-12)
+
+**Phases completed:** 4 phases (4-7), 8 plans
+**Git range:** `feat(04-01)` → `feat(07-02)` (68 commits, 107 files, +15,221/-536 lines)
+**Timeline:** 3 days (2026-03-10 → 2026-03-12)
+**LOC:** ~25,192 Python (project total)
+**Tests:** 1,261 passing
+
+**Delivered:** Empirically characterized FPR behavior (Campbell et al. authorization paradox confirmed at +12.7pp), implemented per-ScanMode context-aware thresholds, expanded pattern coverage to 197 patterns across 25 categories, and added CaMeL-lite behavioral monitoring at the hook layer.
+
+**Key accomplishments:**
+1. Authorization paradox confirmed: +12.7pp FPR increase from auth preambles in Tier 1.5 (9.25% → 21.93%), Campbell et al. 2026 cited in SECURITY.md
+2. Context-aware FPR thresholds: per-ScanMode (STRICT/STANDARD/LENIENT) threaded end-to-end through hooks and scanner
+3. Workflow FPR reduced from 30.2% to 18.9%: CI-001 restricted to strict mode, eliminating 23.9% Tier 0 floor
+4. Log-To-Leak exfiltration category: 4 new patterns (LTL-001–LTL-004), 197 total patterns across 25 categories
+5. CaMeL-lite behavioral monitoring: ToolCallMonitor with SEQ-001–SEQ-004 rules, JSONL logging, <0.5ms overhead
+
+**Known tech debt:**
+- 06-02-SUMMARY.md claims "Tier 0 standalone FPR = 0.0%" — actual 10.7% (residual EX-001, CI-002, PE-005, CH-009, VP-007)
+- Nyquist validation partial for Phases 4-7 (draft status, not compliant)
+- 2 human verification items pending for calibration script
+
+---
+
 ## v0.3 White-Box Adversarial Resilience (Shipped: 2026-03-11)
 
 **Phases completed:** 3 phases, 8 plans, 19 tasks

@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Pre-execution defense layer that raises the cost of prompt injection attacks against AI coding agents (Claude Code, GitHub Copilot, Cursor, Gemini CLI, Codex CLI). Scans repository files, tool output, and agent configurations before agents process them. Multi-tier detection: regex patterns (Tier 0), adversarially hardened ONNX semantic classifier (Tier 1.5, v4 FreeLB+PWWS), Mahalanobis anomaly scoring, Ollama LLM fallback (Tier 2).
+Pre-execution defense layer that raises the cost of prompt injection attacks against AI coding agents (Claude Code, GitHub Copilot, Cursor, Gemini CLI, Codex CLI). Scans repository files, tool output, and agent configurations before agents process them. Multi-tier detection: 197 regex patterns across 25 categories (Tier 0), adversarially hardened ONNX semantic classifier with per-ScanMode context-aware thresholds (Tier 1.5, v4 FreeLB+PWWS), Mahalanobis anomaly scoring, CaMeL-lite behavioral monitoring of tool call sequences, and Ollama LLM fallback (Tier 2).
 
 ## Core Value
 
@@ -27,21 +27,17 @@ Make prompt injection attacks against AI coding agents expensive enough that att
 - ✓ Correlated failure analysis — 18/185 structural both-miss samples identified — v0.3
 - ✓ Honest "raises attacker cost" framing enforced via automated audit — v0.3
 - ✓ v4 ONNX model (dual-output logits + cls_embedding, 6,472-sample dataset) — v0.3
+- ✓ Authorization paradox confirmed: +12.7pp Tier 1.5 FPR from auth preambles (Campbell et al. 2026 cited) — v0.4
+- ✓ Strict-only pattern audit against defensive security corpus (CI-004, CI-006, SC-001, MCP-005) — v0.4
+- ✓ Structural FPR limits documented with empirical evidence — v0.4
+- ✓ Per-ScanMode context-aware thresholds (STRICT/STANDARD/LENIENT) threaded end-to-end — v0.4
+- ✓ Workflow FPR reduced from 30.2% to 18.9% (CI-001 restricted to strict, agent_instructions 18.4%) — v0.4
+- ✓ 197 patterns across 25 categories including Log-To-Leak exfiltration (LTL-001–LTL-004) — v0.4
+- ✓ CaMeL-lite behavioral monitoring: ToolCallMonitor with SEQ-001–SEQ-004, JSONL logging, <0.5ms overhead — v0.4
 
 ### Active
 
-#### v0.4 — FPR Investigation, Pattern Expansion & Tool Call Monitoring
-
-- [ ] INV-01: Empirically measure whether security-context markers increase Tier 0+1.5 FPR
-- [ ] INV-02: Audit 4 strict-only patterns against legitimate defensive security content
-- [ ] INV-03: Document findings — structural FPR limits, authorization paradox presence/absence
-- [ ] FPR-01: Implement context-aware thresholds (per-context, informed by INV findings)
-- [ ] FPR-02: Reduce sliding-window FPR on agent_instructions (33%) and workflows (24%)
-- [ ] PAT-01: Add 51 new patterns covering 11 identified gaps
-- [ ] PAT-02: Add Log-To-Leak exfiltration patterns
-- [ ] DOC-01: Cite Campbell et al. 2026 in SECURITY.md threat model
-- [ ] DOC-02: Update Medium Part 2 draft with Campbell findings
-- [ ] TCM-01: Implement tool call behavioral monitoring at hook layer (CaMeL-lite)
+(None — next milestone requirements TBD via `/gsd:new-milestone`)
 
 ### Out of Scope
 
@@ -54,28 +50,21 @@ Make prompt injection attacks against AI coding agents expensive enough that att
 - Tier 2 (Ollama) changes
 - Subsuming mcp-guard as sub-project
 
-## Current Milestone: v0.4 FPR Investigation, Pattern Expansion & Tool Call Monitoring
-
-**Goal:** Empirically characterize FPR behavior (informed by Campbell et al. 2026 Defensive Refusal Bias), expand pattern coverage, and add tool call behavioral monitoring.
-
-**Target features:**
-- Authorization paradox investigation in our pipeline
-- Context-aware FPR thresholds
-- 51 new patterns + Log-To-Leak
-- Campbell et al. citation in threat model
-- CaMeL-lite tool call monitoring at hook layer
-
 ## Context
 
-- 1,053 tests passing, CI green
+- 1,261 tests passing, CI green
 - v4 adversarially hardened MiniLM ONNX model (FreeLB + 2 rounds PWWS augmentation)
 - Dataset: v4, 6,472 samples (v3 base + 132 PWWS adversarial augmentation), published on HuggingFace (gated)
+- 197 regex patterns across 25 categories (Tier 0), including Log-To-Leak exfiltration
+- Per-ScanMode context-aware thresholds: STRICT=(0.5,0.8), STANDARD=(0.65,0.88), LENIENT=(0.75,0.92)
+- Workflow combined FPR (STANDARD): 18.9%, agent_instructions FPR: 18.4%
 - Combined pipeline: recall 90.3%, false block rate 3.8%, latency p95 16.61ms
+- CaMeL-lite ToolCallMonitor: SEQ-001–SEQ-004 rules, JSONL logging, <0.5ms overhead
 - Adaptive ASR ceiling: 20.3% (PWWS against hardened model)
 - Both-miss structural limit: 18/185 samples (fragmentation 55%, implicit_instruction 25%)
-- Mahalanobis detector: 2.7% detection rate — CLS distributions overlap, marginal signal
 - White-box attack surface remains: ONNX model is public, architecture documented
 - Tech stack: Python, ONNX Runtime, transformers tokenizer, scikit-learn (Mahalanobis)
+- ~25,192 LOC Python (src + tests + scripts)
 
 ## Constraints
 
@@ -97,7 +86,11 @@ Make prompt injection attacks against AI coding agents expensive enough that att
 | dynamo=False for ONNX export | PyTorch 2.9 dynamo fails on LayerNorm dynamic axes | — Workaround, monitor future PyTorch releases |
 | Publish negative results honestly | Mahalanobis miss, adaptive ceiling, both-miss — all disclosed | ✓ Good — credibility over marketing |
 
-| Campbell et al. FPR investigation before pattern expansion | Embedding-space structural limits are information-theoretic — investigate before tuning | — Pending |
+| Campbell et al. FPR investigation before pattern expansion | Embedding-space structural limits are information-theoretic — investigate before tuning | ✓ Good — confirmed +12.7pp auth paradox, informed per-ScanMode thresholds |
+| Per-ScanMode context-aware thresholds | Single global threshold can't serve defensive security (STRICT) and CI/workflows (LENIENT) | ✓ Good — workflow FPR 30.2%→18.9%, agent_instructions 33%→18.4% |
+| CI-001 restricted to strict mode | 23.9% workflow FPR floor from CI-001 in STANDARD mode — CI-002 covers run-context detection | ✓ Good — eliminated structural Tier 0 floor |
+| CaMeL-lite log-only (not blocking) | FPR risk for sequence rules too high for blocking enforcement at v0.4 | ✓ Good — <0.5ms overhead, no false blocks |
+| Cross-phase FPR collaboration | Workflow FPR target required Phase 5 (thresholds) + Phase 6 (CI-001 fix) | ✓ Good — honest negative result documented |
 
 ---
-*Last updated: 2026-03-10 after v0.4 milestone start*
+*Last updated: 2026-03-12 after v0.4 milestone*
