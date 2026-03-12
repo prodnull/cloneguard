@@ -1070,3 +1070,63 @@ class TestLineScanningBeyondCodeFences:
         # The malicious line should be caught by line-level scanning
         assert result is not None
         assert result.verdict in ("MALICIOUS", "SUSPICIOUS")
+
+
+# ---------------------------------------------------------------------------
+# Monitor integration
+# ---------------------------------------------------------------------------
+
+
+class TestMonitorIntegration:
+    """Verify monitor.record_event is called from hook handlers."""
+
+    def test_pre_tool_use_records_event(self, monkeypatch):
+        """PreToolUse handler calls monitor.record_event before scanning."""
+        from unittest.mock import MagicMock
+
+        mock_monitor = MagicMock()
+        monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
+        data = {
+            "hook_type": "PreToolUse",
+            "session_id": "test-session",
+            "tool_name": "Read",
+            "tool_use_id": "toolu_test",
+            "tool_input": {"file_path": "/tmp/test.txt"},
+        }
+        handle_pre_tool_use(data)
+        mock_monitor.record_event.assert_called_once_with(data)
+
+    def test_post_tool_use_records_event(self, monkeypatch):
+        """PostToolUse handler calls monitor.record_event before scanning."""
+        from unittest.mock import MagicMock
+
+        mock_monitor = MagicMock()
+        monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
+        data = {
+            "hook_type": "PostToolUse",
+            "session_id": "test-session",
+            "tool_name": "Read",
+            "tool_use_id": "toolu_test",
+            "tool_input": {"file_path": "/tmp/test.txt"},
+            "tool_output": {"content": "file contents"},
+        }
+        handle_post_tool_use(data)
+        mock_monitor.record_event.assert_called_once_with(data)
+
+    def test_monitor_failure_does_not_break_hook(self, monkeypatch):
+        """If monitor.record_event raises, the hook handler still functions."""
+        from unittest.mock import MagicMock
+
+        mock_monitor = MagicMock()
+        mock_monitor.record_event.side_effect = RuntimeError("monitor crashed")
+        monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
+        data = {
+            "hook_type": "PreToolUse",
+            "session_id": "test-session",
+            "tool_name": "Read",
+            "tool_use_id": "toolu_test",
+            "tool_input": {"file_path": "/tmp/test.txt"},
+        }
+        # Should not raise — hooks must be resilient to monitor failures
+        exit_code = handle_pre_tool_use(data)
+        assert exit_code == 0

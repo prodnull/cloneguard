@@ -23,6 +23,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from cloneguard.monitor import get_monitor
 from cloneguard.patterns import PatternEngine, PatternMatch, ScanMode, Severity, Verdict
 
 # ---------------------------------------------------------------------------
@@ -309,6 +310,11 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
     2. CONTENT-AWARE WRITE SCANNING (D1): Scan content being written
     3. BUILD SCRIPT GATING: Warn on build commands
     """
+    try:
+        get_monitor().record_event(data)
+    except Exception:
+        pass  # Monitor must never break the hook pipeline
+
     tool_name = data.get("tool_name", "")
     tool_input = data.get("tool_input", {})
 
@@ -407,6 +413,11 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
     HIGH/MEDIUM -> exit 0 + stdout warning injected into context
     CLEAN -> exit 0, no output
     """
+    try:
+        get_monitor().record_event(data)
+    except Exception:
+        pass  # Monitor must never break the hook pipeline
+
     tool_output = data.get("tool_output", {})
     if not tool_output:
         return 0
