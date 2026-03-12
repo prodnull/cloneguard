@@ -25,7 +25,7 @@ See: `.planning/milestones/v0.3-ROADMAP.md` for full details.
 - [x] **Phase 4: FPR Investigation & Documentation** — Audit the authorization paradox in our pipeline, measure security-context marker FPR impact, document structural limits, cite Campbell et al. (completed 2026-03-11)
 - [x] **Phase 5: FPR Tuning** — Implement context-aware thresholds and reduce sliding-window FPR in agent_instructions and workflows, informed by Phase 4 findings (completed 2026-03-11)
 - [x] **Phase 6: Pattern Expansion** — Add Log-To-Leak exfiltration category, fix CI-001 workflow FPR floor, confirm 65+ gap-category patterns (completed 2026-03-11)
-- [ ] **Phase 7: Tool Call Monitoring** — Implement CaMeL-lite behavioral monitoring at hook layer to detect anomalous tool call sequences
+- [x] **Phase 7: Tool Call Monitoring** — Implement CaMeL-lite behavioral monitoring at hook layer to detect anomalous tool call sequences (completed 2026-03-12)
 
 ## Phase Details
 
@@ -83,7 +83,7 @@ Plans:
 **Goal**: CloneGuard's hook layer detects anomalous tool call sequences consistent with prompt-injection-driven lateral movement or exfiltration, raising attacker cost without adding blocking latency to the hot path
 **Depends on**: Phase 6
 **Requirements**: TCM-01
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 
 Plans:
 - [ ] 07-01-PLAN.md — Create ToolCallMonitor module with sequence rules SEQ-001 through SEQ-004 and unit tests (TCM-01)
@@ -107,4 +107,4 @@ Plans:
 | 4. FPR Investigation & Documentation | 2/2 | Complete   | 2026-03-11 | - |
 | 5. FPR Tuning | 2/2 | Complete   | 2026-03-11 | - |
 | 6. Pattern Expansion | 2/2 | Complete   | 2026-03-11 | - |
-| 7. Tool Call Monitoring | v0.4 | 0/2 | Not started | - |
+| 7. Tool Call Monitoring | 2/2 | Complete   | 2026-03-12 | - |

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v0.4
 milestone_name: FPR Investigation, Pattern Expansion & Tool Call Monitoring
 status: planning
-stopped_at: Completed 07-01-PLAN.md — ToolCallMonitor with SEQ-001 through SEQ-004 implemented and tested
-last_updated: "2026-03-12T19:13:28.205Z"
+stopped_at: Completed 07-02-PLAN.md — ToolCallMonitor wired into PreToolUse/PostToolUse handlers, 1186 tests passing
+last_updated: "2026-03-12T19:17:45.724Z"
 last_activity: 2026-03-10 — Roadmap created, v0.4 phases 4-7 defined
 progress:
   total_phases: 4
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 7
+  completed_plans: 8
   percent: 0
 ---
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0%
 - [Phase Phase 06-02]: Workflow combined FPR (STANDARD) confirmed at 18.9% after CI-001 strict restriction — 24% target met with 5.1pp margin; Tier 0 standalone FPR reduced to 0.0% across all content types
 - [Phase 07-01]: SEQ-003 threshold >5 (strictly greater than 5); exactly 5 MCP calls does not fire — avoids FPR on legitimate polling patterns
 - [Phase 07-01]: ToolCallMonitor uses log-only design (CaMeL-lite): JSONL to ~/.cloneguard/monitor.log, never blocking — FPR risk for sequence rules is too high for blocking enforcement at this phase
+- [Phase Phase 07-02]: Double try/except containment for monitor calls in hooks.py: outer wrapper in handler body + inner wrapper in record_event itself — guards against singleton accessor failures during process shutdown or import errors
 
 ### Pending Todos
 
@@ -67,6 +68,6 @@ None.
 
 ## Session Continuity
 
-Last session: 2026-03-12T19:13:28.203Z
-Stopped at: Completed 07-01-PLAN.md — ToolCallMonitor with SEQ-001 through SEQ-004 implemented and tested
+Last session: 2026-03-12T19:17:45.722Z
+Stopped at: Completed 07-02-PLAN.md — ToolCallMonitor wired into PreToolUse/PostToolUse handlers, 1186 tests passing
 Resume file: None
