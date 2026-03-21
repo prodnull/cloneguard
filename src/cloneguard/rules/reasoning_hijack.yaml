@@ -14,9 +14,9 @@ patterns:
     false_positive_hint: "May appear in LangChain/agent framework documentation"
 
   - id: RH-003
-    regex: '(?i)<(?:antThinking|thinking|scratchpad|internal_monologue|chain_of_thought)>'
+    regex: '(?i)<(?:antThinking|thinking|thought|inner_thought|reflection|reasoning|deliberation|planning|analysis|scratchpad|internal_monologue|chain_of_thought)>'
     severity: critical
-    description: "Fake agent internal thinking XML tag — Claude/Anthropic format injection"
+    description: "Fake agent internal thinking XML tag — Claude/Anthropic format injection (IPI Arena: Fake CoT is #1 strategy at 4.3% ASR, arXiv:2603.15714)"
     false_positive_hint: "Should not appear in user-authored files"
 
   - id: RH-004
