@@ -13,7 +13,7 @@
   <a href="https://github.com/prodnull/cloneguard/releases/latest"><img src="https://img.shields.io/github/v/release/prodnull/cloneguard" alt="Release"></a>
   <a href="https://github.com/prodnull/cloneguard/blob/main/LICENSE"><img src="https://img.shields.io/github/license/prodnull/cloneguard" alt="License"></a>
   <img src="https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue" alt="Python">
-  <img src="https://img.shields.io/badge/tests-1261%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-1321%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/F1-94.3%25%20(5--fold%20CV)-blue" alt="F1 Score">
   <a href="https://huggingface.co/prodnull/minilm-prompt-injection-classifier"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Model-yellow.svg" alt="HuggingFace Model"></a>
   <a href="https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset"><img src="https://img.shields.io/badge/%F0%9F%A4%97-Dataset-yellow.svg" alt="HuggingFace Dataset"></a>
@@ -152,7 +152,7 @@ If allowlisted content changes, the hash no longer matches and the file is scann
 | Agent writes to `~/.claude/settings.json` to disable hooks | PreToolUse hook blocks writes to protected paths |
 | Attacker modifies allowlisted file after allowlisting | Content hash changes; file is scanned normally |
 | Attacker forges trust cache entry | Cache is in `~/.cloneguard/` — attacker cannot modify (threat model) |
-| Payload evades Tier 1 regex | Tier 2 LLM catches semantic evasions (if enabled) |
+| Payload evades Tier 0 regex | Tier 1.5 ONNX classifier catches semantic evasions; Tier 2 LLM fallback (if enabled) |
 | Payload evades both tiers | Not caught — CloneGuard is defense in depth, not a sandbox |
 
 ### YOLO Mode
@@ -284,10 +284,10 @@ pytest
 
 ## Testing
 
-1,261 tests covering all components:
+1,321 tests covering all components:
 
 ```bash
-pytest                                   # all tests (1,261)
+pytest                                   # all tests (1,321)
 pytest tests/test_security_vectors.py    # security proof tests
 pytest tests/test_integration_all_patterns.py  # all 197 patterns through full pipeline
 pytest tests/test_evasion_resistance.py  # trust cache + evasion boundary tests

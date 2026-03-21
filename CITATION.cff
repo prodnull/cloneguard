@@ -7,7 +7,9 @@ abstract: >-
   agents through multi-tier detection: regex pattern matching (197 patterns,
   25 categories), an adversarially hardened MiniLM-L6-v2 ONNX classifier
   (CV F1=94.34%, 90.3% recall, 9.7% ASR via PWWS+FreeLB hardening),
-  CaMeL-lite tool call monitoring, and runtime hook integration for
+  CaMeL-lite tool call sequence monitoring with selective enforcement
+  for high-confidence exfiltration and privilege escalation patterns, and
+  runtime hook integration for
   Claude Code, with planned support for Gemini CLI, Cursor, Windsurf,
   and VS Code Copilot.
 authors:

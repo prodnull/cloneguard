@@ -84,7 +84,7 @@ When combined with Tier 0 regex (197 patterns), the tiers compensate for each ot
 | False block rate | — | — | **3.8%** |
 | Clean pass rate | — | — | 77.8% |
 
-### Adversarial Robustness Benchmark (v3)
+### Adversarial Robustness Benchmark (v4)
 
 185 adversarial payloads (9 categories + multilingual smoke) evaluated against 234 held-out benign samples. No training data overlap.
 

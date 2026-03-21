@@ -27,6 +27,9 @@ CloneGuard does not guarantee protection against any attack class. It raises the
 - Trust cache poisoning — SHA-256 content hashes in protected directory raise the bar for cache manipulation
 - Agent-initiated allowlist manipulation — two-layer block (hook + TTY check) forces the attacker to defeat both
 - TOCTOU attacks on scanned content — content bound to stdin, never re-read from disk, closing a race condition window
+- Exfiltration via tool-call sequences — SEQ-001/002 enforcement blocks read-then-exfil patterns across arbitrary step separation
+- Agent config hijacking — SEQ-005 enforcement blocks writes to agent configuration files
+- MCP-based data exfiltration — SEQ-006 advisory detection flags MCP tool calls following sensitive file reads
 
 **What CloneGuard does NOT protect against:**
 - Novel prompt injection that evades both Tier 1 regex and Tier 2 LLM
@@ -60,6 +63,25 @@ Gates dangerous operations before they execute:
 - **Build command gating** — warns on `npm install`, `pip install`, `cargo build`, etc.
 - **Allowlist protection** — blocks `cloneguard allow` and `cloneguard remove` in Bash commands
 - **Bypass prevention** — blocks `cloneguard --bypass` and `claude --bypass`
+
+### CaMeL-lite: ToolCallMonitor (Behavioral Sequence Detection)
+
+Detects multi-step attack sequences by tracking tool-call patterns across the agent session. Implements 7 SEQ rules (SEQ-001 through SEQ-006, plus an mv/cp variant of SEQ-002):
+
+| Rule | Behavior | Mode |
+|------|----------|------|
+| SEQ-001 | Read sensitive file → write/network exfiltration | **Enforce** (block) |
+| SEQ-002 | Read sensitive file → move/copy to accessible location | **Enforce** (block) |
+| SEQ-005 | Write to agent config files (~/.claude/settings.json, etc.) | **Enforce** (block) |
+| SEQ-003 | Chained tool calls exceeding depth threshold | Advisory (log) |
+| SEQ-004 | Rapid-fire tool invocations within time window | Advisory (log) |
+| SEQ-006 | MCP tool call following sensitive file read | Advisory (log) |
+
+**Session-wide typed markers.** SEQ-001, SEQ-002, and SEQ-006 use typed markers (e.g., `sensitive_file_read`) that persist for the duration of the agent session, enabling detection of multi-step sequences where the read and exfiltration steps are separated by arbitrary intervening tool calls.
+
+**Sequence allowlist.** Legitimate workflows (e.g., a deployment script that reads config and writes to a known path) can be allowlisted to suppress specific SEQ rule firings without disabling the rule globally.
+
+**Performance:** <0.5ms per hook event — in-memory marker check plus rule evaluation, no I/O in the hot path.
 
 ## Detection Architecture
 
@@ -360,7 +382,7 @@ Internal findings record: `docs/results/fpr-investigation-findings.md` (gitignor
 
 ## Known Limitations
 
-1. **Regex evasion.** Tier 1 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 93.7% recall (v4 CV) but is not infallible.
+1. **Regex evasion.** Tier 0 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 93.7% recall (v4 CV) but is not infallible.
 
 2. **Mean-pooling dilution (mitigated).** The mini model (Tier 1.5) uses mean-pooling, which averages token embeddings across the sequence. A short malicious instruction embedded in a long block of legitimate code can be diluted below the detection threshold within a single 256-token window. **Mitigations:** (a) Sliding window classification — when input exceeds 256 tokens, the classifier applies a 256-token window with 128-token stride (50% overlap), scanning up to 16 chunks (~8K chars, ~256ms worst case). This prevents truncation-based evasion for the vast majority of scanned content. (b) Per-value scanning in the MCP plugin classifies each extracted text value independently, preventing concatenation-based dilution. (c) Tier 0 regex scans full content line-by-line with no token limit. Mean-pooling dilution within a single 256-token chunk remains a limitation. See [`docs/MINI-SEMANTIC-MODEL.md`](MINI-SEMANTIC-MODEL.md#structural-vulnerability-mean-pooling-dilution) for analysis.
 
@@ -395,6 +417,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 | Layer 1-3 hooks (per invocation) | <50 ms | Tier 0 only; ~70 ms with Tier 1.5 |
 | Tier 1.5 ONNX sliding window (long input) | ~256 ms | Max 16 chunks × 16ms |
 | MCP Gateway plugin (per request) | ~20 ms | Tier 0 + Tier 1.5 combined |
+| ToolCallMonitor (SEQ rules) | <0.5 ms | In-memory marker check + rule evaluation |
 | Trust cache hit | ~0 ms | SHA-256 comparison only |
 
 **Comparative context:** A single LLM API call to Claude, GPT-4, or Gemini takes 2–30 seconds. CloneGuard's Tier 0+1.5 scan adds <1% overhead to a typical agent session.

@@ -27,7 +27,7 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
   <1 ms/file          ~16 ms/file               ~680 ms/file
   197 patterns         semantic classifier        qwen2.5:7b LLM
-  23% recall           95.4% recall (CV)          42% recall
+  23% recall           93.7% recall (v4 CV)       42% recall
   91% precision        96.2% precision (CV)       93% precision
 ```
 
@@ -117,19 +117,30 @@ calibration domain (single-chunk training samples) must match inference domain.
 
 ## Benchmark Results
 
-### Cross-Validated Metrics (Primary)
+### Cross-Validated Metrics (Primary — v4)
 
-5-fold stratified cross-validation on v3 augmented dataset (6,340 samples) — the honest generalization estimate:
+5-fold stratified cross-validation on v4 adversarially hardened dataset (6,472 samples) — the honest generalization estimate:
 
 | Metric | Tier 0 (Regex) | Tier 1.5 (ONNX, 5-fold CV) | Tier 2 (Ollama) |
 |--------|:-:|:-:|:-:|
-| **Accuracy** | 54.91% | **95.71% ± 0.53%** | 69.50% |
-| **Precision** | 91.33% | **95.79% ± 1.55%** | 93.33% |
-| **Recall** | 23.26% | **95.25% ± 1.21%** | 42.00% |
-| **F1 Score** | 37.08% | **95.51% ± 0.53%** | 57.93% |
+| **Accuracy** | 54.91% | **94.51% ± 0.67%** | 69.50% |
+| **Precision** | 91.33% | **95.04% ± 1.20%** | 93.33% |
+| **Recall** | 23.26% | **93.68% ± 1.77%** | 42.00% |
+| **F1 Score** | 37.08% | **94.34% ± 0.77%** | 57.93% |
 | **Speed** | 0.1 ms | 16 ms | 682 ms |
 
 Hyperparameters were selected via comprehensive grid search (192 configurations, 2-phase screening + validation). See `bench/comprehensive_sweep.json`.
+
+### Cross-Validated Metrics (v3, reference)
+
+5-fold stratified cross-validation on v3 augmented dataset (6,340 samples):
+
+| Metric | Tier 1.5 (ONNX, 5-fold CV) |
+|--------|:-:|
+| **Accuracy** | 95.71% ± 0.53% |
+| **Precision** | 95.79% ± 1.55% |
+| **Recall** | 95.25% ± 1.21% |
+| **F1 Score** | 95.51% ± 0.53% |
 
 ### Out-of-Distribution Evaluation (MCP Tool Results)
 

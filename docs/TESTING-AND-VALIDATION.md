@@ -18,8 +18,8 @@ Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stor
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 1,261 tests (Tier 0 + Tier 1.5, no external deps)
-pytest --co -q | tail -1    # verify count: "1,261 tests collected"
+pytest                      # 1,321 tests (Tier 0 + Tier 1.5, no external deps)
+pytest --co -q | tail -1    # verify count: "1,321 tests collected"
 ```
 
 Expected: all pass in < 30 seconds. Tests requiring Ollama or Docker auto-skip via markers in `tests/conftest.py`.
@@ -282,7 +282,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 ## 6. Test Suite Structure
 
-1,261 tests across 34 test files. All in `tests/`.
+1,321 tests across 37 test files. All in `tests/`.
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|
@@ -292,7 +292,10 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 | `test_new_patterns.py` | 74 | Gap closure patterns from PoC validation |
 | `test_hooks.py` | 62 | Layer 1-3 hook behavior: InstructionsLoaded, PostToolUse, PreToolUse, protected paths, build command gating, allowlist protection, bypass prevention |
 | `test_monitor_nyquist.py` | 50 | CaMeL-lite ToolCallMonitor validation coverage |
-| `test_monitor.py` | 37 | CaMeL-lite ToolCallMonitor: SEQ-001–SEQ-004 rules, JSONL logging |
+| `test_monitor.py` | 37 | CaMeL-lite ToolCallMonitor: SEQ-001–SEQ-004 rules, JSONL logging (SEQ-005/006 coverage in test_monitor_enforcement.py) |
+| `test_monitor_enforcement.py` | 43 | CaMeL-lite enforcement: typed markers, SEQ-005, blocking verdicts, sequence allowlist integration |
+| `test_sequence_allowlist.py` | 13 | Sequence allowlist: domain-level (SEQ-001/002), exact-path (SEQ-005), persistence, removal |
+| `test_adversarial_sequences.py` | 20 | Adversarial validation: 15 bypass attempts (Gemini red team), 5 false positive scenarios |
 | `test_mini_semantic.py` | 32 | Tier 1.5 ONNX classifier: loading, classification, thresholds, code block scanning, sliding window |
 | `test_cli.py` | 31 | CLI interface: scan, allow, list, remove, --tier2, --bypass, exit codes |
 | `test_settings_scanner.py` | 28 | `.claude/settings.json` defense: hook disabling, blanket permissions, MCP server injection |
