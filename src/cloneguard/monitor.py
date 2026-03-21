@@ -17,6 +17,7 @@ Sequence rules implemented:
 - SEQ-003: mcp__* tool called >5 times within 10 events (frequency spike)
 - SEQ-004: Write(sensitive target) -> Bash(build command) within 10 events
 - SEQ-005: Agent/pkg/git config write = privilege escalation / registry hijacking
+- SEQ-006: Read(sensitive file) -> MCP exfil-capable tool (advisory only)
 """
 
 from __future__ import annotations
@@ -44,6 +45,27 @@ _LOOKBACK_WINDOW = 10  # number of recent events to consider for sequence rules
 # Hosts considered safe/local — WebFetch/Bash calls to these don't trigger alerts.
 _SAFE_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "0.0.0.0"})
 
+# MCP tool name keywords suggesting outbound data flow (SEQ-006).
+# Matched as substrings (case-insensitive) against mcp__* tool names.
+_MCP_EXFIL_KEYWORDS = (
+    "send",
+    "post",
+    "create",
+    "write",
+    "push",
+    "upload",
+    "email",
+    "message",
+    "comment",
+    "submit",
+    "publish",
+    "notify",
+    "share",
+    "forward",
+    "reply",
+    "insert",
+)
+
 # Sensitive file path substrings (lowercased). Matches credential-bearing files.
 _SENSITIVE_FILE_PATTERNS = (
     ".env",
@@ -51,10 +73,32 @@ _SENSITIVE_FILE_PATTERNS = (
     "credential",
     "password",
     "token",
-    "key",
     ".ssh/",
     "id_rsa",
     "id_ed25519",
+    # Cloud provider credential paths
+    ".aws/",
+    ".azure/",
+    ".kube/",
+    ".docker/config",
+    ".netrc",
+    ".pgpass",
+    "kubeconfig",
+    "service_account",
+    "serviceaccount",
+    # Key patterns (refined to avoid matching "keyboard" etc.)
+    "private_key",
+    "private-key",
+    "api_key",
+    "apikey",
+    ".pem",
+    ".key",
+    "keyfile",
+    "keystore",
+    # GCP application default credentials
+    "application_default_credentials",
+    # Auth config
+    "auth.json",
 )
 
 # Build-sensitive write targets (basenames or path prefixes).
@@ -89,6 +133,9 @@ _BUILD_COMMAND_PATTERNS = re.compile(
 
 # Curl/wget URL extraction from Bash commands.
 _CURL_URL_RE = re.compile(r"https?://[^\s'\"]+")
+
+# Bash mv/cp to agent config path detection (SEQ-005 bypass mitigation).
+_BASH_MV_CP_RE = re.compile(r"\b(mv|cp)\b")
 
 # ---------------------------------------------------------------------------
 # Dataclasses
@@ -221,6 +268,14 @@ def _is_sensitive_file(file_path: str) -> bool:
     """
     fp = file_path.lower()
     return any(p in fp for p in _SENSITIVE_FILE_PATTERNS)
+
+
+def _is_mcp_exfil_tool(tool_name: str) -> bool:
+    """Return True if an MCP tool name suggests outbound data flow."""
+    if not tool_name.startswith("mcp__"):
+        return False
+    name_lower = tool_name.lower()
+    return any(kw in name_lower for kw in _MCP_EXFIL_KEYWORDS)
 
 
 def _extract_external_url(tool_name: str, tool_input: dict[str, Any]) -> str | None:
@@ -558,6 +613,116 @@ def _pkg_git_config_then_build(
                     trigger_event=trigger,
                     context_window=recent,
                 )
+    return None
+
+
+@_rule
+def _bash_config_move(
+    session_id: str,
+    buf: deque[ToolEvent],
+    trigger: ToolEvent,
+) -> SequenceAlert | None:
+    """SEQ-005 Tier 1b: Bash mv/cp to agent config path = privilege escalation.
+
+    Attack class: Bypass of Tier 1 Write/Edit check by staging a malicious
+    config in /tmp then moving it into place via Bash mv/cp.
+    Source: ADV-015 adversarial finding.
+    """
+    if trigger.tool_name != "Bash":
+        return None
+
+    command = (
+        str(trigger.tool_input.get("command") or "") if isinstance(trigger.tool_input, dict) else ""
+    )
+
+    if not _BASH_MV_CP_RE.search(command):
+        return None
+
+    # Extract everything after the mv/cp command to check for agent config targets.
+    # Check against agent config patterns and MCP config regex.
+    normalized = command.replace("\\", "/")
+    for pattern in _AGENT_CONFIG_PATTERNS:
+        if pattern in normalized:
+            recent = list(buf)[-_LOOKBACK_WINDOW:]
+            return SequenceAlert(
+                rule_id="SEQ-005",
+                description=(
+                    f"Privilege escalation: Bash mv/cp to agent config"
+                    f" ({pattern!r}) in command: {command[:80]!r}"
+                ),
+                session_id=session_id,
+                trigger_event=trigger,
+                context_window=recent,
+            )
+
+    # Check MCP config pattern against all words in the command
+    for word in normalized.split():
+        basename = word.rsplit("/", 1)[-1]
+        if _AGENT_CONFIG_MCP_RE.match(basename):
+            recent = list(buf)[-_LOOKBACK_WINDOW:]
+            return SequenceAlert(
+                rule_id="SEQ-005",
+                description=(
+                    f"Privilege escalation: Bash mv/cp to MCP config"
+                    f" ({basename!r}) in command: {command[:80]!r}"
+                ),
+                session_id=session_id,
+                trigger_event=trigger,
+                context_window=recent,
+            )
+
+    return None
+
+
+@_rule
+def _sensitive_read_then_mcp_exfil(
+    session_id: str,
+    buf: deque[ToolEvent],
+    trigger: ToolEvent,
+) -> SequenceAlert | None:
+    """SEQ-006: Sensitive file read followed by MCP tool with exfil-capable name.
+
+    Attack class: Data exfiltration via MCP tool calls (email, messaging, PR
+    comments, API posts) that bypass WebFetch/curl-based detection.
+    Source: Invariant GitHub MCP, AgentFlayer (Zenity/Jira), Supabase MCP
+    confused deputy. 46/89 InjecAgent+AgentDojo cases use this pattern.
+
+    Advisory only -- not in _ENFORCEMENT_RULES until FPR validated.
+    Uses typed markers -- survives arbitrary padding.
+    """
+    if not _is_mcp_exfil_tool(trigger.tool_name):
+        return None
+
+    # Check typed marker for prior sensitive file read
+    sensitive_fp: str | None = None
+    markers = _get_markers_for_rule(session_id)
+    if markers and markers.last_sensitive_read:
+        sensitive_fp = markers.last_sensitive_read.file_path
+    else:
+        # Fallback: lookback window
+        recent = list(buf)[-_LOOKBACK_WINDOW:]
+        for event in reversed(recent[:-1]):
+            if event.tool_name == "Read":
+                fp = str(
+                    (event.tool_input.get("file_path") or "")
+                    if isinstance(event.tool_input, dict)
+                    else ""
+                )
+                if _is_sensitive_file(fp):
+                    sensitive_fp = fp
+                    break
+
+    if sensitive_fp:
+        return SequenceAlert(
+            rule_id="SEQ-006",
+            description=(
+                f"Sensitive file read ({sensitive_fp!r}) followed by"
+                f" MCP exfil-capable tool ({trigger.tool_name!r})"
+            ),
+            session_id=session_id,
+            trigger_event=trigger,
+            context_window=list(buf)[-_LOOKBACK_WINDOW:],
+        )
     return None
 
 

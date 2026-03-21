@@ -186,6 +186,8 @@ v3: 6,340 samples (3,033 malicious / 3,307 benign). Balance ratio 0.92:1.
 
 The original 5,671 samples (v2) are published on Hugging Face: [`prodnull/prompt-injection-repo-dataset`](https://huggingface.co/datasets/prodnull/prompt-injection-repo-dataset). The v3 augmentation added 669 samples in two rounds targeting out-of-distribution FPR and adversarial robustness gaps identified by the adversarial benchmark.
 
+> **Disclaimer:** This dataset is a synthetic research artifact generated from published research sources, regex pattern payloads, and LLM paraphrases. It is provided for research and educational purposes only. The authors accept no responsibility for any issues arising from use of this data in any environment. Users are solely responsible for evaluating fitness for their use case.
+
 ### Sources
 
 The dataset was built in six rounds, each addressing gaps found by adversarial audit:

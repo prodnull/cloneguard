@@ -137,6 +137,10 @@ When combined with Tier 0 regex (197 patterns), the tiers compensate for each ot
 | Precision | 96.23% ± 0.79% |
 | Recall | 95.37% ± 0.93% |
 
+## Disclaimer
+
+**This model and its training dataset are synthetic research artifacts.** They are provided for research and educational purposes only. The authors make no guarantees about detection accuracy in production environments and accept no responsibility for security incidents, false positives, false negatives, or any other issues arising from use of this model or dataset in any environment. Users are solely responsible for evaluating fitness for their use case. This model is one layer in a defense-in-depth strategy and should never be relied upon as a sole security control.
+
 ## Limitations
 
 - **Multilingual:** Limited non-English training data (~30 samples). Lower recall for non-English attacks.
@@ -144,6 +148,7 @@ When combined with Tier 0 regex (197 patterns), the tiers compensate for each ot
 - **Mean-pooling dilution:** Mitigated by line-level code block scanning, but non-fenced prose dilution remains theoretical risk.
 - **Training bias:** Primarily English-language attacks from published research. Novel vectors may evade.
 - **Binary classification:** SUSPICIOUS is threshold-based (0.5-0.8), not a trained class.
+- **Synthetic data:** All training data is synthetically generated or curated from published research — not collected from production environments. Distribution mismatch with real-world content is expected.
 
 ## How to Use
 
