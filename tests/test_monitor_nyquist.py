@@ -255,10 +255,14 @@ class TestSummarizeInput:
 
 
 class TestLookbackWindowBoundary:
-    """SEQ-001 must NOT fire if the sensitive read is beyond the 10-event lookback window."""
+    """SEQ-001 fires even when sensitive read is beyond 10-event lookback (typed markers)."""
 
-    def test_seq001_no_fire_beyond_lookback_window(self, tmp_path):
-        """Sensitive read more than 10 events ago must not trigger SEQ-001."""
+    def test_seq001_fires_beyond_lookback_window_via_marker(self, tmp_path):
+        """Sensitive read >10 events ago MUST trigger SEQ-001 via typed marker.
+
+        Typed markers (added in v0.4+) persist the last_sensitive_read for the
+        entire session, defeating padding-based bypass of the lookback window.
+        """
         mon = _make_monitor(tmp_path)
         log_file = tmp_path / "monitor.log"
         session = "seq001-boundary"
@@ -275,7 +279,7 @@ class TestLookbackWindowBoundary:
                     tool_use_id=f"toolu_filler_{i}",
                 )
             )
-        # Event 12: WebFetch to external URL -- should NOT trigger because .env is >10 events ago
+        # Event 12: WebFetch to external URL -- SHOULD trigger via typed marker
         mon.record_event(
             _make_data(
                 "WebFetch",
@@ -285,16 +289,12 @@ class TestLookbackWindowBoundary:
         )
         mon.close()
 
-        if log_file.exists():
-            entries = [
-                json.loads(line) for line in log_file.read_text().splitlines() if line.strip()
-            ]
-            seq001 = [
-                e
-                for e in entries
-                if e.get("rule_id") == "SEQ-001" and e.get("session_id") == session
-            ]
-            assert not seq001, (
-                "SEQ-001 should NOT fire when sensitive read is"
-                f" beyond 10-event lookback; got: {seq001}"
-            )
+        assert log_file.exists(), "Monitor log must exist after recording events"
+        entries = [json.loads(line) for line in log_file.read_text().splitlines() if line.strip()]
+        seq001 = [
+            e for e in entries if e.get("rule_id") == "SEQ-001" and e.get("session_id") == session
+        ]
+        assert seq001, (
+            "SEQ-001 MUST fire even when sensitive read is beyond 10-event lookback"
+            " — typed marker tracks it session-wide"
+        )

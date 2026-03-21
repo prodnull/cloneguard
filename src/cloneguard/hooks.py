@@ -311,7 +311,14 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
     3. BUILD SCRIPT GATING: Warn on build commands
     """
     try:
-        get_monitor().record_event(data)
+        verdict = get_monitor().check_enforcement(data)
+        if verdict is not None:
+            msg = (
+                f"BLOCKED by {verdict.rule_id}: {verdict.description}\n"
+                f"To allowlist: cloneguard sequence-allow {verdict.rule_id} <domain-or-path>"
+            )
+            print(msg)
+            return 2
     except Exception:
         pass  # Monitor must never break the hook pipeline
 

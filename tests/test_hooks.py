@@ -1081,10 +1081,11 @@ class TestMonitorIntegration:
     """Verify monitor.record_event is called from hook handlers."""
 
     def test_pre_tool_use_records_event(self, monkeypatch):
-        """PreToolUse handler calls monitor.record_event before scanning."""
+        """PreToolUse handler calls monitor.check_enforcement before scanning."""
         from unittest.mock import MagicMock
 
         mock_monitor = MagicMock()
+        mock_monitor.check_enforcement.return_value = None
         monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
         data = {
             "hook_type": "PreToolUse",
@@ -1094,7 +1095,7 @@ class TestMonitorIntegration:
             "tool_input": {"file_path": "/tmp/test.txt"},
         }
         handle_pre_tool_use(data)
-        mock_monitor.record_event.assert_called_once_with(data)
+        mock_monitor.check_enforcement.assert_called_once_with(data)
 
     def test_post_tool_use_records_event(self, monkeypatch):
         """PostToolUse handler calls monitor.record_event before scanning."""
@@ -1114,11 +1115,11 @@ class TestMonitorIntegration:
         mock_monitor.record_event.assert_called_once_with(data)
 
     def test_monitor_failure_does_not_break_hook(self, monkeypatch):
-        """If monitor.record_event raises, the hook handler still functions."""
+        """If monitor.check_enforcement raises, the hook handler still functions."""
         from unittest.mock import MagicMock
 
         mock_monitor = MagicMock()
-        mock_monitor.record_event.side_effect = RuntimeError("monitor crashed")
+        mock_monitor.check_enforcement.side_effect = RuntimeError("monitor crashed")
         monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
         data = {
             "hook_type": "PreToolUse",

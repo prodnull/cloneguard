@@ -179,16 +179,17 @@ Some patterns (CI-001, CI-004, CI-006, SC-001, MCP-005, LTL-004) are restricted 
 
 ### CaMeL-lite Tool Call Monitor
 
-Advisory monitoring of agent tool call sequences for suspicious patterns (v0.4). Inspired by [CaMeL](https://arxiv.org/abs/2503.18813) — lightweight, log-only, no blocking.
+Behavioral sequence monitoring inspired by [CaMeL](https://arxiv.org/abs/2503.18813). Detects suspicious tool-call sequences with <0.5ms overhead per hook invocation. High-confidence rules enforce (block); others remain advisory.
 
-| Rule | Detects |
-|------|---------|
-| SEQ-001 | Read sensitive file followed by exfiltration command |
-| SEQ-002 | Config modification followed by permission escalation |
-| SEQ-003 | Multiple credential file reads in sequence |
-| SEQ-004 | Tool output containing injection followed by write |
+| Rule | Detects | Mode |
+|------|---------|------|
+| SEQ-001 | Sensitive file read followed by WebFetch to external URL | **Enforce** |
+| SEQ-002 | Sensitive file read followed by Bash curl/wget to external URL | **Enforce** |
+| SEQ-003 | Same MCP tool called >5 times in 10 events (frequency spike) | Advisory |
+| SEQ-004 | Write to build-sensitive target followed by build command | Advisory |
+| SEQ-005 | Write to agent/IDE config file (privilege escalation) | **Enforce** |
 
-Logs to `~/.cloneguard/monitor.jsonl` with <0.5ms overhead per hook invocation. Currently advisory-only (log, no block) — enforcement deferred until FPR is validated in production.
+SEQ-001/002 use session-wide typed markers — padding with benign events does not evade detection. SEQ-005 Tier 1 (agent config writes) is a single-event rule; Tier 2 (package/git config followed by build) is sequence-based. Enforcement rules support allowlisting via `~/.cloneguard/sequence_allowlist.json` (domain-level for SEQ-001/002, exact-path for SEQ-005). Alerts log to `~/.cloneguard/monitor.log`.
 
 ### Empirical Validation
 
