@@ -51,3 +51,35 @@ patterns:
     severity: high
     description: "Fake final answer directive with action command"
     false_positive_hint: "Unlikely in normal documentation"
+
+  # ChatML / tokenizer-level conversation format injection
+  # Injecting special tokens that LLMs interpret as conversation boundaries,
+  # creating fake user/assistant turns within repo content.
+  # IPI Arena: 3/23 missed attacks used these markers (arXiv:2603.15714).
+  - id: RH-009
+    regex: '<\|(?:user|assistant|endoftext|end_of_turn|im_start|im_end)\|>'
+    severity: critical
+    description: "ChatML special token — fake conversation turn boundary injection"
+    false_positive_hint: "May appear in tokenizer documentation or prompt engineering guides"
+
+  - id: RH-010
+    regex: '<\|(?:tool_call_end|tool_calls_section_end|start_user_input|end_user_input|tool_result)\|>'
+    severity: critical
+    description: "ChatML tool-call boundary token — fake tool interaction injection"
+    false_positive_hint: "May appear in agent framework documentation"
+
+  # Structured directive block injection
+  # Injecting imperative instruction blocks with formal-looking headers
+  # that trick agents into treating injected content as authoritative.
+  # IPI Arena: 3/23 missed attacks used these patterns.
+  - id: RH-011
+    regex: '(?i)\[(?:ACTION_REQUIRED|MANDATORY_\w+|ORDER_OF_OPERATIONS|INSTRUCTION_BLOCK\w*|REQUIRED_ACTION|EXECUTE_IMMEDIATELY)\]'
+    severity: high
+    description: "Structured directive block header — fake authoritative instruction"
+    false_positive_hint: "May appear in CI/CD or ops runbook documentation"
+
+  - id: RH-012
+    regex: '(?i)<SYSTEM[_-]DIRECTIVE\b'
+    severity: critical
+    description: "Fake system directive XML tag — authority escalation via format injection"
+    false_positive_hint: "Should not appear in user-authored repository files"

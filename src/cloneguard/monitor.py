@@ -67,12 +67,9 @@ _MCP_EXFIL_KEYWORDS = (
 )
 
 # Sensitive file path substrings (lowercased). Matches credential-bearing files.
+# These patterns are specific enough for safe substring matching.
 _SENSITIVE_FILE_PATTERNS = (
     ".env",
-    "secret",
-    "credential",
-    "password",
-    "token",
     ".ssh/",
     "id_rsa",
     "id_ed25519",
@@ -92,13 +89,51 @@ _SENSITIVE_FILE_PATTERNS = (
     "api_key",
     "apikey",
     ".pem",
-    ".key",
     "keyfile",
     "keystore",
     # GCP application default credentials
     "application_default_credentials",
     # Auth config
     "auth.json",
+)
+
+# Ambiguous patterns — match as substrings but require the file is NOT source code.
+# Trajectory mining (208,127 benign trajectories) showed these patterns cause 95% of
+# false positives when used as bare substrings: tokens.py, password.py, secrets.py,
+# credentials.py, secretsmanager/models.py, tokenizer.py, etc.
+_SENSITIVE_AMBIGUOUS_PATTERNS = ("secret", "credential", "password", "token")
+
+# Source code extensions that are never credential files (lowercased, with dot).
+_SOURCE_CODE_EXTENSIONS = frozenset(
+    (
+        ".py",
+        ".js",
+        ".ts",
+        ".jsx",
+        ".tsx",
+        ".rb",
+        ".go",
+        ".rs",
+        ".java",
+        ".kt",
+        ".cs",
+        ".cpp",
+        ".c",
+        ".h",
+        ".hpp",
+        ".swift",
+        ".php",
+        ".scala",
+        ".ex",
+        ".exs",
+        ".clj",
+        ".lua",
+        ".r",
+        ".m",
+        ".mm",
+        ".pl",
+        ".pm",
+    )
 )
 
 # Build-sensitive write targets (basenames or path prefixes).
@@ -264,10 +299,34 @@ def _is_sensitive_file(file_path: str) -> bool:
     """Return True if file_path may contain credentials or PII.
 
     Matches against well-known sensitive file name patterns. Case-insensitive.
+    Ambiguous patterns (secret, credential, password, token) are excluded when
+    the file has a source-code extension — trajectory mining over 208k benign
+    agent sessions showed these cause 95% of false positives (e.g., tokens.py,
+    secretsmanager/models.py, password.py).
+
     Heuristic: false negatives possible for unusual naming conventions.
     """
     fp = file_path.lower()
-    return any(p in fp for p in _SENSITIVE_FILE_PATTERNS)
+
+    # Specific patterns — safe for bare substring matching
+    if any(p in fp for p in _SENSITIVE_FILE_PATTERNS):
+        return True
+
+    # .key — only as file extension, not as substring (avoids "keyboard.py" etc.)
+    if fp.endswith(".key"):
+        return True
+
+    # Ambiguous patterns — exclude source-code extensions
+    ext = ""
+    dot_idx = fp.rfind(".")
+    if dot_idx != -1:
+        ext = fp[dot_idx:]
+
+    if ext not in _SOURCE_CODE_EXTENSIONS:
+        if any(p in fp for p in _SENSITIVE_AMBIGUOUS_PATTERNS):
+            return True
+
+    return False
 
 
 def _is_mcp_exfil_tool(tool_name: str) -> bool:

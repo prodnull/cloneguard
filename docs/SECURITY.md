@@ -380,6 +380,83 @@ applies to our pipeline. This informs Phase 5 context-aware threshold design.
 
 Internal findings record: `docs/results/fpr-investigation-findings.md` (gitignored).
 
+## Sequence Rule FPR Validation (Trajectory Mining)
+
+CaMeL-lite sequence detection rules (SEQ-001 through SEQ-005) were validated against
+208,127 benign agent trajectories mined from three published SWE-bench datasets on HuggingFace.
+This is the first empirical validation of tool-call sequence detection rules against
+real-world agent development workflows.
+
+### Methodology
+
+**Datasets analyzed:**
+
+| Dataset | Trajectories | Actions | Agent | License |
+|---------|-------------|---------|-------|---------|
+| SWE-smith (tool, xml, ticks) | 61,018 | 1,857,311 | Claude 3.7 Sonnet | MIT |
+| Nebius SWE-agent | 80,035 | 2,138,589 | Llama-70B (SWE-agent) | CC-BY-4.0 |
+| OpenHands (Nebius) | 67,074 | 4,316,760 | OpenHands agent | TBD |
+| **Total** | **208,127** | **8,312,660** | | |
+
+Each trajectory records a complete agent session solving a GitHub issue from the
+SWE-bench benchmark. Tool calls were extracted and classified into canonical action types
+(file_read, file_edit, bash_command, bash_network, bash_build, etc.), then scanned for
+sequences matching CloneGuard's SEQ rules.
+
+Sensitive file detection used tightened patterns that exclude source-code files
+(e.g., `tokens.py`, `password.py`) while retaining actual credential paths
+(`.env`, `.pem`, `.ssh/`, `.aws/credentials`, `service_account.json`). This reduced
+false matches by 95% compared to naive substring matching (498 → 24 unique paths
+in a 10,000-trajectory sample).
+
+**Scripts:** `scripts/mine_trajectories.py`, `scripts/download_trajectories.py`
+
+### Results
+
+| Rule | Description | Matches | FPR | Policy | Validated? |
+|------|-------------|---------|-----|--------|-----------|
+| SEQ-001 | Sensitive read → network exfil | 5 / 208,127 | 0.0024% | **Enforce** | Yes — near-zero FPR confirms blocking is safe |
+| SEQ-004 | File edit → build command | 32,887 / 208,127 | 15.80% | Advisory | Yes — confirms advisory-only is correct |
+| SEQ-005 | Config write → build command | 1 / 208,127 | 0.0005% | **Enforce** | Yes — near-zero FPR confirms blocking is safe |
+
+**SEQ-001/002** (sensitive file read followed by network exfiltration): 5 matches
+across 208,127 trajectories. Manual inspection of all 5 confirmed they are benign —
+agents reading `.env` test fixtures or mock credential files, with unrelated network
+calls (e.g., `curl` to documentation sites) later in the same session. The sensitive
+read and the network call are not causally related. FPR with tightened patterns:
+**0.0024%**.
+
+**SEQ-004** (file edit followed by build/test): 32,887 matches — the dominant benign
+workflow pattern. Edit code, run tests. 15.80% FPR confirms this rule must remain
+advisory-only. Enforcement would block 1 in 6 legitimate development sessions.
+
+**SEQ-005** (agent config write followed by build): 1 match across all data, with only
+10 config-like file writes total. Agents virtually never modify IDE/tool configurations
+during SWE-bench task solving. FPR: **0.0005%**.
+
+### Action Type Distributions
+
+Network operations (`curl`, `wget`, `git clone/fetch/pull/push`) account for 0.03–0.3%
+of all actions across benign trajectories. This rarity is the strongest signal — legitimate
+SWE-bench agents almost never make outbound network requests.
+
+| Action Type | SWE-smith | Nebius | OpenHands |
+|------------|-----------|--------|-----------|
+| bash_command | 28–35% | 19.1% | 49.7% |
+| file_read | 25–26% | 18.0% | 25.7% |
+| file_edit | 19–21% | 29.7% | 7.9% |
+| bash_network | **0.04–0.05%** | **0.3%** | **0.03%** |
+
+### Limitations
+
+These trajectories represent SWE-bench task solving (fixing GitHub issues), not:
+- MCP-heavy workflows (no MCP tool usage in this data — SEQ-003/006 cannot be validated)
+- Interactive coding assistant sessions (question-answering, debugging)
+- Agentic web browsing or data retrieval workflows
+
+SEQ-003 (MCP burst detection) and SEQ-006 (MCP exfiltration) require trajectory data
+from MCP-capable agents, which is not yet publicly available at scale.
+
 ## Known Limitations
 
 1. **Regex evasion.** Tier 0 patterns match known attack strings. Creative rewording, synonym substitution, or novel attack vectors will bypass regex detection. Tier 1.5 mitigates this with 93.7% recall (v4 CV) but is not infallible.
@@ -410,7 +487,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 
 | Component | Latency | Context |
 |-----------|---------|---------|
-| Tier 0 regex (197 patterns) | <50 ms | Full repo scan (~20 files) |
+| Tier 0 regex (201 patterns) | <50 ms | Full repo scan (~20 files) |
 | Tier 1.5 ONNX (per file) | ~16 ms | Single file classification |
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |

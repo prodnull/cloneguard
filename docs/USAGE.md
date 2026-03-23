@@ -26,7 +26,7 @@ pip install "cloneguard[mini]" --find-links .  # Install runtime deps for the mo
 **From PyPI** (when available):
 
 ```bash
-pip install cloneguard            # Tier 0 regex only (197 patterns, <50ms)
+pip install cloneguard            # Tier 0 regex only (201 patterns, <50ms)
 pip install cloneguard[mini]      # + Tier 1.5 ONNX model (recommended, ~16ms/file)
 pip install cloneguard[all]       # + Ollama fallback
 ```
@@ -253,7 +253,7 @@ CloneGuard includes an MCP Gateway guardrail plugin (`cloneguard.mcp_plugin`) th
 
 | Component | Latency | What it covers |
 |-----------|---------|---------------|
-| Tier 0 regex scan | <5 ms | 197 patterns, known attack signatures |
+| Tier 0 regex scan | <5 ms | 201 patterns, known attack signatures |
 | Tier 1.5 ONNX scan | ~16 ms | Semantic attacks, synonym evasion, social engineering |
 | Combined | ~20 ms | Both tiers |
 | Typical LLM API call | 2–30 sec | For comparison — CloneGuard adds <1% overhead |
