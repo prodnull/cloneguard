@@ -348,7 +348,7 @@ Script: `scripts/hardened_benchmark.py --correlated-failures`.
 
 ## Structural FPR Limits and the Authorization Paradox
 
-Campbell et al. (ICLR 2026, arXiv:2603.01246) demonstrate that safety-aligned LLMs refuse
+Campbell et al. (ICLR 2026 Workshop, arXiv:2603.01246) demonstrate that safety-aligned LLMs refuse
 legitimate defensive security requests at 2.72x the rate of neutral equivalents. Critically,
 adding authorization context (e.g., "authorized red team assessment," "blue team defensive ops")
 *increases* refusal rate from 28.7% to 50% — the authorization paradox. The mechanism is
@@ -487,7 +487,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 
 | Component | Latency | Context |
 |-----------|---------|---------|
-| Tier 0 regex (201 patterns) | <50 ms | Full repo scan (~20 files) |
+| Tier 0 regex (204 patterns) | <50 ms | Full repo scan (~20 files) |
 | Tier 1.5 ONNX (per file) | ~16 ms | Single file classification |
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |

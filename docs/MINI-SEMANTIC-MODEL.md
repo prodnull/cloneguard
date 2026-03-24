@@ -26,7 +26,7 @@ Bundled ONNX classifier for prompt injection detection. Runs entirely offline wi
 ```
 Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
   <1 ms/file          ~16 ms/file               ~680 ms/file
-  201 patterns         semantic classifier        qwen2.5:7b LLM
+  204 patterns         semantic classifier        qwen2.5:7b LLM
   23% recall           93.7% recall (v4 CV)       42% recall
   91% precision        96.2% precision (CV)       93% precision
 ```
@@ -286,7 +286,7 @@ The attack catalog draws from peer-reviewed research and vendor disclosures:
 |--------|-------------|
 | arXiv:2509.22040 (AIShellJack) | 70 MITRE ATT&CK techniques, 84% attack success rate |
 | arXiv:2601.17548 | 42-attack taxonomy for coding assistants |
-| arXiv:2602.10453 | 30+ prompt injection techniques survey |
+| arXiv:2602.10453 | Comprehensive prompt injection taxonomy |
 | arXiv:2503.14281 (XOXO) | Semantics-preserving code modifications |
 | Pillar Security "Rules File Backdoor" | Unicode obfuscation in .cursorrules |
 | Snyk "ToxicSkills" | 1,467 malicious skills on ClawHub |

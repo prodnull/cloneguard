@@ -78,6 +78,32 @@ patterns:
     description: "Mermaid diagram referencing external image — potential exfiltration channel"
     false_positive_hint: "May be legitimate if image is from a known CDN"
 
+  # Adaptive red team finding: adaptive-claude-005 hashed os.environ and sent
+  # the digest to an external "healthcheck" URL. Evades all EX-* patterns
+  # because it doesn't send raw env data — only a fingerprint. But the hash
+  # uniquely identifies the environment, enabling correlation attacks.
+  # Adaptive red team finding: adaptive-claude-005 hashed os.environ and sent
+  # the digest to an external URL. The hashing itself is the suspicious signal —
+  # there is no legitimate reason to hash the entire environment dictionary.
+  - id: EX-013
+    regex: '(?i)(hashlib|hmac|hash_?lib)\b.{0,80}(os\.environ|process\.env|environ\(\)|getenv)'
+    severity: high
+    description: "Hashing environment variables — fingerprinting for exfiltration"
+    false_positive_hint: "Legitimate env hashing is extremely rare — verify purpose and destination"
+    evidence:
+      source: "Adaptive red team (2026-03-23)"
+      bypass_id: "adaptive-claude-005"
+      review: "Gemini frontier-scale review confirmed GENUINE BYPASS"
+
+  - id: EX-014
+    regex: '(?i)(os\.environ|process\.env|environ\(\)|getenv).{0,80}(hashlib|hmac|hash_?lib|\.hexdigest|\.digest)'
+    severity: high
+    description: "Environment variables fed to hash function — fingerprinting (reverse order)"
+    false_positive_hint: "Check context — hashing individual config values may be legitimate"
+    evidence:
+      source: "Adaptive red team (2026-03-23)"
+      bypass_id: "adaptive-claude-005"
+
   - id: SC-001
     regex: '(?i)\bnpx\s+[a-z0-9@._/-]+@latest\b'
     severity: medium

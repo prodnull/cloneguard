@@ -46,3 +46,16 @@ patterns:
     severity: critical
     description: "IDE setting pointing tool to suspicious path — potential binary planting"
     false_positive_hint: "Tool paths should reference standard install locations"
+
+  # Adaptive red team finding: adaptive-claude-019 bypassed WC-006 using
+  # project-relative path (./tools/eslint-wrapper). WC-006 only checked
+  # /tmp/, ../, /var/, ~/. This pattern covers executablePath + relative paths.
+  - id: WC-007
+    regex: '(?i)["\x27](?:[\w.-]+\.)?(?:executablePath|binaryPath|command|runtimeExecutable|serverPath)["\x27]\s*:\s*["\x27]\.\/[^\s"''\]]{1,100}'
+    severity: high
+    description: "IDE/tool config setting executable to project-relative path — binary planting risk"
+    false_positive_hint: "Legitimate for wrapper scripts like gradlew/mvnw — verify the binary exists and is safe"
+    evidence:
+      source: "Adaptive red team (2026-03-23)"
+      bypass_id: "adaptive-claude-019"
+      review: "Gemini frontier-scale review confirmed GENUINE BYPASS"
