@@ -66,9 +66,7 @@ def check_hook_integrity(settings_path: Path | None = None) -> list[str]:
                 if _EXPECTED_COMMAND_PREFIX in command:
                     found_events.add(event_name)
                 elif command:
-                    warnings.append(
-                        f"Hook {event_name} points to unexpected command: {command!r}"
-                    )
+                    warnings.append(f"Hook {event_name} points to unexpected command: {command!r}")
 
     missing = _EXPECTED_EVENTS - found_events
     if missing:

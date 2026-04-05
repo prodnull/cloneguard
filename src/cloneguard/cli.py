@@ -235,15 +235,17 @@ def _scan_report_to_sarif_dicts(report: Any) -> list[dict[str, Any]]:
             elif "CLEAN" in str(fr.status.value):
                 verdict = "clean"
 
-            results.append({
-                "verdict": verdict,
-                "severity": severity,
-                "rule_id": "PATTERN",
-                "file_path": fr.path,
-                "line_number": 1,
-                "matched_text": issue,
-                "message": issue,
-            })
+            results.append(
+                {
+                    "verdict": verdict,
+                    "severity": severity,
+                    "rule_id": "PATTERN",
+                    "file_path": fr.path,
+                    "line_number": 1,
+                    "matched_text": issue,
+                    "message": issue,
+                }
+            )
     return results
 
 

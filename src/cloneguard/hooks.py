@@ -211,17 +211,13 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
             # Tier 0 clean -- run Tier 1.5 semantic check (STRICT minimum)
             mode = _detect_mode_for_tier15(path, content, ScanMode.STRICT, engine)
             classifier = _get_mini_classifier()
-            t15_verdict, t15_reason = _classify_with_tier15(
-                content, path, mode, classifier
-            )
+            t15_verdict, t15_reason = _classify_with_tier15(content, path, mode, classifier)
             if t15_verdict == "MALICIOUS":
                 blocked_reasons.append(
                     f"BLOCKED: Semantic classifier flagged {path} \u2014 {t15_reason}"
                 )
             elif t15_verdict == "SUSPICIOUS":
-                warnings.append(
-                    f"WARNING: Semantic classifier flagged {path} \u2014 {t15_reason}"
-                )
+                warnings.append(f"WARNING: Semantic classifier flagged {path} \u2014 {t15_reason}")
                 _session_trust[path] = content_sha
             else:
                 _session_trust[path] = content_sha
@@ -284,8 +280,11 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
             _emit_audit_event(
                 data,
                 DetectionResult(
-                    verdict="detected", confidence=1.0, exit_code=2,
-                    message=msg, source_path=file_path,
+                    verdict="detected",
+                    confidence=1.0,
+                    exit_code=2,
+                    message=msg,
+                    source_path=file_path,
                 ),
                 "PreToolUse",
             )
@@ -310,8 +309,11 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                 _emit_audit_event(
                     data,
                     DetectionResult(
-                        verdict="detected", confidence=1.0, exit_code=2,
-                        message=reason, source_path=file_path,
+                        verdict="detected",
+                        confidence=1.0,
+                        exit_code=2,
+                        message=reason,
+                        source_path=file_path,
                     ),
                     "PreToolUse",
                 )
@@ -422,8 +424,12 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
             _emit_audit_event(
                 data,
                 DetectionResult(
-                    verdict="detected", confidence=1.0, exit_code=2,
-                    message=reason, severity="critical", source_path=source_path,
+                    verdict="detected",
+                    confidence=1.0,
+                    exit_code=2,
+                    message=reason,
+                    severity="critical",
+                    source_path=source_path,
                 ),
                 "PostToolUse",
             )

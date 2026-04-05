@@ -10,8 +10,6 @@ from __future__ import annotations
 import json
 from typing import Any
 
-import pytest
-
 
 def _make_scan_result(
     *,
@@ -190,10 +188,7 @@ class TestSarifResultCap:
         assert _MAX_RESULTS == 5000
 
         # Create 5,100 results -- only first 5,000 non-clean should appear
-        results = [
-            _make_scan_result(rule_id=f"RH-{i:04d}", line_number=i)
-            for i in range(5100)
-        ]
+        results = [_make_scan_result(rule_id=f"RH-{i:04d}", line_number=i) for i in range(5100)]
         sarif = build_sarif(results, _make_rules())
         assert len(sarif.runs[0].results) <= 5000
 

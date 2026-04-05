@@ -6,8 +6,6 @@ and sequence detection signals into a unified DetectionResult.
 
 from __future__ import annotations
 
-import pytest
-
 from cloneguard.detection import DetectionResult, ToolCallEvent
 from cloneguard.detection.types import DetectionEngineProtocol
 

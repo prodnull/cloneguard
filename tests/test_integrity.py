@@ -12,8 +12,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-import pytest
-
 
 def _write_settings(tmp_path: Path, config: dict) -> Path:
     """Write a settings.json file and return its path."""
@@ -144,8 +142,7 @@ class TestCheckHookIntegrityPathAgnostic:
                     # Different path, but command still contains the expected prefix
                     hook["command"] = (
                         "/home/user/.local/pipx/venvs/cloneguard/bin/"
-                        "cloneguard hook-check --event "
-                        + hook["command"].split("--event ")[-1]
+                        "cloneguard hook-check --event " + hook["command"].split("--event ")[-1]
                     )
         settings_path = _write_settings(tmp_path, config)
         warnings = check_hook_integrity(settings_path=settings_path)

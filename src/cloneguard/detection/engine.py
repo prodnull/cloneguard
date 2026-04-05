@@ -295,9 +295,7 @@ class DetectionEngine:
             )
 
         # Tier 1.5: semantic classification (if available)
-        tier15_mode = _detect_mode_for_tier15(
-            source_path, content, ScanMode.STANDARD, engine
-        )
+        tier15_mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD, engine)
         t15_verdict, t15_reason = _classify_with_tier15(
             content, source_path, tier15_mode, self._get_mini_classifier()
         )
@@ -368,9 +366,8 @@ class DetectionEngine:
                     )
                 )
             elif result.verdict == Verdict.SUSPICIOUS:
-                warning = (
-                    f"WARNING: Suspicious patterns detected in {path}\n"
-                    + _format_matches(result.matches, path)
+                warning = f"WARNING: Suspicious patterns detected in {path}\n" + _format_matches(
+                    result.matches, path
                 )
                 warnings.append(warning)
                 self._session_trust[path] = content_sha
@@ -401,9 +398,7 @@ class DetectionEngine:
                         )
                     )
                 elif t15_verdict == "SUSPICIOUS":
-                    warnings.append(
-                        f"WARNING: Semantic classifier flagged {path} -- {t15_reason}"
-                    )
+                    warnings.append(f"WARNING: Semantic classifier flagged {path} -- {t15_reason}")
                     self._session_trust[path] = content_sha
                     all_signals.append(
                         SignalResult(
@@ -537,9 +532,7 @@ class DetectionEngine:
                     )
                 else:
                     # Tier 0 clean -- Tier 1.5 semantic check on sensitive write content
-                    mode = _detect_mode_for_tier15(
-                        file_path, content, ScanMode.STANDARD, engine
-                    )
+                    mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD, engine)
                     t15_verdict, t15_reason = _classify_with_tier15(
                         content, file_path, mode, self._get_mini_classifier()
                     )

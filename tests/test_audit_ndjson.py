@@ -23,7 +23,6 @@ import pytest
 
 from cloneguard.audit import AuditEvent, EventType, NDJSONEmitter, SignalDetails
 
-
 # ---------------------------------------------------------------------------
 # Test 1: AuditEvent construction with all required fields
 # ---------------------------------------------------------------------------
