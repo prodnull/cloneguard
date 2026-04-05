@@ -7,7 +7,7 @@ license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [{ name = "prodnull" }]
 keywords = ["prompt-injection", "ai-security", "llm", "coding-agent", "defense"]
-dependencies = ["pyyaml>=6.0"]
+dependencies = ["pyyaml>=6.0", "pydantic>=2.0"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
