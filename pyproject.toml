@@ -60,7 +60,7 @@ strict = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "scipy.*"]
+module = ["sklearn.*", "scipy.*", "sarif_pydantic.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

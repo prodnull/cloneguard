@@ -102,6 +102,11 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
         action="store_true",
         help="Enable trust cache (skip re-scanning unchanged files)",
     )
+    scan_parser.add_argument(
+        "--sarif",
+        action="store_true",
+        help="Output results in SARIF 2.1.0 format (D-08)",
+    )
 
     # cloneguard setup
     subparsers.add_parser(
@@ -166,14 +171,74 @@ def handle_scan(
     tier2: bool = False,
     tier2_model: str | None = None,
     cache: bool = False,
+    sarif: bool = False,
 ) -> int:
-    """Run standalone scan and return exit code."""
+    """Run standalone scan and return exit code.
+
+    When --sarif is set or CLONEGUARD_SARIF_OUTPUT env var is set, SARIF 2.1.0
+    output is produced (D-08). --sarif writes to stdout; env var writes to file
+    while human-readable report still goes to stdout.
+    """
     repo_path = Path(path_str).resolve()
     scanner = RepoScanner(tier2=tier2, tier2_model=tier2_model, cache=cache)
     report = scanner.scan(repo_path)
-    color = sys.stdout.isatty()
-    print(report.format(color=color))
+
+    sarif_output_path = os.environ.get("CLONEGUARD_SARIF_OUTPUT", "")
+    emit_sarif = sarif or bool(sarif_output_path)
+
+    if emit_sarif:
+        from cloneguard.audit.sarif import SARIFEmitter, _build_rules_from_patterns
+        from cloneguard.detection.patterns import PatternEngine
+
+        # Convert ScanReport file results to SARIF-compatible dicts
+        scan_results = _scan_report_to_sarif_dicts(report)
+        engine = PatternEngine()
+        rules = _build_rules_from_patterns(engine)
+        emitter = SARIFEmitter()
+        sarif_json = emitter.emit_json(scan_results, rules=rules)
+
+        if sarif_output_path:
+            # Write SARIF to file, human report to stdout
+            Path(sarif_output_path).write_text(sarif_json + "\n", encoding="utf-8")
+            color = sys.stdout.isatty()
+            print(report.format(color=color))
+        else:
+            # --sarif flag: SARIF to stdout
+            print(sarif_json)
+    else:
+        color = sys.stdout.isatty()
+        print(report.format(color=color))
+
     return report.exit_code
+
+
+def _scan_report_to_sarif_dicts(report: Any) -> list[dict[str, Any]]:
+    """Convert a ScanReport's FileResults to SARIF-compatible result dicts."""
+    results: list[dict[str, Any]] = []
+    for fr in report.file_results:
+        # Each issue string in FileResult represents a detection
+        for issue in fr.issues:
+            # Parse issue strings to extract structured data
+            # Issues are formatted as "[SEVERITY] description" in the report
+            severity = "medium"
+            verdict = "detected"
+            if "BLOCKED" in str(fr.status.value):
+                verdict = "detected"
+            elif "WARNING" in str(fr.status.value):
+                verdict = "suspicious"
+            elif "CLEAN" in str(fr.status.value):
+                verdict = "clean"
+
+            results.append({
+                "verdict": verdict,
+                "severity": severity,
+                "rule_id": "PATTERN",
+                "file_path": fr.path,
+                "line_number": 1,
+                "matched_text": issue,
+                "message": issue,
+            })
+    return results
 
 
 def handle_init(
@@ -413,6 +478,7 @@ def main(argv: list[str] | None = None) -> None:
             tier2=args.tier2 or bool(args.tier2_model),
             tier2_model=args.tier2_model,
             cache=args.cache,
+            sarif=args.sarif,
         )
         sys.exit(code)
 
