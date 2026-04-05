@@ -1,43 +1,51 @@
 #!/usr/bin/env python3
-"""CloneGuard hook handlers for Claude Code.
+"""CloneGuard hook handlers for Claude Code -- thin shim layer (D-02).
 
 Provides in-process defense layers (1-3) running inside the Claude Code process:
 - Layer 1 (InstructionsLoaded): Scan instruction files for injection patterns
 - Layer 2 (PostToolUse): Scan tool output for injection patterns
 - Layer 3 (PreToolUse): Protect config paths, gate build commands, scan writes
 
+Each handler is a thin shim (~10 lines) that delegates to DetectionEngine for
+all detection logic, then maps the result back to the hook protocol (exit 0/2).
+Audit events are emitted via NDJSONEmitter AFTER the exit code is determined,
+never on the critical path (Pitfall 6).
+
 TOCTOU hardening: All content is scanned from the stdin JSON payload provided
-by Claude Code's hook protocol. File content is NEVER re-read from disk. For
-Write/Edit tools, the content is in tool_input. For Bash commands referencing
-files, we scan the command string itself (the content is the command, not the
-file). This binds the security decision to exactly what will be executed.
+by Claude Code's hook protocol. File content is NEVER re-read from disk.
 """
 
 from __future__ import annotations
 
-import hashlib
 import json
-import os
 import re
 import sys
-from pathlib import Path
 from typing import Any
 
+from cloneguard.detection.engine import (
+    BUILD_COMMANDS,
+    DetectionResult,
+    _classify_with_tier15,
+    _content_hash,
+    _format_matches,
+    _is_protected_path,
+    _is_sensitive_target,
+)
+from cloneguard.detection.engine import (
+    _detect_mode_for_tier15 as _engine_detect_mode_for_tier15,
+)
+from cloneguard.detection.patterns import PatternEngine, ScanMode, Severity, Verdict
 from cloneguard.monitor import get_monitor
-from cloneguard.patterns import PatternEngine, PatternMatch, ScanMode, Severity, Verdict
 
 # ---------------------------------------------------------------------------
-# Content heuristic markers for three-signal mode detection (locked — CONTEXT.md)
+# Content heuristic markers -- re-exported for backward compatibility
 # ---------------------------------------------------------------------------
-# These lightweight regexes detect content type when path alone is ambiguous.
-# Workflow/CI markers confirm STANDARD context (do not upgrade).
-# Agent instruction markers upgrade toward STRICT.
-
 _WORKFLOW_MARKER = re.compile(r"(?m)^(?:on:|jobs:)\s")
 _AGENT_INSTRUCTION_MARKER = re.compile(r"(?m)^#\s*Instructions?\b")
 _CI_CONFIG_MARKER = re.compile(r"(?m)^(?:stages:|pipeline:|image:)\s")
 
 # Singleton engine — loaded once per process lifetime.
+# Kept at module level for backward compat (tests monkeypatch these).
 _engine: PatternEngine | None = None
 _mini_classifier: Any = None  # MiniSemanticClassifier (lazy-loaded)
 _mini_attempted: bool = False
@@ -67,174 +75,94 @@ def _get_mini_classifier() -> Any:
     return _mini_classifier
 
 
+# In-memory session trust — reset each session (process lifetime).
+_session_trust: dict[str, str] = {}  # path -> sha256 of approved content
+
+
 def _detect_mode_for_tier15(
     source_path: str,
     content: str,
     hook_default: ScanMode,
+    engine: PatternEngine | None = None,
 ) -> ScanMode:
-    """Determine Tier 1.5 ScanMode via three signals (path + hook layer + content markers).
+    """Backward-compatible wrapper -- delegates to engine implementation.
 
-    Signal precedence (highest wins; content markers can only upgrade, never downgrade):
-    1. Hook-layer default (hook_default): the implicit mode for this hook context.
-    2. Path-based detection: reuses PatternEngine._detect_mode() logic.
-    3. Content marker heuristics: agent instruction markers upgrade toward STRICT.
-       Workflow/CI markers do NOT upgrade mode — they confirm STANDARD context.
-
-    Final mode = max(hook_default, path_mode, content_upgrade) where
-    STRICT > STANDARD > LENIENT — ensuring markers only move mode upward.
+    Tests call this with 3 args (no engine); internal callers pass 4 args.
+    When engine is None, uses the hooks-level singleton via _get_engine().
     """
-    # Signal 2: path-based detection via PatternEngine (primary signal)
-    path_mode = _get_engine()._detect_mode(source_path)
-
-    # Signal 3: content markers — only agent instruction marker upgrades to STRICT.
-    # Workflow/CI markers confirm STANDARD context; they do not upgrade mode.
-    # Content markers can only upgrade mode toward STRICT, never downgrade.
-    if _AGENT_INSTRUCTION_MARKER.search(content):
-        content_upgrade = ScanMode.STRICT
-    else:
-        content_upgrade = ScanMode.LENIENT  # no upgrade from content
-
-    # Precedence: path is primary. hook_default applies when path says STANDARD
-    # (i.e. no specific path signal). Content markers only upgrade, never downgrade.
-    # STRICT > STANDARD > LENIENT ordinal for max() comparison.
-    _rank = {ScanMode.LENIENT: 0, ScanMode.STANDARD: 1, ScanMode.STRICT: 2}
-    rank_to_mode = {0: ScanMode.LENIENT, 1: ScanMode.STANDARD, 2: ScanMode.STRICT}
-
-    # Path is authoritative for LENIENT (test files) and STRICT (agent configs).
-    # hook_default overrides only when path returns STANDARD (no strong path signal).
-    if path_mode == ScanMode.STANDARD:
-        # No strong path signal — use hook_default as baseline, content can upgrade
-        base_rank = max(_rank[hook_default], _rank[content_upgrade])
-    else:
-        # Path has a strong signal (STRICT or LENIENT) — path wins over hook_default.
-        # Content markers can still upgrade from path_mode toward STRICT.
-        base_rank = max(_rank[path_mode], _rank[content_upgrade])
-
-    return rank_to_mode[base_rank]
-
-
-def _classify_with_tier15(
-    content: str,
-    source: str,
-    mode: ScanMode = ScanMode.STANDARD,
-) -> tuple[str | None, str]:
-    """Run Tier 1.5 classification on content. Returns (verdict, reason) or (None, '')."""
-    classifier = _get_mini_classifier()
-    if classifier is None:
-        return None, ""
-    result = classifier.classify(content, mode=mode)
-    if result.verdict != "SAFE":
-        return result.verdict, f"Tier 1.5: {result.reason}"
-    return None, ""
-
-
-# In-memory session trust — reset each session (process lifetime).
-_session_trust: dict[str, str] = {}  # path -> sha256 of approved content
-
-# Protected paths — writes to these are always blocked (D3).
-PROTECTED_PATHS = [
-    "~/.claude/trusted-instructions.json",
-    "~/.claude/settings.json",
-    "~/.claude/settings.local.json",
-    ".claude/settings.json",
-    ".claude/settings.local.json",
-]
-
-# Build commands to gate with warnings.
-BUILD_COMMANDS = [
-    "npm install",
-    "npm ci",
-    "npm run",
-    "npx ",
-    "yarn install",
-    "yarn run",
-    "pip install",
-    "pip3 install",
-    "cargo build",
-    "cargo run",
-    "make",
-    "cmake",
-    "go build",
-    "go run",
-    "bundle install",
-    "gem install",
-]
-
-# Sensitive files where injected content is especially dangerous.
-SENSITIVE_WRITE_TARGETS = [
-    "package.json",
-    "Makefile",
-    "pyproject.toml",
-    "setup.py",
-    "Cargo.toml",
-    "Gemfile",
-    "build.gradle",
-    ".github/workflows/",
-    ".gitlab-ci.yml",
-    "Dockerfile",
-    "docker-compose.yml",
-    ".claude/",
-    ".cursorrules",
-    "CLAUDE.md",
-    "GEMINI.md",
-]
-
-
-def _content_hash(content: str) -> str:
-    return hashlib.sha256(content.encode("utf-8")).hexdigest()
-
-
-def _normalize_path(file_path: str) -> str:
-    """Normalize a path for comparison: expand ~ and resolve."""
-    expanded = os.path.expanduser(file_path)
-    return str(Path(expanded).resolve())
-
-
-def _is_protected_path(file_path: str) -> bool:
-    """Check if file_path matches any protected path."""
-    normalized = _normalize_path(file_path)
-    for protected in PROTECTED_PATHS:
-        protected_norm = _normalize_path(protected)
-        if normalized == protected_norm or file_path == protected:
-            return True
-    return False
-
-
-def _is_sensitive_target(file_path: str) -> bool:
-    """Check if file_path is a sensitive write target."""
-    normalized = file_path.replace("\\", "/")
-    for target in SENSITIVE_WRITE_TARGETS:
-        if target.endswith("/"):
-            # Directory prefix match
-            if target in normalized or normalized.endswith(target.rstrip("/")):
-                return True
-        else:
-            # Basename or suffix match
-            basename = normalized.rsplit("/", 1)[-1]
-            if basename == target:
-                return True
-    return False
-
-
-def _format_matches(matches: list[PatternMatch], source: str) -> str:
-    """Format pattern matches into a human-readable warning string."""
-    lines = []
-    for m in matches:
-        lines.append(
-            f"  [{m.severity.value.upper()}] {m.pattern_id}: {m.description} "
-            f"(line {m.line_number}, matched: {m.matched_text!r})"
-        )
-    header = f"CloneGuard detected suspicious patterns in {source}:"
-    return header + "\n" + "\n".join(lines)
+    return _engine_detect_mode_for_tier15(
+        source_path, content, hook_default, engine or _get_engine()
+    )
 
 
 # ---------------------------------------------------------------------------
-# Hook handlers
+# Audit emission helper -- lazy-imports Pydantic (Pitfall 6: never on hot path)
+# ---------------------------------------------------------------------------
+
+
+def _emit_audit_event(
+    data: dict[str, Any],
+    result: DetectionResult,
+    event_type_str: str,
+) -> None:
+    """Emit structured audit event. Lazy-imports Pydantic. Never raises (T-02-02)."""
+    try:
+        import hashlib
+
+        from cloneguard.audit.ndjson import NDJSONEmitter
+        from cloneguard.audit.types import AuditEvent, EventType, SignalDetails
+
+        # Map event type string
+        event_map = {
+            "InstructionsLoaded": EventType.HOOK_INVOKED,
+            "PreToolUse": EventType.HOOK_INVOKED,
+            "PostToolUse": EventType.HOOK_INVOKED,
+        }
+        et = event_map.get(event_type_str, EventType.HOOK_INVOKED)
+
+        # Build tool input hash (T-02-03: never raw content)
+        tool_input = data.get("tool_input", {})
+        tool_input_str = json.dumps(tool_input, sort_keys=True)
+        tool_input_hash = hashlib.sha256(tool_input_str.encode()).hexdigest()
+
+        # Build signals from DetectionResult
+        sig_data = SignalDetails(
+            summary=result.message[:200] if result.message else "",
+            primary_rule_id=result.primary_rule_id,
+            line_number=result.line_number,
+        )
+
+        from cloneguard import __version__
+
+        event = AuditEvent(
+            session_id=data.get("session_id", ""),
+            event_type=et,
+            tool_name=data.get("tool_name", event_type_str),
+            tool_input_hash=tool_input_hash,
+            verdict=result.verdict,
+            confidence=result.confidence,
+            signals=sig_data,
+            enforcement_action="ALLOW" if result.exit_code == 0 else "BLOCK",
+            cloneguard_version=__version__,
+            source_path=result.source_path,
+        )
+
+        emitter = NDJSONEmitter.from_env()
+        try:
+            emitter.emit(event)
+        finally:
+            emitter.close()
+    except Exception:
+        pass  # Audit failure must never block agent (T-02-02)
+
+
+# ---------------------------------------------------------------------------
+# Hook handlers -- thin shims delegating to DetectionEngine (D-02)
 # ---------------------------------------------------------------------------
 
 
 def handle_instructions_loaded(data: dict[str, Any]) -> int:
-    """Handle InstructionsLoaded hook.
+    """Handle InstructionsLoaded hook -- thin shim to DetectionEngine (D-02).
 
     Scans each instruction file with STRICT mode.
     Blocks (exit 2) if any CRITICAL/HIGH detection.
@@ -267,44 +195,61 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
         result = engine.scan(content, path, mode=ScanMode.STRICT)
 
         if result.verdict == Verdict.DETECTED:
-            # CRITICAL/HIGH — block
+            # CRITICAL/HIGH -- block
             reason = f"BLOCKED: Malicious patterns detected in {path}\n" + _format_matches(
                 result.matches, path
             )
             blocked_reasons.append(reason)
         elif result.verdict == Verdict.SUSPICIOUS:
-            # MEDIUM/LOW — warn but allow
+            # MEDIUM/LOW -- warn but allow
             warning = f"WARNING: Suspicious patterns detected in {path}\n" + _format_matches(
                 result.matches, path
             )
             warnings.append(warning)
             _session_trust[path] = content_sha
         else:
-            # Tier 0 clean — run Tier 1.5 semantic check (STRICT minimum for InstructionsLoaded)
-            mode = _detect_mode_for_tier15(path, content, ScanMode.STRICT)
-            t15_verdict, t15_reason = _classify_with_tier15(content, path, mode=mode)
+            # Tier 0 clean -- run Tier 1.5 semantic check (STRICT minimum)
+            mode = _detect_mode_for_tier15(path, content, ScanMode.STRICT, engine)
+            classifier = _get_mini_classifier()
+            t15_verdict, t15_reason = _classify_with_tier15(
+                content, path, mode, classifier
+            )
             if t15_verdict == "MALICIOUS":
                 blocked_reasons.append(
-                    f"BLOCKED: Semantic classifier flagged {path} — {t15_reason}"
+                    f"BLOCKED: Semantic classifier flagged {path} \u2014 {t15_reason}"
                 )
             elif t15_verdict == "SUSPICIOUS":
-                warnings.append(f"WARNING: Semantic classifier flagged {path} — {t15_reason}")
+                warnings.append(
+                    f"WARNING: Semantic classifier flagged {path} \u2014 {t15_reason}"
+                )
                 _session_trust[path] = content_sha
             else:
                 _session_trust[path] = content_sha
 
     if blocked_reasons:
-        print("\n".join(blocked_reasons))
+        msg = "\n".join(blocked_reasons)
+        print(msg)
+        _emit_audit_event(
+            data,
+            DetectionResult(verdict="detected", confidence=1.0, exit_code=2, message=msg),
+            "InstructionsLoaded",
+        )
         return 2
 
     if warnings:
-        print("\n".join(warnings))
+        msg = "\n".join(warnings)
+        print(msg)
+        _emit_audit_event(
+            data,
+            DetectionResult(verdict="suspicious", confidence=0.5, exit_code=0, message=msg),
+            "InstructionsLoaded",
+        )
 
     return 0
 
 
 def handle_pre_tool_use(data: dict[str, Any]) -> int:
-    """Handle PreToolUse hook.
+    """Handle PreToolUse hook -- thin shim to DetectionEngine (D-02).
 
     1. PROTECTION: Block writes to trust store and config paths (D3)
     2. CONTENT-AWARE WRITE SCANNING (D1): Scan content being written
@@ -318,6 +263,11 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                 f"To allowlist: cloneguard sequence-allow {verdict.rule_id} <domain-or-path>"
             )
             print(msg)
+            _emit_audit_event(
+                data,
+                DetectionResult(verdict="detected", confidence=1.0, exit_code=2, message=msg),
+                "PreToolUse",
+            )
             return 2
     except Exception:
         pass  # Monitor must never break the hook pipeline
@@ -331,6 +281,14 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
         if _is_protected_path(file_path):
             msg = f"BLOCKED: Write to protected path: {file_path}"
             print(msg)
+            _emit_audit_event(
+                data,
+                DetectionResult(
+                    verdict="detected", confidence=1.0, exit_code=2,
+                    message=msg, source_path=file_path,
+                ),
+                "PreToolUse",
+            )
             return 2
 
         # --- 2. Content-aware write scanning ---
@@ -349,6 +307,14 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                     + _format_matches(result.matches, file_path)
                 )
                 print(reason)
+                _emit_audit_event(
+                    data,
+                    DetectionResult(
+                        verdict="detected", confidence=1.0, exit_code=2,
+                        message=reason, source_path=file_path,
+                    ),
+                    "PreToolUse",
+                )
                 return 2
             elif result.verdict == Verdict.SUSPICIOUS:
                 warning = (
@@ -357,17 +323,22 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                 )
                 print(warning)
             else:
-                # Tier 0 clean — Tier 1.5 semantic check on sensitive write content
-                mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD)
-                t15_verdict, t15_reason = _classify_with_tier15(content, file_path, mode=mode)
+                # Tier 0 clean -- Tier 1.5 semantic check on sensitive write content
+                mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD, engine)
+                classifier = _get_mini_classifier()
+                t15_verdict, t15_reason = _classify_with_tier15(
+                    content, file_path, mode, classifier
+                )
                 if t15_verdict == "MALICIOUS":
                     print(
-                        f"BLOCKED: Semantic classifier flagged write to {file_path} — {t15_reason}"
+                        f"BLOCKED: Semantic classifier flagged write to"
+                        f" {file_path} \u2014 {t15_reason}"
                     )
                     return 2
                 elif t15_verdict == "SUSPICIOUS":
                     print(
-                        f"WARNING: Semantic classifier flagged write to {file_path} — {t15_reason}"
+                        f"WARNING: Semantic classifier flagged write to"
+                        f" {file_path} \u2014 {t15_reason}"
                     )
 
     # --- 3. Block allowlist manipulation via Bash ---
@@ -389,7 +360,6 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
                 return 2
 
         # TOCTOU: Scan the command string itself for injection patterns.
-        # The command from stdin JSON is exactly what will be executed.
         if command:
             engine = _get_engine()
             cmd_result = engine.scan(command, "<bash_command>")
@@ -413,7 +383,7 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
 
 
 def handle_post_tool_use(data: dict[str, Any]) -> int:
-    """Handle PostToolUse hook (wildcard matcher -- all tools, D2).
+    """Handle PostToolUse hook -- thin shim to DetectionEngine (D-02).
 
     Scans tool output for injection patterns.
     CRITICAL -> exit 2 (block/inject warning into context, D5)
@@ -449,9 +419,17 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
                 + _format_matches(result.matches, source_path)
             )
             print(reason)
+            _emit_audit_event(
+                data,
+                DetectionResult(
+                    verdict="detected", confidence=1.0, exit_code=2,
+                    message=reason, severity="critical", source_path=source_path,
+                ),
+                "PostToolUse",
+            )
             return 2
         else:
-            # HIGH — warn but allow
+            # HIGH -- warn but allow
             warning = (
                 f"WARNING: Suspicious patterns in tool output from {source_path}\n"
                 + _format_matches(result.matches, source_path)
@@ -466,13 +444,20 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
         print(warning)
         return 0
 
-    # Tier 0 clean — run Tier 1.5 semantic check on tool output
-    mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD)
-    t15_verdict, t15_reason = _classify_with_tier15(content, source_path, mode=mode)
+    # Tier 0 clean -- run Tier 1.5 semantic check on tool output
+    mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD, engine)
+    classifier = _get_mini_classifier()
+    t15_verdict, t15_reason = _classify_with_tier15(content, source_path, mode, classifier)
     if t15_verdict == "MALICIOUS":
-        print(f"WARNING: Semantic classifier flagged tool output from {source_path} — {t15_reason}")
+        print(
+            f"WARNING: Semantic classifier flagged tool output from"
+            f" {source_path} \u2014 {t15_reason}"
+        )
     elif t15_verdict == "SUSPICIOUS":
-        print(f"WARNING: Semantic classifier flagged tool output from {source_path} — {t15_reason}")
+        print(
+            f"WARNING: Semantic classifier flagged tool output from"
+            f" {source_path} \u2014 {t15_reason}"
+        )
 
     return 0
 
@@ -489,7 +474,7 @@ def main() -> None:
     elif hook_type == "PostToolUse":
         exit_code = handle_post_tool_use(data)
     else:
-        # Unknown hook type — pass through
+        # Unknown hook type -- pass through
         exit_code = 0
 
     sys.exit(exit_code)

@@ -1,9 +1,11 @@
-"""RepoScanner — orchestrates all scanners for a repository.
+"""RepoScanner — thin shim delegating to DetectionEngine for per-file scanning (D-03).
 
 Tier 1: PatternEngine (regex, <50ms) + SettingsScanner + EnvScanner + DevcontainerScanner
 Tier 2: SemanticClassifier (Ollama LLM, ~2s/file) — optional, for Layer 0 only
 
 Produces a structured ScanReport with per-file status (BLOCKED / WARNING / CLEAN).
+The multi-tier orchestration (file collection, prioritization, report construction)
+stays in RepoScanner since that's repo-scan-specific, not detection-engine logic.
 """
 
 from __future__ import annotations
@@ -13,9 +15,9 @@ from enum import Enum
 from pathlib import Path
 
 from cloneguard.allowlist import Allowlist
+from cloneguard.detection.patterns import PatternEngine, ScanMode, Severity
 from cloneguard.devcontainer_scanner import DevcontainerScanner, DevcontainerSeverity
 from cloneguard.env_scanner import EnvScanner, EnvSeverity
-from cloneguard.patterns import PatternEngine, ScanMode, Severity
 from cloneguard.settings_scanner import SettingsScanner, SettingsSeverity
 
 
