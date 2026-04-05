@@ -142,6 +142,12 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
         "--trust-cache", action="store_true", help="Set up trust cache directory"
     )
 
+    # cloneguard check-hooks
+    subparsers.add_parser(
+        "check-hooks",
+        help="Verify hook configuration integrity (CVE-2025-59536 defense, D-13)",
+    )
+
     # cloneguard hook-check --event <EventName>
     # Called by Claude Code hook configuration. Reads JSON from stdin,
     # dispatches to the appropriate hook handler in hooks.py.
@@ -503,7 +509,34 @@ def main(argv: list[str] | None = None) -> None:
         handle_init(scope=scope, trust_cache=args.trust_cache)
         return
 
+    if args.command == "check-hooks":
+        from cloneguard.integrity import check_hook_integrity
+
+        warnings = check_hook_integrity()
+        if warnings:
+            for w in warnings:
+                print(f"WARNING: {w}", file=sys.stderr)
+            sys.exit(1)
+        else:
+            print("Hook configuration OK.")
+        return
+
     if args.command == "hook-check":
+        # Lightweight startup integrity check (once per process, D-13)
+        if not os.environ.get("_CLONEGUARD_INTEGRITY_CHECKED"):
+            import logging as _logging
+
+            _logger = _logging.getLogger("cloneguard.integrity")
+            try:
+                from cloneguard.integrity import check_hook_integrity
+
+                integrity_warnings = check_hook_integrity()
+                for w in integrity_warnings:
+                    _logger.warning("Hook integrity: %s", w)
+            except Exception:
+                pass  # Never block hook execution on integrity check failure
+            os.environ["_CLONEGUARD_INTEGRITY_CHECKED"] = "1"
+
         from cloneguard.hooks import main as hooks_main
 
         hooks_main()
