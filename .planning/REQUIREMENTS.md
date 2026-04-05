@@ -141,10 +141,10 @@ Deferred to future release. Tracked but not in current roadmap.
 | AGNT-05 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 36 total
-- Mapped to phases: 36
+- v1 requirements: 37 total
+- Mapped to phases: 37
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-04-05*
-*Last updated: 2026-04-05 after initialization*
+*Last updated: 2026-04-05 after roadmap creation*
