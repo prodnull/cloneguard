@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Running `cloneguard --sarif` produces output that validates against the OASIS SARIF 2.1.0 schema and is consumable by GitHub Advanced Security
   4. Existing Claude Code hook integration (JSON stdin/stdout, exit 0/2) behaves identically to v0.5.0 via thin shims -- all 1,321 existing tests pass
   5. Hook config integrity self-check detects and rejects tampered configuration (CVE-2025-59536 class defense)
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: TBD
-- [ ] 01-02: TBD
-- [ ] 01-03: TBD
+- [ ] 01-01-PLAN.md -- Extract detection engine into cloneguard.detection package with typed Protocol interfaces
+- [ ] 01-02-PLAN.md -- Create NDJSON audit layer and convert hooks.py/scanner.py to thin shims
+- [ ] 01-03-PLAN.md -- Implement SARIF 2.1.0 emitter, fix packaging, add hook config integrity check
 
 ### Phase 2: Adaptive Enforcement
 **Goal**: Operators can configure three-verdict outcomes with YAML policy and optionally constrain tool calls via OS-level sandbox adapters, with dry-run as the safe default
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/3 | Not started | - |
+| 1. Foundation | 0/3 | Planned | - |
 | 2. Adaptive Enforcement | 0/3 | Not started | - |
 | 3. Framework Integration | 0/2 | Not started | - |
 | 4. Detection Excellence | 0/2 | Not started | - |
