@@ -1,273 +1,243 @@
 # Stack Research
 
-**Domain:** Adversarial-resilient ONNX ensemble text classifier (prompt injection detection)
-**Researched:** 2026-03-10
-**Confidence:** MEDIUM-HIGH (ONNX export path has one known gotcha requiring verification; all other claims verified)
+**Domain:** Universal agentic defense layer -- sandbox orchestration, policy evaluation, multi-format compliance output, multi-agent-type input adapters
+**Researched:** 2026-04-05
+**Confidence:** MEDIUM-HIGH (versions verified via PyPI; some libraries are young or alpha-quality)
 
----
+## Competitive Context
 
-## Context: What Already Exists (Do Not Re-add)
+Microsoft released the Agent Governance Toolkit (AGT) on 2026-04-02 -- three days before this research. AGT is a seven-package MIT-licensed toolkit covering all 10 OWASP Agentic Top 10 risks with sub-millisecond policy enforcement. AWS Bedrock AgentCore Policy (Cedar-based) went GA on 2026-03-03 across 13 regions. These are the two 800-pound gorillas. CloneGuard's differentiation is: (a) on-device / no-cloud, (b) pre-agent position (L0), (c) pattern+semantic+behavioral fusion, (d) honest published bypass rates. AGT operates in-process middleware; CloneGuard operates as an external trust boundary the agent cannot compromise.
 
-| Component | Version | Status |
-|-----------|---------|--------|
-| `onnxruntime` | latest | Inference runtime — keep as-is |
-| `transformers` | latest | Tokenizer pipeline — keep as-is |
-| MiniLM-L6-v2 ONNX | v3 | 87MB, WordPiece, ~16ms/sample — primary classifier |
-| Python | 3.11+ | Fixed |
-| `uv` | latest | Packaging — fixed |
+## Recommended Stack
 
----
+### Core Technologies (Retained from v0.5.0)
 
-## New Stack Components for v0.3.0
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| Python | 3.11+ (3.11, 3.12, 3.13, 3.14) | Runtime | Existing codebase, ecosystem coverage, async support. No reason to change. | HIGH |
+| PyYAML | >=6.0.2 | YAML rule + policy parsing | Already in use. Fast, C-backed, battle-tested. | HIGH |
+| ONNX Runtime | >=1.17 | MiniLM inference | Already in use. CPU inference, no GPU dependency. Keep. | HIGH |
+| Pydantic | >=2.12.5 | Schema validation, event models | Already a transitive dep (via MCP SDK). Promote to direct dependency for all internal event/policy schemas. v2's Rust core gives sub-ms validation. | HIGH |
+| hatchling | (build) | Build backend | Already in use. Keep. | HIGH |
 
-### 1. Second Classifier Architecture: DeBERTa-v3-small
+### Sandbox Adapters
 
-**Recommendation:** `microsoft/deberta-v3-small`
+CloneGuard orchestrates existing sandboxes via adapters -- it does NOT build a sandbox. Each adapter wraps a platform-native mechanism via `subprocess` or `ctypes`. The adapter interface is a Python ABC with `restrict()`, `is_available()`, and `describe_constraints()` methods.
 
-**Why DeBERTa-v3-small over all alternatives:**
+| Technology | Version / Kernel | Purpose | Why Recommended | Confidence |
+|------------|-----------------|---------|-----------------|------------|
+| Landlock (via ctypes) | Linux kernel >=5.13 (ABI v5) | Linux filesystem+network restriction | Unprivileged, per-process, kernel-enforced. Claude Code's Codex sandbox uses Landlock+seccomp. Write thin ctypes wrapper (~200 LOC) against `landlock_create_ruleset`, `landlock_add_rule`, `landlock_restrict_self` syscalls. Do NOT use `py-landlock` (0.1.1) or `landlock` (1.0.0.dev5) -- both are alpha-quality with no maintainer track record. Direct syscall via ctypes is safer and removes a supply-chain dep. | MEDIUM-HIGH |
+| Bubblewrap (bwrap) | >=0.8.0 | Linux namespace isolation | Claude Code's Linux sandbox. Subprocess wrapper around `/usr/bin/bwrap`. Stronger than Landlock for full filesystem/network/PID isolation. Use for high-isolation mode. No Python library needed -- invoke via `subprocess.run()`. | HIGH |
+| Seatbelt (sandbox-exec) | macOS (deprecated but functional) | macOS filesystem+network restriction | Apple's kernel-level sandboxing. Invoked via `subprocess.run(['sandbox-exec', '-f', profile, ...])`. Profile files use Scheme-like syntax. Apple deprecated the CLI but still uses the underlying mechanism for App Store apps. Functional on all current macOS versions. | MEDIUM |
+| gVisor (runsc) | >=release-20250310 | Container-level syscall interception | Google-maintained, Go-based application kernel. Intercepts all syscalls in userspace. 10-20% overhead for I/O-heavy workloads, negligible for CPU-bound. Invoked via Docker/containerd with `--runtime=runsc`. For enterprise/CI deployments. | MEDIUM |
+| Firecracker | >=1.10 | MicroVM hardware isolation | AWS-maintained, KVM-based. 125ms boot, <5 MiB overhead. REST API on Unix socket. Use `firecracker-python` SDK or direct HTTP via `httpx`. For maximum isolation in cloud/CI deployments. | LOW (enterprise-only) |
+| Wasmtime | >=43.0.0 (PyPI: `wasmtime`) | WASM sandbox for tool execution | Bytecode Alliance, standards-track. No ambient authority by default. Sub-10ms cold start. Useful for sandboxing individual tool outputs or UDF execution. AI tooling ecosystem is still maturing. | LOW (future/experimental) |
+| NoopAdapter | -- | Passthrough | Preserves current v0.5.0 exit-code behavior. Default adapter. | HIGH |
 
-DeBERTa-v3-small is the correct choice and the recommendation is not close. The rationale operates on three independent axes:
+**Decision: Direct ctypes/subprocess, not wrapper libraries.** The Python Landlock/Bubblewrap wrapper libraries are immature. The syscall interfaces are stable (kernel ABI). Writing 100-300 LOC of ctypes/subprocess code is lower risk than depending on alpha-quality PyPI packages with unknown maintainers.
 
-**Axis 1 — Architectural dissimilarity from MiniLM-L6-v2**
+### Policy Engine
 
-MiniLM-L6-v2 is a BERT-family distillation using WordPiece tokenization and standard bidirectional attention. DeBERTa-v3-small differs on every architectural dimension that matters for adversarial transfer:
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| YAML policy (built-in) | -- | Default policy format | Already used for pattern rules. Extend to policy definitions. No additional dependency. Evaluated by Python dict matching. | HIGH |
+| regopy | >=1.3.0 | OPA Rego evaluation (in-process) | Microsoft-maintained C++ Rego runtime with Python bindings via C FFI. In-process -- no OPA server needed. Supports Rego v1 syntax. Enterprise customers using OPA can bring their existing policies. | MEDIUM-HIGH |
+| cedarpy | >=4.8.0 | Cedar policy evaluation | Rust-backed Python bindings for Cedar Policy v4. AWS AgentCore Policy uses Cedar -- customers on AWS will have Cedar policies. Supports `is_authorized()` and batch authorization. Third-party maintained (k9security) but version-tracks Cedar engine. | MEDIUM |
 
-| Dimension | MiniLM-L6-v2 | DeBERTa-v3-small |
-|-----------|-------------|------------------|
-| Tokenizer | WordPiece (BERT-style) | SentencePiece Unigram |
-| Attention | Standard self-attention (absolute position) | Disentangled attention (content + position separate) |
-| Pre-training objective | MLM distillation | ELECTRA-style Replaced Token Detection (RTD) |
-| Position encoding | Absolute positional embeddings | Relative positional encodings |
-| Embedding sharing | N/A | Gradient-Disentangled Embedding Sharing (GDES) |
-| Parameters | ~22M | ~44M |
+**Decision: YAML as default, OPA/Cedar as optional extras.** The `[policy-opa]` and `[policy-cedar]` extras pattern keeps core lightweight while meeting enterprises where they are. YAML covers 80%+ of use cases. OPA and Cedar are for enterprises with existing policy infrastructure.
 
-The tokenizer difference alone is decisive for adversarial robustness. The TokenBreak paper (arxiv:2506.07948) measures WordPiece models at 55.62% mean adversarial success rate against token-prepend attacks, while SentencePiece/Unigram models (DeBERTa-v2 family) show 0% success rate on the same attack. Mixing tokenizer families is the most concrete cross-architecture protection available in the text classification domain.
+**What NOT to use:**
+- `opa-python-client`: Requires a running OPA server. CloneGuard is on-device with no external service dependencies.
+- `regorus` (Rust-based Rego): Less mature Python bindings than regopy. regopy has Microsoft backing.
+- Custom DSL: Do not invent a policy language. The world has OPA and Cedar; use them.
 
-**Axis 2 — Demonstrated fitness for the exact task**
+### Structured Output (Audit / Compliance)
 
-ProtectAI ships `protectai/deberta-v3-small-prompt-injection-v2` as a production ONNX model for prompt injection detection. It achieves 94.28% accuracy, 99.71% recall, and 90% precision on 20,000 held-out samples from 22 training datasets. The ONNX subfolder ships with the model checkpoint and loads via `ORTModelForSequenceClassification`. This is proof-of-viability, not theory.
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| Pydantic v2 models | >=2.12.5 | Internal event schema | All audit events are Pydantic models. Serialize to any format. Type-safe, validated, documented via JSON Schema export. | HIGH |
+| NDJSON (stdlib `json`) | -- | Streaming audit log | One JSON object per line. Use stdlib `json.dumps()` -- no library needed. jsonlines (4.0.0) adds convenience but is an unnecessary dependency for write-only use. | HIGH |
+| sarif-pydantic | >=0.6.2 | SARIF 2.1.0 output | Pydantic v2 models for SARIF 2.1.0. Better than sarif-om (1.0.4, unmaintained, pbr dependency). sarif-pydantic is type-safe and integrates with our Pydantic-first approach. | MEDIUM-HIGH |
+| opentelemetry-api | >=1.40.0 | OTel trace/span API | Stable, CNCF-graduated project. API package is zero-dependency. Allows consumers to wire up their own exporters. | HIGH |
+| opentelemetry-sdk | >=1.40.0 | OTel SDK (optional) | Full SDK with span processors and exporters. Make this an optional extra `[otel]` -- not everyone needs full OTel. The API alone lets us emit spans that consumers collect. | HIGH |
 
-**Axis 3 — Accuracy/size tradeoff for the latency budget**
+**Decision: Pydantic models as the canonical internal representation.** NDJSON, SARIF, and OTel are serialization targets, not internal formats. A single Pydantic event model serializes to all three. This avoids maintaining three parallel schemas.
 
-DeBERTa-v3-small (~44M params, ~176MB FP32 ONNX) fits the ~70-120ms ensemble latency budget. The full DeBERTa-v3-base (~86M params) would double latency unnecessarily. DeBERTa-v3-xsmall (~22M params) exists but has less published fine-tuning precedent for classification. The -small tier is the sweet spot.
+**What NOT to use:**
+- `sarif-om` (1.0.4): Unmaintained, uses pbr build system, no type hints. Use sarif-pydantic instead.
+- `jsonlines` (4.0.0): Unnecessary for write-only NDJSON. stdlib `json` + `\n` is sufficient.
+- Custom logging framework: Use structlog or stdlib logging for operational logs. Audit events are structured data, not log lines.
 
-**Architectural dissimilarity justification (Papernot/Tramer transferability theory):**
-White-box adversarial examples exploit model-specific gradients. Cross-architecture transfer rate is inversely correlated with:
-1. Embedding space difference (WordPiece vs SentencePiece Unigram = different vocabulary, different tokenization, different input representation)
-2. Attention mechanism difference (absolute vs disentangled relative attention)
-3. Training objective difference (MLM distillation vs RTD)
+### Input Adapters (Agent Framework Integration)
 
-All three factors maximize transfer penalty when using DeBERTa-v3-small as the ensemble partner.
+Each adapter translates a specific agent framework's hook/callback/middleware protocol into CloneGuard's internal event schema.
 
----
+| Framework | Integration Point | Adapter Strategy | Confidence |
+|-----------|-------------------|------------------|------------|
+| Claude Code | JSON stdin/stdout hooks (3 events) | **Existing.** Already implemented in v0.5.0. | HIGH |
+| Gemini CLI | JSON hooks (11 events, compatible) | `gemini hooks migrate --from-claude` works. Thin translation layer. | HIGH |
+| Cursor | JSON hooks (19+ events) | Similar protocol to Claude Code. `failClosed`, `prompt` type hooks. | MEDIUM-HIGH |
+| VS Code Copilot | JSON hooks (8 events, preview) | Preview in v1.109+. Track for GA. | LOW |
+| LangChain | `AgentMiddleware.awrap_tool_call` callback | Implement as LangChain middleware. Uses handler callback pattern for pre/post tool call interception. | MEDIUM |
+| CrewAI | `BaseInterceptor` + before/after LLM call hooks | Implement as CrewAI interceptor plugin. Pydantic-validated. | MEDIUM |
+| Microsoft Agent Framework | `ToolCallInterceptor` plugin interface | Implement as AGT plugin. AGT's `agent-governance-toolkit` (3.0.1) exposes this interface. Consider compatibility/coopetition. | MEDIUM |
+| Google ADK | Plugin callback hooks (lifecycle stages) | Implement as ADK Plugin subclass. Hooks at every agent lifecycle stage. | MEDIUM |
+| OpenAI Agents SDK | Guardrails (input/output validation) | Implement as guardrail. Runs in parallel with agent execution. | MEDIUM |
+| MCP Protocol | Interceptor middleware on MCP server | Use `mcp` SDK (1.26.0). MCP interceptors modify requests, implement retries, short-circuit. CloneGuard as MCP middleware/proxy. | MEDIUM-HIGH |
 
-### 2. What NOT to Use as Second Architecture
+**Decision: Adapter per framework, not universal shim.** Each framework has its own interception semantics. A universal shim would be lowest-common-denominator. Per-framework adapters let us use the full power of each framework's interception capabilities.
 
-| Architecture | Why Not |
-|--------------|---------|
-| **DistilBERT** | WordPiece tokenizer (same as MiniLM). BERT-family distillation. Minimal architectural dissimilarity. Adversarial examples transfer at high rate. Provides near-zero ensemble benefit against white-box attacks targeting MiniLM. |
-| **ModernBERT-base** | ONNX export was broken (transformers issue #35545, closed Feb 2026). Export requires `reference_compile=False` workaround and remains fragile. Additionally: uses BPE tokenization (not SentencePiece Unigram), and a Jan 2026 controlled study (arxiv:2504.08716) found ModernBERT fails to surpass older encoder baselines on classification — DeBERTa-v3 wins on accuracy and sample efficiency. More risk, less payoff than DeBERTa-v3-small. |
-| **BERT-base-uncased** | WordPiece. Same family as MiniLM. No disentangled attention. Architecturally too similar. |
-| **RoBERTa-base** | BPE tokenizer (different from WordPiece, but still left-to-right subword; TokenBreak shows moderate vulnerability unlike Unigram's 0%). No disentangled attention. Less dissimilar from MiniLM than DeBERTa-v3. |
+**Priority order:** Claude Code (done) > Gemini CLI (near-free) > MCP (protocol-level) > Cursor > LangChain > Google ADK > CrewAI > MS Agent Framework > OpenAI Agents > VS Code Copilot (wait for GA).
 
----
+### MELON Integration
 
-### 3. Adversarial Example Generation: TextAttack
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| MELON (custom impl) | Based on arXiv:2502.05174 | Provable IPI detection via masked re-execution | ICML 2025 paper. >99% attack prevention on AgentDojo. Training-free. The reference implementation (github.com/kaijiezhu11/MELON) is research code, not production-ready. Implement the core algorithm (masked prompt re-execution + tool call comparison) as a CloneGuard module using existing ONNX/Ollama infrastructure. Selective triggering in 0.4-0.6 confidence zone limits overhead to ~5-10% of calls. | MEDIUM |
 
-**Recommendation:** `textattack==0.3.10`
+**Decision: Reimplement MELON core, don't depend on research code.** The algorithm is well-defined in the paper. The reference repo is research-quality Python. CloneGuard needs a production implementation that integrates with our existing confidence scoring and three-verdict model.
 
-**Why TextAttack:**
-- Single framework covering all needed attack recipes (TextFooler, BERTAttack, PWWS, A2T)
-- Built-in CSV logging of adversarial examples — output format is directly importable as dataset augmentation
-- Black-box mode: attacks work by querying the model's output probabilities, no gradient access required
-- Supports custom dataset loading from CSV with `(text, label)` columns — matches our 6,340-sample format
-- TextFooler and BERTAttack are the two most commonly used word-substitution attacks in NLP robustness evaluation literature
+### Testing & Quality (Retained + Added)
 
-**Attack recipes to use for the transferability experiment:**
-
-| Recipe | Class | Attack Type | Use For |
-|--------|-------|-------------|---------|
-| `BERTAttackLi2020` | Word substitution via masked LM | Black-box | Primary: generates semantically coherent adversarial examples. Highest semantic quality. |
-| `TextFoolerJin2019` | Word substitution via embedding similarity | Black-box | Secondary: simpler perturbation model, widely cited baseline |
-| `PWWSRen2019` | Weighted word substitution | Black-box | Tertiary: saliency-weighted variant |
-
-**Transferability experiment protocol:**
-
-1. Generate adversarial examples against MiniLM classifier using BERTAttack + TextFooler
-2. Run generated examples through DeBERTa-v3-small (without retraining)
-3. Measure recall drop on MiniLM-targeted examples
-4. If DeBERTa-v3-small maintains recall >= 70% on MiniLM-targeted examples, the ensemble hypothesis is confirmed
-
-**TextAttack version status:** Current version is 0.3.10 (PyPI). Maintenance status is low but stable — no breaking changes in recent history. The framework is research tooling for training/evaluation, not a runtime dependency. Install in dev/train environment only.
-
-**Custom model integration:**
-
-TextAttack requires a `ModelWrapper` that exposes `__call__(text_list) -> probabilities`. For the transferability experiment, wrap the ONNX inference pipeline:
-
-```python
-import textattack
-import numpy as np
-
-class ONNXModelWrapper(textattack.models.wrappers.ModelWrapper):
-    def __init__(self, ort_session, tokenizer):
-        self.session = ort_session
-        self.tokenizer = tokenizer
-
-    def __call__(self, text_list):
-        results = []
-        for text in text_list:
-            inputs = self.tokenizer(text, return_tensors="np", max_length=512, truncation=True, padding="max_length")
-            logits = self.session.run(None, dict(inputs))[0]
-            probs = softmax(logits, axis=-1)
-            results.append(probs[0])
-        return np.array(results)
-```
-
----
-
-### 4. ONNX Export for DeBERTa-v3-small
-
-**Method:** `optimum` via `ORTModelForSequenceClassification` with `export=True` — NOT `optimum-cli`.
-
-**Why not `optimum-cli`:** Issue #2075 (huggingface/optimum, Oct 2024, unresolved) documents that `optimum-cli export onnx` for DeBERTa-v3 produces TracerWarnings and exports a model that "always predicts the same label." The issue was reported with zero comments and no fix as of the research date.
-
-**Working path (used by ProtectAI's production ONNX model):**
-
-```python
-from optimum.onnxruntime import ORTModelForSequenceClassification
-from transformers import AutoTokenizer
-
-# Fine-tune DeBERTa-v3-small first (PyTorch)
-# Then export via export=True at load time, OR use the subfolder pattern:
-
-# Export during conversion:
-model = ORTModelForSequenceClassification.from_pretrained(
-    "path/to/finetuned-deberta-v3-small",
-    export=True,
-    provider="CPUExecutionProvider"
-)
-model.save_pretrained("path/to/deberta-v3-small-onnx")
-
-# Load for inference (no PyTorch dependency):
-tokenizer = AutoTokenizer.from_pretrained(
-    "path/to/deberta-v3-small-onnx",
-    use_fast=False  # REQUIRED: DeBERTa-v3 tokenizer requires use_fast=False
-)
-model = ORTModelForSequenceClassification.from_pretrained(
-    "path/to/deberta-v3-small-onnx",
-    export=False
-)
-```
-
-**Critical gotcha — `token_type_ids` in pipeline mode:**
-
-If using HuggingFace `pipeline()` with the exported model, the pipeline preprocessor sends `token_type_ids` which DeBERTa-v3 ONNX does not accept as a named input. Error: `Invalid Feed Input Name: token_type_ids`. Issue #968 (huggingface/optimum) was closed as "not planned" June 2025 — no fix in the library.
-
-**Fix:** Do NOT use `pipeline()`. Call the tokenizer and model directly, passing only `input_ids` and `attention_mask`:
-
-```python
-inputs = tokenizer(text, return_tensors="np", max_length=512, truncation=True,
-                   padding="max_length", return_token_type_ids=False)
-logits = model(**inputs).logits
-```
-
-**Critical gotcha — `use_fast=False` on tokenizer:**
-
-DeBERTa-v3's SentencePiece tokenizer requires `use_fast=False` at load time. The fast Rust tokenizer implementation does not reliably handle the SentencePiece vocabulary for this model family. ProtectAI's production model card explicitly requires this. Failure mode: tokenizer loads but produces incorrect token IDs silently.
-
-**Critical gotcha — file size:**
-
-DeBERTa-v3-small ONNX in FP32 is approximately 176MB. The mixed-precision training means `from_pretrained` loads as FP32 by default, which can cause the ONNX export to reach 350MB+ if loading incorrectly. To prevent size bloat, load the PyTorch base in FP16 before export: `from_pretrained(..., torch_dtype=torch.float16)` then export. The ORTModel export path handles this correctly when using Optimum's `export=True` flag.
-
-**Quantization path (recommended for latency):**
-
-Apply INT8 dynamic quantization post-export to reduce inference latency. The ProtectAI base-variant ONNX model (without quantization) is operational but larger. Dynamic INT8 quantization via `onnxruntime.quantization.quantize_dynamic` is the standard approach and has no accuracy impact for classification at this scale.
-
----
-
-### 5. Training Tooling (Train Environment Only)
-
-| Library | Version | Purpose | Notes |
-|---------|---------|---------|-------|
-| `torch` | >=2.2.0 | Fine-tune DeBERTa-v3-small | CPU sufficient for 6,340 samples. NOT a runtime dep. |
-| `transformers` | >=4.48.0 | DeBERTa model + trainer | Already present. Minimum version for ModernBERT ONNX if needed later. |
-| `optimum[onnxruntime]` | >=1.24.0 | ONNX export via ORTModel | v1.24.0 added ModernBERT support; contains DeBERTa ONNX export path. |
-| `datasets` | >=2.0.0 | Load/split 6,340-sample CSV | Standard HF datasets. |
-| `textattack` | 0.3.10 | Transferability experiment | Dev/research use only. Not a runtime dep. |
-| `scikit-learn` | >=1.3.0 | Evaluation metrics, CV | Already likely present. |
-
-**Installation (train/eval environment):**
-
-```bash
-uv pip install "optimum[onnxruntime]>=1.24.0" textattack==0.3.10 datasets torch
-```
-
-**Runtime-only additions (no new deps):**
-
-The ensemble adds zero new runtime dependencies. Inference for both classifiers runs through the existing `onnxruntime` + `transformers` tokenizer pipeline.
-
----
-
-## Ensemble Architecture Integration
-
-The second classifier integrates with the existing pipeline as a parallel vote — both run on every input:
-
-```
-Input text
-    │
-    ├─► Tier 1.5a: MiniLM-L6-v2 ONNX (WordPiece, ~16ms)
-    │       └─► score_a
-    │
-    └─► Tier 1.5b: DeBERTa-v3-small ONNX (SentencePiece, ~25-40ms INT8)
-            └─► score_b
-                        │
-                        ▼
-              Union vote: BLOCK if either score > threshold
-              (Configurable to AND for lower FPR, OR for higher recall)
-```
-
-Total estimated latency: ~40-60ms INT8, ~50-80ms FP32, both within the 120ms budget.
-
----
+| Technology | Version | Purpose | Why Recommended | Confidence |
+|------------|---------|---------|-----------------|------------|
+| pytest | >=8.0 | Test runner | Already in use. | HIGH |
+| pytest-cov | >=6.0 | Coverage | Already in use. | HIGH |
+| ruff | >=0.8 | Lint + format | Already in use. | HIGH |
+| mypy | >=1.13 | Type checking (strict) | Already in use. | HIGH |
+| hypothesis | >=6.100 | Property-based testing for policy engine | Fuzz policy evaluation with random inputs. Critical for catching edge cases in YAML/Rego/Cedar policy parsing. | HIGH |
 
 ## Alternatives Considered
 
-| Recommended | Alternative | Why Not |
-|-------------|-------------|---------|
-| DeBERTa-v3-small | ModernBERT-base | ONNX export fragile (issue #35545 closed Feb 2026). BPE not Unigram. Lower accuracy on classification tasks (arxiv:2504.08716). Higher risk, less payoff. |
-| DeBERTa-v3-small | RoBERTa-base | BPE tokenizer — TokenBreak shows moderate vulnerability vs Unigram's 0%. Less architecturally different from MiniLM family. No disentangled attention. |
-| DeBERTa-v3-small | DistilBERT | WordPiece = same as MiniLM. Maximum architectural similarity = minimum ensemble benefit. |
-| DeBERTa-v3-small | DeBERTa-v3-base | 2x parameters, 2x latency. Marginal accuracy gain for a 6,340-sample dataset unlikely to justify it. |
-| TextAttack 0.3.10 | OpenAttack 2.1.1 | Less community adoption, less maintained. Older BERT-Attack integration. TextAttack has better HuggingFace ecosystem integration and CSV output handling. |
-| optimum ORTModel export=True | optimum-cli export | CLI path has confirmed "always same label" bug for DeBERTa-v3 (issue #2075, unresolved Oct 2024). ORTModel programmatic path is what ProtectAI uses in production. |
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| ctypes Landlock wrapper | `py-landlock` (0.1.1) | Never. Alpha-quality, unknown maintainer, supply-chain risk for a security tool. |
+| ctypes Landlock wrapper | `landlock` (1.0.0.dev5) | Never. Dev release, pre-release only. |
+| regopy (in-process Rego) | `opa-python-client` (REST) | If org already runs OPA server and wants centralized policy management. CloneGuard's on-device constraint rules this out for core. |
+| cedarpy (Rust bindings) | AWS AVP API | If org uses AWS Verified Permissions service. Cloud-dependent, violates on-device constraint. |
+| sarif-pydantic | sarif-om (1.0.4) | Never. Unmaintained, no type hints, pbr dependency. |
+| Pydantic v2 event models | dataclasses | If removing Pydantic dependency. But Pydantic is already transitive via MCP SDK -- pay zero marginal cost. |
+| subprocess bwrap | Docker SDK | When target environment already has Docker. Heavier, but more portable. |
+| MELON reimplementation | MELON reference repo | Never for production. Research code without error handling, tests, or production patterns. |
 
----
+## What NOT to Use
 
-## Version Compatibility
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| `py-landlock` / `landlock` (PyPI) | Alpha-quality packages for a security-critical syscall interface. Supply-chain risk. | Direct ctypes syscall wrapper (~200 LOC) |
+| `sarif-om` | Unmaintained since 2022, pbr build dep, no Pydantic/type support | sarif-pydantic (0.6.2) |
+| `opa-python-client` | Requires running OPA server; violates on-device constraint | regopy (1.3.0, in-process) |
+| `jsonlines` | Unnecessary dep for write-only NDJSON; stdlib json suffices | `json.dumps()` + `"\n"` |
+| Custom policy DSL | NIH syndrome; OPA and Cedar are industry standards with tooling | YAML (default) + regopy + cedarpy |
+| `agent-governance-toolkit` as dep | CloneGuard IS the defense layer. Do not depend on a competitor. Build adapters FOR their ToolCallInterceptor interface instead. | Implement CloneGuard as an AGT plugin |
+| Firejail | Deprecated upstream, SUID-root attack surface, replaced by bwrap+Landlock | Bubblewrap or Landlock |
+| seccomp-bpf (direct) | Complex BPF programs, high risk of DoS or escape if filters are wrong | Landlock (simpler API, designed for unprivileged use) |
+| AppArmor / SELinux (direct) | Requires root, system-wide configuration, not per-process by unprivileged user | Landlock (unprivileged) or Bubblewrap (user namespaces) |
 
-| Package | Compatible With | Notes |
-|---------|-----------------|-------|
-| `optimum>=1.24.0` | `transformers>=4.48.0`, `onnxruntime>=1.16.0` | v1.24.0 = ModernBERT ONNX support added; v2.0+ moved ONNX to `optimum-onnx` sub-package |
-| `textattack==0.3.10` | `transformers>=4.0.0`, `torch>=1.8.0` | Requires torch in train env; not runtime |
-| DeBERTa-v3-small tokenizer | `use_fast=False` only | Fast tokenizer fails silently on SentencePiece vocab |
-| ONNX export | `export=True` flag in ORTModel | NOT `optimum-cli` — see gotcha above |
+## Stack Patterns by Deployment Target
 
----
+**If on-device CLI (default, open-source):**
+- NoopAdapter (backward compat) or LandlockAdapter/SeatbeltAdapter
+- YAML policy (built-in)
+- NDJSON audit output
+- No external dependencies beyond PyYAML + Pydantic
+
+**If CI/CD pipeline (GitHub Actions, containers):**
+- BubblewrapAdapter or gVisorAdapter
+- YAML policy
+- SARIF output (GitHub Code Scanning integration)
+- NDJSON for pipeline logs
+
+**If enterprise deployment (proprietary tier):**
+- Full adapter suite including Firecracker
+- OPA/Cedar policy backends
+- SARIF + OTel + NDJSON simultaneous output
+- LangChain/CrewAI/ADK/AGT framework adapters
+- Fleet management, SIEM integration
+
+**If MCP ecosystem:**
+- MCP interceptor middleware
+- CloneGuard as MCP proxy between client and server
+- NDJSON audit to MCP-aware consumers
+
+## Version Compatibility Matrix
+
+| Package A | Compatible With | Notes |
+|-----------|-----------------|-------|
+| Python 3.11+ | All packages listed | 3.14 verified in current venv |
+| Pydantic >=2.12.5 | sarif-pydantic >=0.6.2 | Both use Pydantic v2 |
+| Pydantic >=2.12.5 | mcp >=1.26.0 | MCP SDK depends on Pydantic v2 |
+| opentelemetry-sdk 1.40.0 | opentelemetry-api 1.40.0 | Must match versions |
+| regopy 1.3.0 | Python 3.6+ (claimed), tested 3.11+ | C FFI, platform-specific wheels |
+| cedarpy 4.8.0 | Cedar engine 4.8.x | Version tracks Cedar engine major.minor |
+| wasmtime 43.0.0 | Python 3.8+ | Bytecode Alliance maintained |
+
+## Installation
+
+```bash
+# Core (open-source, detection + basic adapters)
+uv pip install pyyaml pydantic
+
+# Semantic detection (existing)
+uv pip install onnxruntime transformers numpy
+
+# Policy backends (optional extras)
+uv pip install regopy    # [policy-opa]
+uv pip install cedarpy   # [policy-cedar]
+
+# Structured output (optional extras)
+uv pip install sarif-pydantic                   # [sarif]
+uv pip install opentelemetry-api opentelemetry-sdk  # [otel]
+
+# All optional
+uv pip install cloneguard[all]
+
+# Dev dependencies
+uv pip install pytest pytest-cov ruff mypy hypothesis types-PyYAML
+```
+
+## Dependency Budget
+
+CloneGuard's security credibility depends on a minimal dependency surface. Every dependency is an attack surface.
+
+| Category | Direct Deps (new) | Rationale |
+|----------|-------------------|-----------|
+| Core | +1 (pydantic, promoted from transitive) | Already in dependency tree via MCP |
+| Policy | +0 to +2 (regopy, cedarpy) | Optional extras only |
+| Output | +0 to +2 (sarif-pydantic, opentelemetry) | Optional extras only |
+| Sandbox | +0 | All via ctypes/subprocess -- no PyPI deps |
+| Adapters | +0 | Adapters use framework's own SDK (user's dep, not ours) |
+
+**Total new required dependencies: 1 (Pydantic promotion)**
+**Total new optional dependencies: up to 4**
+
+This is an extremely conservative dependency budget for a security tool.
 
 ## Sources
 
-- [arxiv:2506.07948 — TokenBreak: Bypassing Text Classification Models Through Token Manipulation](https://arxiv.org/html/2506.07948v1) — HIGH confidence: peer-reviewed, 0% Unigram vs 55.62% WordPiece attack success. Directly confirms tokenizer dissimilarity rationale.
-- [arxiv:2504.08716 — ModernBERT or DeBERTaV3? Examining Architecture and Data Influence](https://arxiv.org/html/2504.08716v1) — HIGH confidence: controlled study Jan 2026. DeBERTa-v3 superior on classification tasks.
-- [ProtectAI deberta-v3-small-prompt-injection-v2 HuggingFace](https://huggingface.co/protectai/deberta-v3-small-prompt-injection-v2) — HIGH confidence: production ONNX model for identical task. F1=94.62%, ONNX subfolder confirmed.
-- [huggingface/optimum issue #2075 — Problem converting DeBERTaV3 to ONNX using optimum-cli](https://github.com/huggingface/optimum/issues/2075) — HIGH confidence: confirms CLI export bug for DeBERTa-v3.
-- [huggingface/optimum issue #968 — Deberta ONNX pipeline issue](https://github.com/huggingface/optimum/issues/968) — HIGH confidence: `token_type_ids` bug confirmed, closed "not planned" June 2025.
-- [huggingface/optimum issue #2177 — Add ONNX export optimization support for ModernBERT](https://github.com/huggingface/optimum/issues/2177) — HIGH confidence: closed March 2025, ModernBERT support merged in optimum v1.24.0.
-- [huggingface/transformers issue #35545 — ModernBERT ONNX export error](https://github.com/huggingface/transformers/issues/35545) — MEDIUM confidence: issue closed Feb 2026 as resolved, but exact version not stated. Export fragility documented.
-- [TextAttack GitHub — QData/TextAttack](https://github.com/QData/TextAttack) — MEDIUM confidence: v0.3.10 current on PyPI, maintenance low but stable.
-- [ProtectAI deberta-v3-base-injection-onnx HuggingFace](https://huggingface.co/protectai/deberta-v3-base-injection-onnx) — MEDIUM confidence: base variant ONNX pattern, validates ORTModel export path.
-- [DeBERTaV3 paper — arxiv:2111.09543](https://ar5iv.labs.arxiv.org/html/2111.09543) — HIGH confidence: original RTD + GDES architecture paper.
+- [PyPI cedarpy](https://pypi.org/project/cedarpy/) -- v4.8.0 verified via `uv pip install --dry-run` (HIGH)
+- [PyPI regopy](https://pypi.org/project/regopy/) -- v1.3.0 verified via `uv pip install --dry-run` (HIGH)
+- [PyPI sarif-pydantic](https://pypi.org/project/sarif-pydantic/) -- v0.6.2 verified via `uv pip install --dry-run` (HIGH)
+- [PyPI opentelemetry-sdk](https://pypi.org/project/opentelemetry-sdk/) -- v1.40.0 verified via `uv pip install --dry-run` (HIGH)
+- [PyPI wasmtime](https://pypi.org/project/wasmtime/) -- v43.0.0 verified via `uv pip install --dry-run` (HIGH)
+- [PyPI agent-governance-toolkit](https://pypi.org/project/agent-governance-toolkit/) -- v3.0.1 verified via `uv pip install --dry-run` (HIGH)
+- [PyPI mcp](https://pypi.org/project/mcp/) -- v1.26.0 verified via `uv pip show` (HIGH)
+- [Microsoft AGT announcement](https://opensource.microsoft.com/blog/2026/04/02/introducing-the-agent-governance-toolkit-open-source-runtime-security-for-ai-agents/) -- Released 2026-04-02 (MEDIUM)
+- [AWS Bedrock AgentCore Policy GA](https://aws.amazon.com/blogs/aws/amazon-bedrock-agentcore-adds-quality-evaluations-and-policy-controls-for-deploying-trusted-ai-agents/) -- GA 2026-03-03 (MEDIUM)
+- [MELON paper](https://arxiv.org/abs/2502.05174) -- ICML 2025, arXiv:2502.05174v4 (HIGH)
+- [MELON reference implementation](https://github.com/kaijiezhu11/MELON) -- Research code (MEDIUM)
+- [Landlock kernel docs](https://docs.kernel.org/userspace-api/landlock.html) -- Stable kernel ABI (HIGH)
+- [Bubblewrap GitHub](https://github.com/containers/bubblewrap) -- Used by Flatpak, Claude Code (HIGH)
+- [gVisor docs](https://gvisor.dev/docs/) -- Google-maintained (HIGH)
+- [Firecracker GitHub](https://github.com/firecracker-microvm/firecracker) -- AWS-maintained (HIGH)
+- [LangChain AgentMiddleware](https://reference.langchain.com/python/langchain/agents/middleware/types/AgentMiddleware/awrap_tool_call) -- Official docs (MEDIUM)
+- [CrewAI changelog](https://docs.crewai.com/en/changelog) -- Interceptor hooks confirmed (MEDIUM)
+- [Google ADK plugins](https://google.github.io/adk-docs/plugins/) -- Lifecycle callback hooks (MEDIUM)
+- [OpenAI Agents SDK guardrails](https://openai.github.io/openai-agents-python/guardrails/) -- Parallel validation (MEDIUM)
+- [OWASP Agentic AI Top 10](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) -- Released 2025-12 (HIGH)
+- [Agent sandbox comparison](https://pierce.dev/notes/a-deep-dive-on-agent-sandboxes) -- Community analysis (LOW)
+- [Sandbox comparison - Northflank](https://northflank.com/blog/best-code-execution-sandbox-for-ai-agents) -- Commercial analysis (LOW)
 
 ---
-
-*Stack research for: CloneGuard v0.3.0 white-box adversarial resilience ensemble*
-*Researched: 2026-03-10*
+*Stack research for: CloneGuard v2 Universal Agentic Defense Layer*
+*Researched: 2026-04-05*

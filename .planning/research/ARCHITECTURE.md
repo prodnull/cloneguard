@@ -1,533 +1,624 @@
 # Architecture Research
 
-**Domain:** Ensemble ML classifier integration into a multi-tier prompt injection detection pipeline
-**Researched:** 2026-03-10
-**Confidence:** HIGH (codebase read directly; external sources verify ONNX export status and model choices)
+**Domain:** Universal agentic defense layer (modular decomposition of monolithic hooks.py)
+**Researched:** 2026-04-05
+**Confidence:** HIGH
 
-## Standard Architecture
+## System Overview
 
-### System Overview — Current State (v0.2.3)
-
-```
-Agent Event (stdin JSON)
-        │
-        ▼
-┌───────────────────────────────────────┐
-│  hooks.py — L1/L2/L3 handlers        │
-│  ┌────────────────┐ ┌──────────────┐  │
-│  │  PatternEngine │ │ Mini         │  │
-│  │  (Tier 0 regex)│ │ Semantic     │  │
-│  │  patterns.py   │ │ Classifier   │  │
-│  └────────────────┘ │ (Tier 1.5)   │  │
-│          │           │ mini_       │  │
-│          │           │ semantic.py │  │
-│          └───────────┴──────────────┘  │
-│       _classify_with_tier15() call     │
-│       ONLY when Tier 0 says CLEAN      │
-└───────────────────────────────────────┘
-        │
-        ▼
-    exit 0 / 2
-
-Layer 0 (pre-execution repo scan)
-        │
-        ▼
-┌───────────────────────────────────────┐
-│  scanner.py — RepoScanner            │
-│  ┌────────────┐   ┌────────────────┐  │
-│  │ PatternEng │   │ MiniSemantic   │  │
-│  │ (Tier 0)   │──▶│ Classifier     │  │
-│  └────────────┘   │ (Tier 1.5)     │  │
-│                   └────────────────┘  │
-│                   ┌────────────────┐  │
-│                   │ SemanticClass. │  │
-│                   │ Ollama Tier 2  │  │
-│                   │ (fallback)     │  │
-│                   └────────────────┘  │
-└───────────────────────────────────────┘
-```
-
-### Current Component Responsibilities
-
-| Component | Responsibility | File |
-|-----------|----------------|------|
-| PatternEngine | Tier 0 regex — 193 patterns, 24 categories, mode-restricted | `patterns.py` |
-| MiniSemanticClassifier | Tier 1.5 ONNX — MiniLM-L6-v2, sliding window, line scan | `mini_semantic.py` |
-| SemanticClassifier | Tier 2 Ollama fallback — qwen2.5:7b | `semantic.py` |
-| RepoScanner | Layer 0 orchestration — collects files, runs all tiers | `scanner.py` |
-| hook handlers | L1-L3 in-process defense — dispatches Tier 0 then Tier 1.5 | `hooks.py` |
-| MCP Gateway | MCP plugin scanning tool output | `mcp_plugin.py` |
-| TrustCache | SHA-256 content-hash caching of verified-clean files | `trust_cache.py` |
-
----
-
-## Ensemble Integration Architecture — v0.3.0 Target
-
-### Q1: Where does the second classifier live?
-
-**Answer: New module `src/cloneguard/ensemble_semantic.py`.**
-
-Do not extend `mini_semantic.py`. The current file is 297 lines and is a self-contained implementation of one specific model (MiniLM-L6-v2 with a specific ONNX path, tokenizer, and sliding window logic). Coupling a second architecture into it creates:
-
-- Two different `MODEL_DIR` paths in one module
-- Different tokenizer loading paths (DeBERTa-v3 uses SentencePiece via `use_fast=False`)
-- Entangled `available` properties that govern different model files
-
-Instead, create `ensemble_semantic.py` that owns the second classifier in isolation, with the same external interface as `MiniSemanticClassifier`:
-
-```python
-# src/cloneguard/ensemble_semantic.py
-MODEL_DIR = Path(__file__).parent / "model_ensemble"
-ONNX_MODEL = MODEL_DIR / "ensemble_semantic.onnx"
-
-class EnsembleSemanticClassifier:
-    """Tier 1.6: Architecturally diverse ONNX classifier (DeBERTa-v3-small)."""
-    def __init__(self) -> None: ...
-    @property
-    def available(self) -> bool: ...
-    def classify(self, text: str) -> MiniClassification: ...
-    def classify_files(self, files: list[tuple[str, str]]) -> SemanticResult: ...
-```
-
-The `MiniClassification` dataclass (verdict/confidence/reason) is already the shared return type — reuse it. The `SemanticResult` / `SemanticFinding` types from `semantic.py` are also reused.
-
-**Rationale:**
-- Separation of concerns: each classifier is independently loadable, testable, and degradable
-- Different model paths, different SHA-256 hashes in `fetch_model.py`
-- Adding a third classifier in future does not require touching either existing file
-
-### Q2: Where does voting logic live?
-
-**Answer: New module `src/cloneguard/ensemble.py`.**
-
-The voting logic is a coordination concern — it is not a scanner orchestration concern (`scanner.py`) nor a hook concern (`hooks.py`). Putting it in either would mix layers.
-
-`ensemble.py` exposes a single entry point used by both callers:
-
-```python
-# src/cloneguard/ensemble.py
-
-from dataclasses import dataclass
-from cloneguard.mini_semantic import MiniClassification, MiniSemanticClassifier
-from cloneguard.ensemble_semantic import EnsembleSemanticClassifier
-
-@dataclass
-class VoteResult:
-    verdict: str          # "BLOCK" | "WARNING" | "SAFE"
-    confidence: float
-    reason: str
-    tier15_verdict: str   # raw verdict from MiniLM
-    tier16_verdict: str   # raw verdict from second classifier
-    tier15_available: bool
-    tier16_available: bool
-
-class EnsembleClassifier:
-    """Parallel vote ensemble: MiniLM (Tier 1.5) + DeBERTa (Tier 1.6)."""
-
-    def __init__(self) -> None:
-        self._mini = MiniSemanticClassifier()
-        self._ensemble = EnsembleSemanticClassifier()
-
-    def vote(self, text: str, source: str = "") -> VoteResult:
-        """Run both classifiers and apply voting policy.
-
-        Policy (parallel vote, option B):
-          agree MALICIOUS → BLOCK
-          agree SAFE      → SAFE
-          disagree        → WARNING (conservative)
-          one unavailable → fall through to available tier alone
-          both unavailable → SAFE with availability flags set
-        """
-        ...
-
-    def classify_files(
-        self, files: list[tuple[str, str]]
-    ) -> tuple[list[VoteResult], float]:
-        """Classify file list, return vote results and total scan time ms."""
-        ...
-```
-
-**Callers that change:**
-
-- `hooks.py`: Replace `_classify_with_tier15(content, source)` with `_classify_with_ensemble(content, source)`. The singleton pattern is already there — add a parallel `_ensemble_classifier` singleton alongside `_mini_classifier`.
-- `scanner.py` `_run_tier2()`: Replace `mini.classify_files(file_contents)` with `EnsembleClassifier().classify_files(file_contents)`. Update `report._active_tiers` string.
-
-**What does NOT change in scanner.py:**
-- The `_run_tier2()` method signature and call site stay the same
-- The `SemanticResult` / `SemanticFinding` processing loop is unchanged — `classify_files` in `ensemble.py` returns the same `SemanticResult` type
-
-### Q3: How should the second model be distributed?
-
-**Answer: Separate HuggingFace repository, fetched by the existing `fetch_model.py` pattern — do not bundle in the wheel.**
-
-The current MiniLM ONNX is ~87 MB. DeBERTa-v3-small ONNX is approximately 165-190 MB (F32, 44M parameters per ProtectAI's published model). Bundling both in the wheel makes `pip install cloneguard[mini]` a 250+ MB download — unacceptable for a security hook tool.
-
-**Distribution pattern:**
-
-- New HF repo: `prodnull/deberta-v3-small-prompt-injection-classifier` (mirror of training methodology)
-- New model directory: `src/cloneguard/model_ensemble/` (separate from `src/cloneguard/model/`)
-- New fetch script: `scripts/fetch_ensemble_model.py` — identical structure to `fetch_model.py` with a new SHA-256 pin and HF URL
-- `pyproject.toml`: add `cloneguard[ensemble]` extra, or extend `cloneguard[mini]` to include both downloads in `post_install`
-
-**Why not the same HF repo:** Separate repos let you version the two models independently. A retrain of DeBERTa does not force a re-download of MiniLM and vice versa.
-
-**Why not ProtectAI's published model:** ProtectAI's `deberta-v3-small-prompt-injection-v2` is publicly available and is trained on a different, undisclosed dataset. Using it as the ensemble partner would mean the second classifier's training data is opaque. CloneGuard's value proposition requires knowing both models were trained on the same 6,340-sample dataset for fair transferability experiments. Train from scratch on `data/training/dataset.jsonl`.
-
-### Q4: Graceful degradation when second model is not installed
-
-**The degradation ladder (four states):**
-
-| State | Tier 1.5 | Tier 1.6 | Behavior |
-|-------|----------|----------|----------|
-| Full ensemble | available | available | Parallel vote policy applies |
-| Mini only | available | unavailable | Fall through to Tier 1.5 verdict alone (current behavior) |
-| Ensemble only | unavailable | available | Fall through to Tier 1.6 verdict alone |
-| Neither | unavailable | unavailable | Tier 0 only — emit WARNING to stderr, do not fail |
-
-**Implementation in `ensemble.py`:**
-
-```python
-def vote(self, text: str, source: str = "") -> VoteResult:
-    t15 = self._mini.classify(text) if self._mini.available else None
-    t16 = self._ensemble.classify(text) if self._ensemble.available else None
-
-    if t15 is None and t16 is None:
-        return VoteResult(verdict="SAFE", confidence=0.0, reason="No semantic tier available",
-                          tier15_verdict="unavailable", tier16_verdict="unavailable",
-                          tier15_available=False, tier16_available=False)
-
-    if t15 is None:
-        # Tier 1.6 alone — treat same as current Tier 1.5 solo behavior
-        return _solo_vote(t16, "tier16", tier15_available=False, tier16_available=True)
-
-    if t16 is None:
-        # Tier 1.5 alone — identical to current _classify_with_tier15() behavior
-        return _solo_vote(t15, "tier15", tier15_available=True, tier16_available=False)
-
-    # Both available — apply voting policy
-    return _parallel_vote(t15, t16)
-```
-
-**hooks.py change:**
-
-```python
-_ensemble_classifier: Any = None
-_ensemble_attempted: bool = False
-
-def _get_ensemble() -> Any:
-    global _ensemble_classifier, _ensemble_attempted
-    if _ensemble_attempted:
-        return _ensemble_classifier
-    _ensemble_attempted = True
-    try:
-        from cloneguard.ensemble import EnsembleClassifier
-        _ensemble_classifier = EnsembleClassifier()
-    except ImportError:
-        pass
-    return _ensemble_classifier
-
-def _classify_with_ensemble(content: str, source: str) -> tuple[str | None, str]:
-    """Replace _classify_with_tier15(). Returns (verdict, reason) or (None, '')."""
-    classifier = _get_ensemble()
-    if classifier is None:
-        return None, ""
-    result = classifier.vote(content, source)
-    if result.verdict == "SAFE":
-        return None, ""
-    return result.verdict, result.reason
-```
-
-The `_classify_with_tier15()` function in `hooks.py` is replaced entirely. `_get_mini_classifier()` becomes unused and can be removed. One fewer singleton.
-
-**`scanner.py` stderr warning when both unavailable:**
-
-```python
-if not self._mini.available and not self._ensemble.available:
-    print(
-        "WARNING: Semantic ensemble unavailable — scanning with Tier 0 regex only"
-        " (31.9% recall). Install cloneguard[mini] for semantic detection.",
-        file=sys.stderr,
-    )
-```
-
-### Q5: Training pipeline — extend or separate script?
-
-**Answer: Separate script `scripts/train_ensemble_model.py`.**
-
-`train_mini_model.py` is 280+ lines and is tightly coupled to MiniLM-L6-v2 (hardcoded `BASE_MODEL`, `hidden_size=384`, `MAX_SEQ_LEN=128`, specific ONNX export path). DeBERTa-v3-small has a different base model name (`microsoft/deberta-v3-small`), a 768-dimensional hidden layer, `MAX_SEQ_LEN=512`, and uses `use_fast=False` for the tokenizer (SentencePiece backend).
-
-The only reusable pieces are:
-- `load_dataset(path)` — extract to `scripts/training_utils.py` shared utility
-- `evaluate()` — extract to `training_utils.py`
-- The ONNX export logic (different output path, but same `torch.onnx.export` structure)
-
-**Shared utility module: `scripts/training_utils.py`**
-
-```python
-def load_dataset(path: Path) -> tuple[list[str], list[int]]: ...
-def evaluate(model, loader, device) -> tuple[float, float, str, np.ndarray, np.ndarray]: ...
-def select_device() -> torch.device: ...
-```
-
-Both training scripts import from `training_utils.py`. This avoids duplication without coupling the two model architectures into one file.
-
-**New script structure:**
+The architecture decomposes CloneGuard's current monolithic `hooks.py` + `scanner.py` into five cleanly-bounded subsystems connected by typed data contracts. The pipeline is strictly linear: Input Adapter -> Detection Engine -> Policy Engine -> Enforcement Layer -> Audit Layer. Every subsystem communicates through defined dataclasses, never through shared mutable state or global singletons.
 
 ```
-scripts/
-├── training_utils.py          # NEW: shared load_dataset, evaluate, select_device
-├── train_mini_model.py        # MODIFIED: imports from training_utils
-├── train_ensemble_model.py    # NEW: DeBERTa-v3-small, hidden=768, seq=512
-├── fetch_model.py             # UNCHANGED
-└── fetch_ensemble_model.py    # NEW: mirrors fetch_model.py for second ONNX
++------------------------------------------------------------------+
+|                      CloneGuard Runtime                           |
+|                                                                   |
+|  +--------------------------------------------------------------+|
+|  |                    INPUT ADAPTERS                             ||
+|  |                                                               ||
+|  |  HookAdapter         FrameworkAdapter     ProtocolAdapter     ||
+|  |  (Claude Code,       (AGT Interceptor,    (MCP middleware,    ||
+|  |   Cursor, Gemini,     LangChain, AutoGen,  browser CDP,      ||
+|  |   Windsurf, Copilot)  ADK, CrewAI)         CI/CD events)     ||
+|  |                                                               ||
+|  |  Output: ToolCallEvent (normalized)                           ||
+|  +-----------------------------+---------------------------------+|
+|                                |                                  |
+|                                v                                  |
+|  +--------------------------------------------------------------+|
+|  |                   DETECTION ENGINE                            ||
+|  |                                                               ||
+|  |  Signal 1: PatternEngine ------+                              ||
+|  |  (per-agent-type YAML libs)    |                              ||
+|  |                                +---> FusionLayer              ||
+|  |  Signal 2: SemanticClassifier  |     (calibrated on 208K     ||
+|  |  (MiniLM ONNX + Ollama)      -+      trajectories)           ||
+|  |                                |          |                   ||
+|  |  Signal 3: SequenceAnalyzer ---+          v                   ||
+|  |  (SEQ rules + MELON)                DetectionResult           ||
+|  |                                  (verdict, confidence,        ||
+|  |                                   signals, context)           ||
+|  +-----------------------------+---------------------------------+|
+|                                |                                  |
+|                                v                                  |
+|  +--------------------------------------------------------------+|
+|  |                   POLICY ENGINE                               ||
+|  |                                                               ||
+|  |  Inputs: DetectionResult + ToolCallEvent + OperatorConfig     ||
+|  |                                                               ||
+|  |  Policy backends (compile to PolicyDecision):                 ||
+|  |    YAMLPolicy (default)  |  OPAPolicy  |  CedarPolicy        ||
+|  |                                                               ||
+|  |  Output: PolicyDecision                                       ||
+|  |    ALLOW | CONSTRAIN(constraints) | BLOCK(reason)             ||
+|  +-----------------------------+---------------------------------+|
+|                                |                                  |
+|                                v                                  |
+|  +--------------------------------------------------------------+|
+|  |                 ENFORCEMENT LAYER                             ||
+|  |                                                               ||
+|  |  SandboxAdapter (Protocol):                                   ||
+|  |    NoopAdapter | LandlockAdapter | SeatbeltAdapter |          ||
+|  |    BubblewrapAdapter | DockerAdapter                          ||
+|  |                                                               ||
+|  |  Output: EnforcementOutcome                                   ||
+|  |    (action_taken, constraints_applied, sandbox_id)            ||
+|  +-----------------------------+---------------------------------+|
+|                                |                                  |
+|                                v                                  |
+|  +--------------------------------------------------------------+|
+|  |                    AUDIT LAYER                                ||
+|  |                                                               ||
+|  |  EventBuilder assembles AuditEvent from all upstream data     ||
+|  |                                                               ||
+|  |  Simultaneous emission:                                       ||
+|  |    NDJSONEmitter  -> file/SIEM/S3                             ||
+|  |    SARIFEmitter   -> GitHub Security / VS Code                ||
+|  |    OTelEmitter    -> Splunk / Datadog / Grafana               ||
+|  +--------------------------------------------------------------+|
++------------------------------------------------------------------+
 ```
 
----
+### Component Responsibilities
 
-## Recommended Project Structure — After Integration
+| Component | Responsibility | Depends On |
+|-----------|----------------|------------|
+| InputAdapter (Protocol) | Normalize agent-specific hook/event JSON into `ToolCallEvent` | Nothing (entry point) |
+| DetectionEngine | Run all three signals, fuse into single `DetectionResult` | PatternEngine, SemanticClassifier, SequenceAnalyzer, FusionLayer |
+| PatternEngine | Fast regex scan (<50ms) against YAML rule files per agent type | YAML rule files |
+| SemanticClassifier | ONNX MiniLM embedding + Mahalanobis distance scoring | ONNX Runtime, model files |
+| SequenceAnalyzer | Behavioral sequence monitoring (SEQ rules, ring buffer) | Session event history |
+| FusionLayer | Weighted combination of three signals into calibrated verdict + confidence | Calibration parameters (from 208K trajectory dataset) |
+| PolicyEngine | Evaluate DetectionResult + context against operator policy -> enforcement decision | Policy backend (YAML/OPA/Cedar) |
+| SandboxAdapter (Protocol) | Apply/remove constraints on the execution environment | OS sandbox primitives |
+| AuditLayer | Build structured events from all pipeline stages, emit in multiple formats | SARIF schema, OTel SDK |
+| RuntimeOrchestrator | Wire adapters, run the pipeline for each event, manage session lifecycle | All components |
+
+## Recommended Project Structure
 
 ```
 src/cloneguard/
-├── __init__.py
-├── allowlist.py
-├── cli.py
-├── devcontainer_scanner.py
-├── ensemble.py              # NEW: EnsembleClassifier, VoteResult, voting policy
-├── ensemble_semantic.py     # NEW: EnsembleSemanticClassifier (DeBERTa-v3-small ONNX)
-├── env_scanner.py
-├── hooks.py                 # MODIFIED: replace _classify_with_tier15 with _classify_with_ensemble
-├── mcp_plugin.py            # MODIFIED: add ensemble vote call alongside Tier 0
-├── mini_semantic.py         # UNCHANGED: MiniLM-L6-v2, stays as-is
-├── model/                   # UNCHANGED: MiniLM ONNX + tokenizer files
+├── __init__.py              # Version, public API surface
+├── cli.py                   # CLI entry points (unchanged)
+├── runtime.py               # RuntimeOrchestrator — wires pipeline, dispatches events
+│
+├── adapters/                # Input adapters (normalize agent events)
+│   ├── __init__.py
+│   ├── base.py              # InputAdapter Protocol + ToolCallEvent dataclass
+│   ├── claude_code.py       # Claude Code hook JSON protocol
+│   ├── cursor.py            # Cursor hook events
+│   ├── gemini.py            # Gemini CLI hook events
+│   ├── mcp.py               # MCP protocol middleware
+│   └── agt.py               # Microsoft AGT ToolCallInterceptor
+│
+├── detection/               # Detection engine (three-signal fusion)
+│   ├── __init__.py          # DetectionEngine facade
+│   ├── engine.py            # DetectionEngine class (orchestrates signals)
+│   ├── patterns.py          # PatternEngine (moved from src/cloneguard/patterns.py)
+│   ├── semantic.py          # SemanticClassifier (MiniLM ONNX, Ollama fallback)
+│   ├── sequence.py          # SequenceAnalyzer (extracted from monitor.py)
+│   ├── fusion.py            # FusionLayer (weighted signal combination)
+│   └── types.py             # DetectionResult, SignalResult, Verdict, Confidence
+│
+├── policy/                  # Policy engine (verdict -> enforcement decision)
+│   ├── __init__.py
+│   ├── engine.py            # PolicyEngine (dispatches to backend)
+│   ├── types.py             # PolicyDecision, Constraint, ConstraintSet
+│   ├── yaml_backend.py      # YAML policy evaluation (default)
+│   ├── opa_backend.py       # OPA/Rego evaluation (REST API to sidecar)
+│   └── cedar_backend.py     # Cedar evaluation (via cedarpy bindings)
+│
+├── enforcement/             # Sandbox adapters (apply constraints)
+│   ├── __init__.py
+│   ├── base.py              # SandboxAdapter Protocol + EnforcementOutcome
+│   ├── noop.py              # NoopAdapter (detection-only, v0.5.0 compat)
+│   ├── landlock.py          # LandlockAdapter (Linux 5.13+, unprivileged)
+│   ├── seatbelt.py          # SeatbeltAdapter (macOS sandbox-exec)
+│   └── probe.py             # Auto-detection of available sandbox capabilities
+│
+├── audit/                   # Audit layer (structured event emission)
+│   ├── __init__.py
+│   ├── builder.py           # EventBuilder (assembles AuditEvent from pipeline data)
+│   ├── types.py             # AuditEvent schema, event_type enum
+│   ├── ndjson.py            # NDJSON line emitter
+│   ├── sarif.py             # SARIF 2.1.0 emitter (using sarif-om)
+│   └── otel.py              # OpenTelemetry span emitter
+│
+├── rules/                   # Pattern rule YAML files (existing, reorganized)
+│   ├── coding/              # Current 204 patterns (25 YAMLs, moved from rules/)
+│   ├── browser/             # Future: DOM injection, invisible text
+│   ├── cicd/                # Future: workflow injection, secret exfil
+│   ├── mcp/                 # Future: tool poisoning, RADE
+│   └── common/              # Cross-agent patterns (encoding, unicode)
+│
+├── model/                   # ML model artifacts (unchanged)
 │   ├── mini_semantic.onnx
-│   ├── tokenizer.json
-│   └── ...
-├── model_ensemble/          # NEW: DeBERTa-v3-small ONNX + tokenizer files
-│   ├── ensemble_semantic.onnx
-│   ├── tokenizer.json       # SentencePiece-backed (use_fast=False)
-│   └── ...
-├── patterns.py              # UNCHANGED
-├── rules/                   # UNCHANGED
-├── scanner.py               # MODIFIED: _run_tier2 uses EnsembleClassifier
-├── semantic.py              # UNCHANGED
-├── settings_scanner.py      # UNCHANGED
-└── trust_cache.py           # UNCHANGED
+│   └── mahalanobis_params.npz
+│
+├── config/                  # Configuration management
+│   ├── __init__.py
+│   ├── loader.py            # Config file discovery + merge logic
+│   └── schema.py            # Pydantic models for config validation
+│
+├── hooks.py                 # THIN SHIM — dispatches to runtime.py (backward compat)
+├── scanner.py               # THIN SHIM — calls DetectionEngine (backward compat)
+├── allowlist.py             # Unchanged (user-local false positive suppression)
+├── sequence_allowlist.py    # Unchanged (user-local SEQ rule escape hatch)
+└── trust_cache.py           # Unchanged (Layer 0 file hash caching)
 ```
 
----
+### Structure Rationale
+
+- **adapters/:** Each agent platform speaks a different protocol. Normalizing to `ToolCallEvent` at the boundary means the entire engine below is agent-agnostic. New agent support = new adapter file, zero changes to detection/policy/enforcement/audit.
+- **detection/:** Three signals + fusion belong together because they share the `DetectionResult` output contract. `patterns.py`, `semantic.py`, and `sequence.py` are leaf modules with no cross-dependencies. `fusion.py` consumes all three and produces the calibrated verdict.
+- **policy/:** Separate from detection because the same detection result can produce different enforcement decisions based on operator policy. A startup with YOLO settings and an enterprise with strict compliance use the same detection engine with different policy backends.
+- **enforcement/:** Sandbox adapters are a classic Strategy pattern. The `SandboxAdapter` Protocol defines what enforcement can do; concrete adapters map to OS primitives. `probe.py` auto-detects available adapters at startup.
+- **audit/:** Separate from enforcement because audit must capture ALL events (including ALLOW decisions), not just constrained/blocked ones. Multiple emitters run in parallel for the same event. Audit is the final pipeline stage and depends on data from every upstream stage.
+- **hooks.py / scanner.py as thin shims:** Backward compatibility with v0.5.0 is non-negotiable. These files remain importable at their current paths, but their implementation becomes a 5-line dispatch to `runtime.py`. This ensures `cloneguard hook-check --event PreToolUse` continues to work identically.
 
 ## Architectural Patterns
 
-### Pattern 1: Lazy-loaded Singleton Classifiers (existing, extend)
+### Pattern 1: Pipeline with Typed Contracts
 
-**What:** Module-level globals `_engine`, `_mini_classifier` in `hooks.py` are loaded once per process, guarded by a `_*_attempted` boolean.
-**When to use:** Hook handlers are called for every agent event — model load must be amortized over the process lifetime.
-**Trade-offs:** Singleton pattern is process-scoped, not thread-safe (acceptable: hooks.py runs single-threaded in the agent process).
+**What:** Every pipeline stage communicates through immutable dataclasses. The pipeline is strictly `ToolCallEvent -> DetectionResult -> PolicyDecision -> EnforcementOutcome -> AuditEvent`. No stage reaches back into a previous stage or accesses global state.
 
-**Extension for ensemble:**
+**When to use:** Always. This is the backbone of the architecture.
+
+**Trade-offs:** Slightly more boilerplate than passing dicts around. Far easier to test, type-check, and debug. Each stage can be tested in isolation with constructed inputs.
+
+**Example:**
 
 ```python
-_ensemble_classifier: Any = None
-_ensemble_attempted: bool = False
+from __future__ import annotations
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any
 
-def _get_ensemble() -> Any:
-    global _ensemble_classifier, _ensemble_attempted
-    if _ensemble_attempted:
-        return _ensemble_classifier
-    _ensemble_attempted = True
-    try:
-        from cloneguard.ensemble import EnsembleClassifier
-        _ensemble_classifier = EnsembleClassifier()
-    except ImportError:
-        pass
-    return _ensemble_classifier
+class Verdict(Enum):
+    SAFE = "safe"
+    SUSPICIOUS = "suspicious"
+    MALICIOUS = "malicious"
+
+@dataclass(frozen=True)
+class SignalResult:
+    """Output of a single detection signal."""
+    signal_name: str          # "pattern", "semantic", "sequence"
+    score: float              # 0.0 - 1.0
+    verdict: Verdict
+    details: dict[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class DetectionResult:
+    """Fused output of all detection signals."""
+    verdict: Verdict
+    confidence: float         # 0.0 - 1.0
+    signals: tuple[SignalResult, ...]
+    scan_time_ms: float
+    context: dict[str, Any] = field(default_factory=dict)
+
+@dataclass(frozen=True)
+class PolicyDecision:
+    """Output of policy evaluation."""
+    action: str               # "allow", "constrain", "block"
+    constraints: ConstraintSet | None = None
+    reason: str = ""
+    policy_version: str = ""
+
+@dataclass(frozen=True)
+class EnforcementOutcome:
+    """What the sandbox adapter actually did."""
+    action_taken: str         # "allowed", "constrained", "blocked"
+    constraints_applied: dict[str, Any] = field(default_factory=dict)
+    sandbox_adapter: str = "noop"
+    snapshot_id: str | None = None
 ```
 
-### Pattern 2: Parallel Vote with Conservative Disagreement
+### Pattern 2: Protocol-Based Adapter Interfaces
 
-**What:** Both classifiers run independently on all content. Disagreement defaults to WARNING, not SAFE. This is the correct choice for a security tool: a false warning is recoverable, a false clean is a miss.
-**When to use:** When defending against adversarial evasion designed specifically to fool one model.
-**Trade-offs:** Higher false-positive rate than either classifier alone on content where one model is miscalibrated for a specific domain. The latency budget (~70-120ms) allows parallel execution in sequence (not concurrency — ONNX sessions are CPU-bound, GIL contention makes threading counterproductive).
+**What:** Use `typing.Protocol` (PEP 544 structural subtyping) for all extension points: `InputAdapter`, `SandboxAdapter`, `PolicyBackend`, `AuditEmitter`. Consumers depend on the Protocol, not on concrete implementations.
 
-**Vote table:**
+**When to use:** For every boundary where multiple implementations exist or will exist. Protocols over ABCs because they support structural subtyping -- a third-party class that implements the right methods satisfies the protocol without inheriting from CloneGuard's base class. This matters for the AGT `ToolCallInterceptor` integration where CloneGuard must conform to Microsoft's interface, not the other way around.
 
-| Tier 1.5 | Tier 1.6 | Vote | Rationale |
-|----------|----------|------|-----------|
-| MALICIOUS | MALICIOUS | BLOCK | Both agree |
-| MALICIOUS | SUSPICIOUS | BLOCK | At least one high-confidence flag |
-| SUSPICIOUS | MALICIOUS | BLOCK | At least one high-confidence flag |
-| MALICIOUS | SAFE | WARNING | Disagreement — conservative |
-| SAFE | MALICIOUS | WARNING | Disagreement — conservative |
-| SUSPICIOUS | SUSPICIOUS | WARNING | Both flag, neither high-confidence |
-| SUSPICIOUS | SAFE | WARNING | Any flag → at least WARNING |
-| SAFE | SUSPICIOUS | WARNING | Any flag → at least WARNING |
-| SAFE | SAFE | SAFE | Both agree clean |
+**Trade-offs:** Protocols provide no runtime enforcement of the contract (unlike ABCs with `@abstractmethod`). Mitigated by `mypy --strict` catching violations at type-check time and by explicit integration tests.
 
-### Pattern 3: Shared Dataclass Interface (`MiniClassification`)
+**Example:**
 
-**What:** `EnsembleSemanticClassifier.classify()` returns `MiniClassification` (verdict/confidence/reason) — the same dataclass as `MiniSemanticClassifier.classify()`. This is not duck typing; import the dataclass from `mini_semantic.py`.
-**When to use:** Avoids defining a parallel dataclass hierarchy for each new classifier. The vote logic in `ensemble.py` treats both outputs symmetrically.
-**Trade-offs:** `EnsembleSemanticClassifier` imports from `mini_semantic.py`. Keep the dependency one-way — `mini_semantic.py` must not import from `ensemble_semantic.py`.
+```python
+from typing import Protocol, runtime_checkable
 
-### Pattern 4: Graceful Degradation via `available` Property
+@runtime_checkable
+class InputAdapter(Protocol):
+    """Normalize any agent event into a ToolCallEvent."""
 
-**What:** Each classifier class exposes `available: bool` that returns `False` if the ONNX file is missing, `onnxruntime` is not installed, or the model fails to load. Callers check before invoking `classify()`.
-**When to use:** All classifiers in CloneGuard — models are optional and must not prevent the tool from running.
-**Trade-offs:** A model that loads but produces garbage is not caught by `available`. Add a smoke-test classification in `_try_load()` on a known-benign string to catch corrupt ONNX files at load time.
+    @property
+    def agent_type(self) -> str: ...
 
----
+    def parse_event(self, raw: bytes) -> ToolCallEvent | None:
+        """Parse raw input into normalized event. Returns None if not applicable."""
+        ...
+
+@runtime_checkable
+class SandboxAdapter(Protocol):
+    """Apply/remove execution constraints."""
+
+    @property
+    def name(self) -> str: ...
+
+    def restrict_network(self, allow: list[str]) -> None: ...
+    def restrict_filesystem(self, writable: list[str], readable: list[str]) -> None: ...
+    def snapshot(self) -> str: ...
+    def rollback(self, snapshot_id: str) -> None: ...
+    def release(self) -> None: ...
+
+@runtime_checkable
+class PolicyBackend(Protocol):
+    """Evaluate detection result against policy."""
+
+    def evaluate(
+        self,
+        event: ToolCallEvent,
+        result: DetectionResult,
+        config: OperatorConfig,
+    ) -> PolicyDecision: ...
+
+@runtime_checkable
+class AuditEmitter(Protocol):
+    """Emit an audit event in a specific format."""
+
+    def emit(self, event: AuditEvent) -> None: ...
+    def flush(self) -> None: ...
+```
+
+### Pattern 3: Composition Root with Auto-Discovery
+
+**What:** A single `RuntimeOrchestrator` class wires all components at startup. It discovers available sandbox adapters (via `probe.py`), loads operator config, selects policy backend, and constructs the pipeline. No component discovers its own dependencies -- the orchestrator injects everything.
+
+**When to use:** At application startup (CLI entry point, hook entry point, library import).
+
+**Trade-offs:** One class that knows about all components (a "god class" concern). Acceptable because it is pure wiring logic with no business rules. Each component it wires is independently testable.
+
+**Example:**
+
+```python
+class RuntimeOrchestrator:
+    """Wires the pipeline and dispatches events."""
+
+    def __init__(self, config: OperatorConfig | None = None) -> None:
+        self.config = config or OperatorConfig.load()
+        self.detection = DetectionEngine(
+            patterns=PatternEngine(rule_dirs=self.config.rule_dirs),
+            semantic=SemanticClassifier(),
+            sequence=SequenceAnalyzer(),
+            fusion=FusionLayer(calibration=self.config.fusion_calibration),
+        )
+        self.policy = PolicyEngine(backend=self._select_policy_backend())
+        self.sandbox = probe_best_adapter(preference=self.config.sandbox_preference)
+        self.audit = AuditLayer(emitters=self._build_emitters())
+
+    def process_event(self, event: ToolCallEvent) -> int:
+        """Run the full pipeline. Returns exit code for hook protocol."""
+        result = self.detection.analyze(event)
+        decision = self.policy.evaluate(event, result, self.config)
+        outcome = self._enforce(decision)
+        self.audit.record(event, result, decision, outcome)
+        return self._exit_code(decision)
+```
+
+### Pattern 4: Backward-Compatible Thin Shims
+
+**What:** The existing `hooks.py::main()` and `scanner.py::RepoScanner` become thin wrappers that construct a `RuntimeOrchestrator` and delegate. The Claude Code hook protocol calls `cloneguard hook-check --event PreToolUse` exactly as before. The shim reads stdin JSON, constructs a `ToolCallEvent` via `ClaudeCodeAdapter`, and passes it to the orchestrator.
+
+**When to use:** For the v0.5.0 -> v2 migration. The shims exist solely for backward compatibility. New integrations (AGT, MCP middleware) go directly through the RuntimeOrchestrator or the appropriate adapter.
+
+**Trade-offs:** Two entry paths to the same logic. Shims must be kept in sync until a major version bump deprecates them. Mitigated by shim implementation being ~10 lines of delegation.
 
 ## Data Flow
 
-### Ensemble Vote Flow (hooks.py, per event)
+### Hook Event Flow (Layers 1-3)
 
 ```
-Agent stdin JSON
-      │
-      ▼
-Tier 0 PatternEngine.scan(content)
-      │
-      ├─ DETECTED/SUSPICIOUS → output to stdout, return exit code
-      │
-      └─ CLEAN
-            │
-            ▼
-      _classify_with_ensemble(content, source)
-            │
-            ├─ EnsembleClassifier.vote(content)
-            │       │
-            │       ├─ MiniSemanticClassifier.classify(content)   → t15 result
-            │       └─ EnsembleSemanticClassifier.classify(content) → t16 result
-            │               │
-            │               ▼
-            │         _parallel_vote(t15, t16) → VoteResult
-            │
-            ├─ verdict == BLOCK → print reason, return 2
-            ├─ verdict == WARNING → print reason, return 0
-            └─ verdict == SAFE → return 0
+Claude Code invokes hook
+    |
+    v
+hooks.py::main() [thin shim]
+    |
+    v
+ClaudeCodeAdapter.parse_event(stdin_json) -> ToolCallEvent
+    |  Fields: event_type, tool_name, tool_input, source_path,
+    |          content, agent_type, session_id
+    v
+RuntimeOrchestrator.process_event(event)
+    |
+    +--> DetectionEngine.analyze(event)
+    |        |
+    |        +--> PatternEngine.scan(content, mode) -> SignalResult
+    |        +--> SemanticClassifier.classify(content, mode) -> SignalResult
+    |        +--> SequenceAnalyzer.check(event, session) -> SignalResult
+    |        +--> FusionLayer.fuse(pattern, semantic, sequence) -> DetectionResult
+    |        |
+    |        v
+    |    DetectionResult(verdict, confidence, signals)
+    |
+    +--> PolicyEngine.evaluate(event, detection_result, config)
+    |        |
+    |        v
+    |    PolicyDecision(action, constraints, reason)
+    |
+    +--> SandboxAdapter.apply(decision.constraints)   [if CONSTRAIN]
+    |    SandboxAdapter.block()                        [if BLOCK]
+    |        |
+    |        v
+    |    EnforcementOutcome(action_taken, constraints_applied)
+    |
+    +--> AuditLayer.record(event, detection, decision, outcome)
+    |        |
+    |        +--> NDJSONEmitter.emit(audit_event)
+    |        +--> SARIFEmitter.emit(audit_event)    [if configured]
+    |        +--> OTelEmitter.emit(audit_event)     [if configured]
+    |
+    v
+Exit code returned to Claude Code (0=allow, 2=block)
 ```
 
-### Ensemble Vote Flow (scanner.py, repo scan)
+### Layer 0 Pre-Execution Scan Flow
 
 ```
-file_contents: list[tuple[str, str]]
-      │
-      ▼
-EnsembleClassifier.classify_files(file_contents)
-      │
-      ├─ For each (path, content):
-      │       vote(content) → VoteResult
-      │       if verdict != SAFE → SemanticFinding(verdict, confidence, reason, path)
-      │
-      └─ SemanticResult(findings, scan_time_ms, model="ensemble-v1")
-            │
-            ▼
-  _run_tier2 existing loop processes SemanticResult.findings
-  (no change to ScanReport assembly logic)
+CLI: cloneguard [scan|wrap]
+    |
+    v
+scanner.py [thin shim]
+    |
+    v
+RuntimeOrchestrator (Layer 0 mode)
+    |
+    +--> File collection (high/medium priority)
+    |
+    +--> For each file:
+    |      TrustCache check -> skip if hash unchanged
+    |      Allowlist check -> skip if content hash approved
+    |      DetectionEngine.analyze(file_event) -> DetectionResult
+    |      PolicyEngine.evaluate(file_event, result) -> PolicyDecision
+    |
+    +--> Aggregate results -> ScanReport
+    |
+    +--> AuditLayer.flush()
+    |
+    v
+Exit code + formatted report to stdout
 ```
 
-### Transferability Experiment Flow (new script, pre-training gate)
+### Session State Flow
 
 ```
-scripts/transferability_experiment.py  (NEW)
-      │
-      ├─ Load adversarial examples from adversarial_benchmark.py output
-      │       (examples crafted to fool MiniLM via FGSM / TextFooler)
-      │
-      ├─ Run each example through EnsembleSemanticClassifier.classify()
-      │
-      ├─ Measure recall on adversarial examples (transfer rate)
-      │       transfer_rate = 1 - recall_on_adversarials
-      │
-      └─ Report: if transfer_rate < 0.50 → ensemble is effective
-                 if transfer_rate >= 0.50 → architectural similarity risk, flag for review
+Session starts
+    |
+    v
+SequenceAnalyzer creates session ring buffer (max 50 events)
+    |
+    +--> Each ToolCallEvent is recorded in ring buffer
+    |    (tool_name, timestamp, path, has_sensitive_read, etc.)
+    |
+    +--> On PreToolUse: check_enforcement() scans lookback window (10 events)
+    |    for SEQ-001/002/005 patterns
+    |
+    +--> Session trust cache: path -> SHA256 of approved content
+    |    (prevents redundant rescanning within session)
+    |
+    v
+Session ends (process exit) -> all state discarded
 ```
 
----
+### Key Data Flows
 
-## Integration Points
+1. **ToolCallEvent normalization:** Every adapter produces the same `ToolCallEvent` dataclass. The detection engine never sees agent-specific formats. This is the critical abstraction boundary -- everything downstream of the adapter is agent-agnostic.
 
-### Internal Boundaries
+2. **Three-signal fusion:** Pattern, semantic, and sequence signals are computed independently (potentially in parallel for pattern + semantic). The FusionLayer combines them using context-weighted scoring calibrated against the 208K trajectory dataset. The fusion output is a single `DetectionResult` with verdict (SAFE/SUSPICIOUS/MALICIOUS) and confidence (0.0-1.0).
 
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| `ensemble.py` ↔ `mini_semantic.py` | Direct import of `MiniSemanticClassifier`, `MiniClassification` | One-way dependency: ensemble imports mini, not reverse |
-| `ensemble.py` ↔ `ensemble_semantic.py` | Direct import of `EnsembleSemanticClassifier` | One-way |
-| `ensemble.py` ↔ `semantic.py` | Import `SemanticResult`, `SemanticFinding`, `SemanticVerdict` | Reuses existing shared result types |
-| `hooks.py` ↔ `ensemble.py` | Lazy singleton via `_get_ensemble()` | Replaces `_get_mini_classifier()` |
-| `scanner.py` ↔ `ensemble.py` | `EnsembleClassifier().classify_files(file_contents)` in `_run_tier2` | Replaces direct `mini.classify_files()` call |
-| `mcp_plugin.py` ↔ `ensemble.py` | `EnsembleClassifier().vote(content)` | Currently calls `MiniSemanticClassifier` directly — update call site |
+3. **Policy evaluation:** The policy engine receives the full `DetectionResult` plus the original `ToolCallEvent` plus operator config. This allows policies like "block MALICIOUS on any tool" or "constrain SUSPICIOUS only when tool_name is Bash and network access is involved." Policy backends (YAML, OPA, Cedar) all produce the same `PolicyDecision`.
 
-### Build Order (dependency-respecting)
+4. **Audit assembly:** The `EventBuilder` collects data from every pipeline stage (event, detection, decision, outcome) and assembles a complete `AuditEvent`. Each emitter (NDJSON, SARIF, OTel) renders the same `AuditEvent` in its format. This ensures all formats contain identical information.
 
-Implement in this order — each phase has no unresolved deps from later phases:
+## Internal Boundaries and Interface Contracts
 
-1. **`scripts/training_utils.py`** — shared load/evaluate utilities; no deps on new modules
-2. **`scripts/train_ensemble_model.py`** — trains DeBERTa-v3-small, exports ONNX; depends on `training_utils.py`
-3. **`scripts/fetch_ensemble_model.py`** — download + SHA-256 verify for the new ONNX; no runtime deps
-4. **`src/cloneguard/ensemble_semantic.py`** — new classifier module; depends only on `mini_semantic.MiniClassification` and `semantic.SemanticResult`
-5. **`src/cloneguard/ensemble.py`** — voting logic; depends on `mini_semantic.py`, `ensemble_semantic.py`, `semantic.py`
-6. **`src/cloneguard/hooks.py`** — replace `_classify_with_tier15` with `_classify_with_ensemble`; depends on `ensemble.py`
-7. **`src/cloneguard/scanner.py`** — replace `mini.classify_files()` with `EnsembleClassifier().classify_files()`; depends on `ensemble.py`
-8. **`src/cloneguard/mcp_plugin.py`** — update Tier 1.5 call site; depends on `ensemble.py`
-9. **`scripts/transferability_experiment.py`** — validation gate; depends on adversarial benchmark data + both classifiers
+| Boundary | Protocol/Contract | Direction | Cardinality |
+|----------|-------------------|-----------|-------------|
+| Agent -> InputAdapter | Agent-specific (hook JSON, AGT API, MCP proto) | Inbound | Many adapters, one per agent type |
+| InputAdapter -> RuntimeOrchestrator | `ToolCallEvent` dataclass | Forward | 1:1 per event |
+| RuntimeOrchestrator -> DetectionEngine | `ToolCallEvent` -> `DetectionResult` | Forward | 1:1 |
+| DetectionEngine -> PatternEngine | `str` content + `ScanMode` -> `SignalResult` | Internal | 1:1 |
+| DetectionEngine -> SemanticClassifier | `str` content + `ScanMode` -> `SignalResult` | Internal | 1:1 |
+| DetectionEngine -> SequenceAnalyzer | `ToolCallEvent` + session -> `SignalResult` | Internal | 1:1 |
+| DetectionEngine -> FusionLayer | 3x `SignalResult` -> `DetectionResult` | Internal | 1:1 |
+| RuntimeOrchestrator -> PolicyEngine | `ToolCallEvent` + `DetectionResult` -> `PolicyDecision` | Forward | 1:1 |
+| RuntimeOrchestrator -> SandboxAdapter | `PolicyDecision.constraints` -> `EnforcementOutcome` | Forward | 1:1 |
+| RuntimeOrchestrator -> AuditLayer | All upstream data -> `AuditEvent` emitted | Forward | 1:N (one per emitter) |
+| AuditLayer -> AuditEmitter | `AuditEvent` -> format-specific output | Internal | 1:1 per emitter |
 
----
+## Build Order (Dependencies Between Components)
+
+The build order is constrained by what depends on what. Build bottom-up from types to orchestration.
+
+```
+Phase order (each phase builds on the previous):
+
+Phase A: Core Types + Detection Extraction
+  ├── detection/types.py (Verdict, SignalResult, DetectionResult)
+  ├── policy/types.py (PolicyDecision, ConstraintSet)
+  ├── enforcement/base.py (SandboxAdapter Protocol, EnforcementOutcome)
+  ├── audit/types.py (AuditEvent schema)
+  ├── adapters/base.py (InputAdapter Protocol, ToolCallEvent)
+  └── detection/engine.py (extract from hooks.py, wrap existing PatternEngine + MiniSemantic)
+      Depends on: detection/types.py
+
+Phase B: Audit Layer + NDJSON
+  ├── audit/builder.py (EventBuilder)
+  ├── audit/ndjson.py (NDJSONEmitter)
+  └── audit/sarif.py (SARIF 2.1.0 emitter using sarif-om)
+      Depends on: audit/types.py
+
+Phase C: Policy Engine + YAML Backend
+  ├── policy/engine.py (PolicyEngine dispatcher)
+  └── policy/yaml_backend.py (YAML policy evaluation)
+      Depends on: policy/types.py, detection/types.py, adapters/base.py
+
+Phase D: Enforcement Layer + NoopAdapter
+  ├── enforcement/noop.py (preserve v0.5.0 exit-code behavior)
+  └── enforcement/probe.py (auto-detection of capabilities)
+      Depends on: enforcement/base.py
+
+Phase E: Input Adapters + Runtime Orchestrator
+  ├── adapters/claude_code.py (normalize existing hooks.py JSON parsing)
+  ├── runtime.py (wire everything together)
+  ├── hooks.py (thin shim delegating to runtime.py)
+  └── scanner.py (thin shim delegating to runtime.py)
+      Depends on: ALL of the above
+
+Phase F: Additional Adapters + Sandbox Adapters
+  ├── enforcement/landlock.py (Linux)
+  ├── enforcement/seatbelt.py (macOS)
+  ├── adapters/agt.py (Microsoft AGT ToolCallInterceptor)
+  ├── adapters/mcp.py (MCP protocol middleware)
+  └── detection/fusion.py (calibrated three-signal fusion)
+      Depends on: Phase E complete
+
+Phase G: Enterprise Policy Backends
+  ├── policy/opa_backend.py (REST API to OPA sidecar)
+  └── policy/cedar_backend.py (via cedarpy PyPI bindings)
+      Depends on: Phase C (policy engine interface)
+```
+
+**Rationale for this ordering:**
+
+1. **Types first** (Phase A): Every downstream component imports these dataclasses. They have zero external dependencies and can be tested trivially.
+
+2. **Detection extraction second** (Phase A): The detection engine is the highest-risk refactor -- it's extracting logic from the 500-line `hooks.py` and the 1000-line `monitor.py`. Do this before anything else because it's the most likely place for regression.
+
+3. **Audit before policy** (Phase B before C): NDJSON audit logging provides immediate operational value and is the simplest subsystem to build. It also validates the `AuditEvent` schema that every subsequent phase will use. SARIF emission satisfies GitHub Advanced Security integration.
+
+4. **Policy before enforcement** (Phase C before D): The policy engine's `PolicyDecision` type defines what enforcement must implement. Building policy first ensures the enforcement interface is correct.
+
+5. **NoopAdapter alongside policy** (Phase D): The `NoopAdapter` is trivial but critical -- it preserves exact v0.5.0 behavior. Building it alongside policy proves the enforcement interface works without requiring OS sandbox complexity.
+
+6. **Orchestrator wires everything** (Phase E): The `RuntimeOrchestrator` can only be built after all components it wires exist. The thin shims in `hooks.py` and `scanner.py` are the final backward-compatibility layer.
+
+7. **Real sandboxes and adapters last** (Phase F): LandlockAdapter, SeatbeltAdapter, and framework adapters (AGT, MCP) are additive. They plug into existing interfaces without modifying core logic.
+
+8. **Enterprise backends even later** (Phase G): OPA and Cedar backends require external dependencies (OPA sidecar or cedarpy bindings). They are enterprise features that can ship independently.
 
 ## Anti-Patterns
 
-### Anti-Pattern 1: Putting Voting Logic in scanner.py or hooks.py
+### Anti-Pattern 1: Global Singletons for Engine State
 
-**What people do:** Add `if mini.verdict != ensemble.verdict` conditionals directly inside `_run_tier2()` or `_classify_with_tier15()`.
-**Why it's wrong:** Both callers need identical vote semantics. Duplicating the vote table across two files creates drift risk. A future change to the disagreement policy requires two edits instead of one.
-**Do this instead:** Centralize in `ensemble.py`. Both callers import `EnsembleClassifier.vote()`.
+**What people do:** Current `hooks.py` uses module-level singletons (`_engine`, `_mini_classifier`, `_mini_attempted`) for lazy initialization. This works for a single-threaded hook process but prevents testing, parallel execution, and multi-session support.
 
-### Anti-Pattern 2: Extending mini_semantic.py to Hold Two Models
+**Why it's wrong:** Singletons make components untestable in isolation, introduce hidden coupling between modules, and prevent configuration changes without process restart. They also break if CloneGuard is imported as a library rather than invoked as a process.
 
-**What people do:** Add `self._deberta_session` and `self._deberta_tokenizer` to `MiniSemanticClassifier.__init__()`.
-**Why it's wrong:** The `available` property conflates two independent availability conditions. A missing DeBERTa model breaks the `available` check even if MiniLM is healthy. The `classify()` method becomes responsible for routing between two tokenization pipelines.
-**Do this instead:** One class per model in its own module. Compose in `ensemble.py`.
+**Do this instead:** Constructor injection in `RuntimeOrchestrator`. Each orchestrator instance owns its components. Tests construct orchestrators with mock components. Process-level caching (if needed for performance) lives in a `_cache` module separate from business logic.
 
-### Anti-Pattern 3: Hardcoding Vote Policy as MALICIOUS-only (ignoring SUSPICIOUS)
+### Anti-Pattern 2: Agent-Specific Logic in the Detection Engine
 
-**What people do:** Only issue BLOCK when both classifiers say MALICIOUS. Treat all SUSPICIOUS verdicts as SAFE.
-**Why it's wrong:** SUSPICIOUS verdicts exist precisely because the model has partial signal. Discarding them degrades recall. The adversarial threat model requires that any classifier flag triggers at least a WARNING.
-**Do this instead:** Use the vote table in Pattern 2 above. Any non-SAFE verdict from either classifier produces at minimum WARNING.
+**What people do:** Embed Claude Code-specific parsing (reading `tool_input.command`, interpreting `tool_input.content`, etc.) inside the detection engine or policy engine.
 
-### Anti-Pattern 4: Running Both Classifiers Concurrently with threading
+**Why it's wrong:** Every new agent type requires modifying the core engine. The engine becomes a tangle of `if agent_type == "claude-code"` branches. Testing requires mocking agent-specific formats.
 
-**What people do:** Use `concurrent.futures.ThreadPoolExecutor` to run MiniLM and DeBERTa in parallel threads.
-**Why it's wrong:** Both ONNX sessions use CPUExecutionProvider. They compete for the same CPU cores. Python's GIL means the numpy/ONNX C extension calls do release the GIL, but memory bandwidth contention on the shared L3 cache still increases latency. The total wall-clock time is not improved on a single machine under this workload.
-**Do this instead:** Run sequentially. The latency budget (120ms) is achievable: MiniLM ~16ms + DeBERTa-v3-small ~40-60ms estimated on Apple M-series = ~56-76ms, within budget.
+**Do this instead:** All agent-specific parsing lives in the input adapter. The detection engine receives a `ToolCallEvent` with normalized fields (`content: str`, `tool_name: str`, `source_path: str`). The adapter is responsible for extracting these from whatever format the agent provides.
 
-### Anti-Pattern 5: Using a Pre-Trained Third-Party Model as Tier 1.6
+### Anti-Pattern 3: Mixing Detection and Policy
 
-**What people do:** Use ProtectAI's `deberta-v3-small-prompt-injection-v2` directly as the ensemble partner rather than training from scratch.
-**Why it's wrong:** ProtectAI's model was trained on an undisclosed dataset. You cannot run a fair transferability experiment if you don't control both training sets. The adversarial examples crafted against MiniLM may accidentally overlap with ProtectAI's training data, invalidating transferability measurements.
-**Do this instead:** Train DeBERTa-v3-small on the same 6,340-sample dataset (`data/training/dataset.jsonl`) so both models have identical training exposure. Use ProtectAI's model only as a secondary validation reference, not as the production Tier 1.6.
+**What people do:** Hardcode enforcement decisions inside the detection engine (e.g., "if severity >= HIGH then block"). Current `hooks.py` does this -- the same function both detects patterns and decides the exit code.
 
----
+**Why it's wrong:** Two operators with identical detections may want different enforcement: a startup might warn-only while an enterprise blocks. Hardcoding the decision inside detection makes this impossible without forking detection logic.
+
+**Do this instead:** Detection produces `DetectionResult` (verdict + confidence + signals). Policy produces `PolicyDecision` (action + constraints + reason). They are separate pipeline stages with separate tests, separate configuration, and separate concerns.
+
+### Anti-Pattern 4: Stdout Pollution from Non-Hook Components
+
+**What people do:** Use `print()` for logging, debugging, or status messages from anywhere in the codebase.
+
+**Why it's wrong:** Stdout is the hook communication channel. Any non-hook output on stdout breaks the JSON protocol with Claude Code. Current `hooks.py` is careful about this, but a modular architecture with multiple components increases the risk.
+
+**Do this instead:** All components use Python `logging` module exclusively. Only `hooks.py::main()` and `cli.py` write to stdout (hook responses and user-facing output, respectively). The audit layer writes to files or network, never stdout.
 
 ## Scaling Considerations
 
-| Concern | Per-event hook | Layer 0 repo scan |
-|---------|---------------|-------------------|
-| Latency budget | ~120ms total; sequential MiniLM + DeBERTa stays ~56-80ms | No per-event constraint; whole-repo scan acceptable at ~2s |
-| Model load time | One-time at process start via singleton; ~500ms amortized over session | Instantiated per scan invocation; model load ~500ms first call |
-| Memory | MiniLM ~87MB + DeBERTa-v3-small ~165MB ≈ 252MB RSS | Same; acceptable for a developer tool |
-| Future third classifier | Add `Tier17Classifier` in its own module; `ensemble.py` vote() extends naturally | Same pattern |
+| Scale | Architecture Adjustments |
+|-------|--------------------------|
+| Single developer workstation (current) | Full pipeline runs synchronously in-process. NoopAdapter. NDJSON to local file. <20ms per hook invocation. No changes needed. |
+| Team of 10-50 developers | Add SARIF output for GitHub Advanced Security integration. Policy YAML in repo for team-wide consistency. Fleet deployment via MDM/Ansible. |
+| Enterprise (100+ developers) | OPA/Cedar policy backends. SIEM integration (NDJSON to Splunk HEC/Sentinel). OTel spans for observability. Centralized policy management. SPIFFE identity on audit events. |
+| CI/CD pipeline integration | Input adapter for GitHub Actions events. LandlockAdapter for runner sandboxing. SARIF upload to GitHub Security tab. No architectural changes -- just new adapters. |
 
----
+### Scaling Priorities
+
+1. **First bottleneck: Detection latency at high SUSPICIOUS rates.** If many events hit the ambiguous zone (0.4-0.6 confidence), selective MELON re-execution adds ~200ms per event. Mitigation: MELON is opt-in and selective (5-10% of events). FusionLayer calibration should minimize the ambiguous zone.
+
+2. **Second bottleneck: Audit emission under high event volume.** CI/CD runners may generate hundreds of events per minute. Mitigation: NDJSON emitter is append-only to a file (fast). SARIF emitter batches results per run. OTel emitter uses the standard BatchSpanProcessor with 30s export interval.
+
+## Integration Points
+
+### External Services
+
+| Service | Integration Pattern | Notes |
+|---------|---------------------|-------|
+| OPA (Rego) | REST API to localhost sidecar (port 8181) | Deploy OPA alongside CloneGuard. No embedded Rego interpreter exists for Python. WASM compilation of Rego policies is an alternative for single-binary deployment. |
+| Cedar (cedarpy) | In-process Python bindings via PyPI `cedarpy` | Rust-backed, ~134ms for 1000 batch evaluations. Ships as platform wheel (Linux x86_64/aarch64, macOS x86_64/aarch64, Windows x86_64). |
+| SARIF | In-process using `sarif-om` (Microsoft Python SARIF object model) | Generated from SARIF 2.1.0 JSON schema. Alternatively `sarif-pydantic` for Pydantic models. |
+| OpenTelemetry | In-process using `opentelemetry-sdk` | TracerProvider + BatchSpanProcessor. Each pipeline invocation is a span with detection/policy/enforcement as child spans. |
+| Ollama (Tier 2) | HTTP to localhost:11434 | Existing integration. No changes for modular architecture. |
+| Landlock | Python ctypes to kernel syscalls via `landlock` PyPI package | Linux 5.13+ only. Unprivileged. Dev version 1.0.0.dev5 (May 2025). |
+| macOS Seatbelt | subprocess call to `sandbox-exec` with SBPL profile | Deprecated by Apple but still functional. Used by Claude Code itself. Long-term uncertainty. |
+| Microsoft AGT | Implement `ToolCallInterceptor` interface from `agent-governance-toolkit` PyPI | CloneGuard becomes a plugin in AGT's governance pipeline. <0.1ms policy overhead per AGT's benchmarks. |
+
+### Internal Boundaries (Module-to-Module Communication)
+
+| Boundary | Communication | Notes |
+|----------|---------------|-------|
+| adapters -> detection | `ToolCallEvent` dataclass (frozen, immutable) | Adapter must normalize all agent-specific fields. Detection never parses raw agent JSON. |
+| detection -> policy | `DetectionResult` dataclass (frozen, immutable) | Contains verdict, confidence, and all signal details. Policy engine can make fine-grained decisions based on individual signal scores. |
+| policy -> enforcement | `PolicyDecision` dataclass with `ConstraintSet` | Enforcement adapter interprets constraints generically. If a constraint type is unsupported by the current adapter, it is logged and the event is escalated to BLOCK (fail-closed). |
+| enforcement -> audit | `EnforcementOutcome` dataclass | Records what was actually applied (may differ from what was requested if adapter lacks capability). |
+| audit emitters | `AuditEvent` dataclass (fully assembled) | Each emitter transforms the same event to its output format. Emitters are independent -- one emitter failing must not block others. |
 
 ## Sources
 
-- Codebase read directly: `src/cloneguard/mini_semantic.py`, `scanner.py`, `hooks.py`, `semantic.py`, `scripts/train_mini_model.py`, `scripts/fetch_model.py` — HIGH confidence
-- ProtectAI `deberta-v3-small-prompt-injection-v2` model card (HuggingFace) — DeBERTa-v3-small specs: 44M params, 768 hidden, ONNX available, F1 94.62% on held-out — [https://huggingface.co/protectai/deberta-v3-small-prompt-injection-v2](https://huggingface.co/protectai/deberta-v3-small-prompt-injection-v2) — MEDIUM confidence (their dataset is different from CloneGuard's)
-- ModernBERT ONNX export issue and PR merge status — [https://github.com/huggingface/optimum/issues/2177](https://github.com/huggingface/optimum/issues/2177) — HIGH confidence: issue closed, PR merged in optimum v1.24.0
-- ModernBERT vs DeBERTaV3 benchmark paper (arxiv 2504.08716, Apr 2025): DeBERTa-v3 superior on classification benchmarks; ModernBERT advantage is long-context and speed — [https://arxiv.org/abs/2504.08716](https://arxiv.org/abs/2504.08716) — MEDIUM confidence (classification domain, not prompt injection specifically)
-- Adversarial transferability in ensemble models (arxiv 2303.09105, 2410.06851): architectural diversity reduces but does not eliminate transfer — MEDIUM confidence (vision domain, text transfer dynamics differ)
-- ONNX Runtime CPUExecutionProvider inference patterns: [https://inworld.ai/blog/reducing-cpu-usage-in-machine-learning-model-inference-with-onnx-runtime](https://inworld.ai/blog/reducing-cpu-usage-in-machine-learning-model-inference-with-onnx-runtime) — MEDIUM confidence
+- [OPA Integration Documentation](https://www.openpolicyagent.org/docs/integration) -- REST API, Go library, WASM integration patterns
+- [OPA Rego Python Library](https://github.com/open-policy-agent/rego-python) -- Python interaction with Rego ASTs
+- [Cedar Policy Language](https://docs.cedarpolicy.com/) -- Authorization policy language specification
+- [cedar-py Python Bindings](https://github.com/k9securityio/cedar-py) -- Python bindings, batch evaluation benchmarks (~134ms/1000 evals)
+- [cedarpy on PyPI](https://pypi.org/project/cedarpy/) -- Platform wheels for Linux, macOS, Windows
+- [AWS Policy AgentCore + Cedar](https://byteiota.com/aws-policy-agentcore-cedar-language-secures-ai-agents/) -- Cedar in agentic AI context
+- [Microsoft SARIF Python Object Model](https://github.com/microsoft/sarif-python-om) -- SARIF 2.1.0 classes generated from JSON schema
+- [sarif-pydantic on PyPI](https://pypi.org/project/sarif-pydantic/) -- Pydantic models for SARIF 2.1.0
+- [OpenTelemetry Python SDK Trace](https://opentelemetry-python.readthedocs.io/en/latest/sdk/trace.html) -- TracerProvider, SpanProcessor, Span APIs
+- [Landlock Python Package](https://pypi.org/project/landlock/) -- Python interface to Landlock LSM (v1.0.0.dev5)
+- [Landlock Documentation](https://landlock.io/) -- Unprivileged filesystem/network sandboxing
+- [macOS Seatbelt / sandbox-exec](https://pierce.dev/notes/a-deep-dive-on-agent-sandboxes) -- Agent sandbox deep dive including Seatbelt deprecation status
+- [agent-seatbelt-sandbox](https://github.com/michaelneale/agent-seatbelt-sandbox) -- Native macOS sandboxing for data egress prevention
+- [Microsoft Agent Governance Toolkit](https://github.com/microsoft/agent-governance-toolkit) -- ToolCallInterceptor, PolicyProviderInterface, <0.1ms overhead
+- [PEP 544 -- Protocols: Structural Subtyping](https://peps.python.org/pep-0544/) -- Python Protocol class specification
+- [structlog](https://www.structlog.org/) -- Structured logging library for Python (NDJSON output)
+- [NDJSON for Logs](https://ndjson.com/use-cases/log-processing/) -- NDJSON format specification for structured logging
+- CloneGuard v2 Architecture Design Doc (`docs/plans/2026-04-05-cloneguard-v2-architecture-design.md`) -- Internal design document, validated
 
 ---
-*Architecture research for: CloneGuard ensemble adversarial resilience — v0.3.0*
-*Researched: 2026-03-10*
+*Architecture research for: CloneGuard v2 universal agentic defense layer*
+*Researched: 2026-04-05*

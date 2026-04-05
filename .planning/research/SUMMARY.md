@@ -1,214 +1,221 @@
 # Project Research Summary
 
-**Project:** CloneGuard v0.3.0 — White-Box Adversarial Resilience Ensemble
-**Domain:** Adversarial-resilient ONNX ensemble text classifier (prompt injection detection)
-**Researched:** 2026-03-10
-**Confidence:** MEDIUM-HIGH
-
----
+**Project:** CloneGuard v2 — Universal Agentic Defense Layer
+**Domain:** Agentic AI security (detection, enforcement, audit of AI agent tool calls)
+**Researched:** 2026-04-05
+**Confidence:** HIGH
 
 ## Executive Summary
 
-CloneGuard v0.3.0 adds a second ONNX classifier (DeBERTa-v3-small) to the existing MiniLM-L6-v2 (Tier 1.5) in a parallel-vote ensemble (Tier 1.6), targeting white-box adversarial attacks against the public MiniLM weights. The approach is directionally sound: five independent research agents converge on DeBERTa-v3-small as the correct second architecture due to its SentencePiece Unigram tokenizer (vs. MiniLM's WordPiece — TokenBreak paper measures 55.62% adversarial success on WordPiece vs. 0% on Unigram), disentangled attention mechanism, and ELECTRA-style pretraining objective. These three divergences maximize the transfer penalty for white-box attacks crafted against MiniLM. ProtectAI already ships a production ONNX model for this exact task (`protectai/deberta-v3-small-prompt-injection-v2`) validating the architecture, toolchain, and export path. All major technical risks are documented and mitigable.
+CloneGuard v2 is a universal agentic defense layer that operates at Layer 0 — before any agent reads repo content, from a position the agent cannot compromise. The research confirms a clear competitive gap: no existing product (Cisco AI Defense, Lakera Guard, LlamaFirewall, Microsoft AGT, Snyk/Invariant) intercepts tool calls at the hook/OS boundary. All competitors operate at the network, API, library, framework, or offline-scan level. CloneGuard's architectural position — external to the agent's trust boundary, executed before tool call proceeds — is the primary differentiation and must not be compromised by design decisions that move logic inside the agent or into a cloud service.
 
-The central risk is not architecture selection — that question is settled — but ensemble effectiveness on a shared 6,340-sample dataset. Both models trained on identical data will learn correlated decision boundaries, and adversarial examples exploiting dataset shortcuts (28% of top features are artifacts per arxiv 2602.14161) will transfer regardless of architecture difference. The mitigation is mandatory: use different augmentation pipelines per model (Pang et al. 2019; NeurIPS 2023 Deng & Mu) to inject decision boundary diversity before fine-tuning. Without this, the ensemble degrades to near-single-model robustness under adaptive attacks. The transferability experiment (TextAttack BERTAttack + TextFooler against MiniLM, measured on DeBERTa) must be a hard gate with a defined pivot threshold (>40% transfer rate = pivot), not a retrospective validation.
+The recommended approach is a five-phase modular decomposition of the current monolithic `hooks.py` + `scanner.py`. The pipeline runs strictly linear: Input Adapter → Detection Engine → Policy Engine → Enforcement Layer → Audit Layer, connected by immutable typed dataclasses. The adapter-first architecture is critical: normalizing all agent events to a `ToolCallEvent` at the boundary makes everything downstream agent-agnostic. The competitive threat from Microsoft AGT (released 2026-04-02, 10/10 OWASP coverage claim) and AWS AgentCore Policy (Cedar-based, GA 2026-03-03) makes the differentiation story urgent: CloneGuard must ship its unique capabilities (hook-level interception, three-signal fusion, allow-but-constrain, honest adversarial evaluation) before the window closes.
 
-The correct security framing is established and must be maintained throughout: this ensemble raises attacker cost, it does not block adaptive attackers who have access to both public ONNX models. An attacker with both model weights can run AdaEA-style ensemble gradient attacks. The multi-tier defense (non-differentiable Tier 0 regex + WARNING escalation + Tier 2 Ollama on inconclusive) provides defense-in-depth that a pure ML ensemble cannot. OR-vote in hard majority mode will inflate FPR from the current 3.8% toward 7-9%; this is manageable with mode-gated voting (OR-vote in STRICT mode only, confidence threshold p > 0.65 in standard modes).
-
----
+The key risks are FPR explosion from naive signal fusion (Pitfall 1 — documented at 22.2% combined vs 9.2% standalone), enforcement becoming a DoS vector if deployed without dry-run gating (Pitfall 2), and detection engine extraction breaking the 20ms latency budget (Pitfall 3). All three are mitigable with the build order and calibration approach described in ARCHITECTURE.md. The EU AI Act Article 12 deadline (2026-08-02) creates a hard external forcing function for structured audit logging — NDJSON output is not optional, it is a compliance deliverable.
 
 ## Key Findings
 
 ### Recommended Stack
 
-The second classifier is `microsoft/deberta-v3-small` fine-tuned on CloneGuard's v3 dataset (6,340 samples) and exported to ONNX via `ORTModelForSequenceClassification.from_pretrained(..., export=True)`. The CLI export path (`optimum-cli`) is broken for DeBERTa-v3 (GitHub optimum issue #2075 — always predicts same label, unresolved). The tokenizer requires `use_fast=False` (SentencePiece backend; fast Rust tokenizer fails silently). `pipeline()` cannot be used — pass `input_ids` and `attention_mask` directly to avoid `token_type_ids` conflict (optimum issue #968, closed "not planned" June 2025). ModernBERT is explicitly ruled out: ONNX export is fragile (transformers issue #35545), architecture is closer to standard BERT (less diversity from MiniLM), and a Jan 2026 controlled benchmark (arxiv:2504.08716) found DeBERTa-v3 superior on classification.
+The existing v0.5.0 stack (Python 3.11+, PyYAML, ONNX Runtime, hatchling) is retained unchanged. The only promoted dependency is Pydantic v2 (already transitive via MCP SDK — zero marginal cost), which becomes the canonical internal event schema. All sandbox integration is via direct ctypes/subprocess — no PyPI wrapper libraries — because the two available options (`py-landlock` 0.1.1, `landlock` 1.0.0.dev5) are alpha-quality with no maintainer track record; the syscall ABI is stable and 100-300 LOC of ctypes code is lower risk than an unmaintained security-critical dependency.
 
-Training tooling is dev-only: `torch>=2.2.0`, `optimum[onnxruntime]>=1.24.0`, `textattack==0.3.10`, `datasets>=2.0.0`. Zero new runtime dependencies — inference for both classifiers runs through the existing `onnxruntime` + `transformers` tokenizer pipeline. INT8 dynamic quantization via `onnxruntime.quantization.quantize_dynamic` is required post-export to reach deployable size (FP32 export can reach 350MB+ without it).
+Policy backends follow an optional extras pattern: YAML is built-in and covers 80%+ of users; `regopy` (1.3.0, in-process OPA Rego) and `cedarpy` (4.8.0, Rust bindings) are `[policy-opa]` and `[policy-cedar]` extras for enterprises already using those systems. Total new required dependencies: 1 (Pydantic promotion). Total new optional: up to 4. This is an extremely conservative dependency budget for a security tool.
 
 **Core technologies:**
-- `microsoft/deberta-v3-small`: second ONNX classifier — maximizes architecture distance from MiniLM on three independent axes (tokenizer, attention, pretraining objective)
-- `optimum[onnxruntime]>=1.24.0`: ONNX export via `ORTModelForSequenceClassification` — programmatic `export=True` path only, not CLI
-- `textattack==0.3.10`: transferability experiment (BERTAttack, TextFooler, PWWS) — dev/research use only, not a runtime dependency
-- `onnxruntime.quantization`: INT8 dynamic quantization post-export — required for size and latency targets
+- Python 3.11+: Runtime — existing codebase, no reason to change
+- Pydantic v2 (>=2.12.5): Internal event schema — already transitive, zero marginal cost, Rust core gives sub-ms validation
+- PyYAML (>=6.0.2): Policy + rule parsing — existing, fast, C-backed
+- ONNX Runtime (>=1.17): MiniLM inference — existing, CPU, no GPU dependency
+- Landlock via ctypes: Linux enforcement — kernel ABI stable, no PyPI wrapper
+- macOS sandbox-exec (subprocess): macOS enforcement — deprecated CLI but functional; adapter interface abstracts the replacement risk
+- regopy (>=1.3.0) [optional]: In-process OPA Rego — Microsoft-backed, no OPA server required
+- cedarpy (>=4.8.0) [optional]: Cedar policy — Rust-backed, AWS AgentCore-compatible
+- sarif-pydantic (>=0.6.2) [optional]: SARIF 2.1.0 output — Pydantic v2-native, replaces unmaintained sarif-om
+- opentelemetry-sdk (>=1.40.0) [optional]: OTel spans — CNCF-graduated, GenAI semantic conventions
 
 ### Expected Features
 
-The MVP (v0.3.0) is tightly scoped. The transferability experiment gates everything else; if FR(MiniLM→DeBERTa) exceeds 40%, the plan pivots before any fine-tuning investment.
+**Must have (table stakes — v1.0):**
+- Prompt injection detection (direct + indirect) — 204 regex + MiniLM ONNX + SEQ already ships
+- Structured audit logging (NDJSON) — EU AI Act Article 12 deadline 2026-08-02
+- SARIF 2.1.0 output — GitHub Advanced Security integration; every SAST tool emits it
+- Policy-configurable verdicts (YAML minimum) — binary allow/block is disqualifying in enterprise procurement
+- Multi-agent-platform support — single-agent lock-in is a deal-breaker; Claude Code done, Gemini CLI is near-free
+- Sub-50ms detection latency — already <20ms; must be preserved through refactoring
+- CLI + library installation via uv/pipx — packaging fix needed for standalone binary
+- Hook config integrity self-check — prevents CVE-2025-59536-class config tampering
 
-**Must have (table stakes):**
-- Transferability experiment with hard gate — empirical proof that cross-architecture transfer is below threshold; required before claiming white-box resilience
-- DeBERTa-v3-small fine-tuned on v3 dataset, ONNX-exported, sanity-checked for non-constant predictions — the second classifier
-- Hard majority vote (OR) integration in `scan` and hook pipeline — parallel vote on every input
-- Disagreement state ("inconclusive") in JSON hook output — zero marginal cost; adversarially significant signal
-- Ensemble adversarial benchmark: ASR/FR/robust accuracy table, pre- and post-ensemble recall and FPR — the publishable evidence
+**Should have (competitive differentiators — v1.x):**
+- Three-verdict model (SAFE/SUSPICIOUS/MALICIOUS) with Allow-But-Constrain — no competitor does this
+- Sandbox adapter interface (Landlock/Seatbelt/Noop) — hook-level enforcement is unique
+- Input adapter abstraction (AGT, MCP, Cursor) — gateway to multi-agent market
+- Package hallucination detection (slopsquatting) — 20% of AI-generated code includes hallucinated packages; no hook-based tool catches this at install time
+- OTel span emission — SOC team observability correlation
+- Three-signal fusion with trajectory calibration — 208K trajectory dataset is a 2+ year moat
+- CaMeL-lite SEQ rule expansion (browser, CI/CD, MCP patterns)
 
-**Should have (competitive, v0.3.x):**
-- Soft confidence vote with tunable threshold θ — post-deployment FPR/recall dial without retraining
-- Temperature calibration of both models against held-out benign set — prerequisite for meaningful soft vote
-- Tier 2 Ollama auto-escalation on inconclusive state — use disagreement as a Tier 2 trigger
+**Defer to v2+:**
+- OPA/Rego + Cedar policy backends — only needed when enterprises already have OPA/Cedar
+- MELON selective re-execution (arXiv:2502.05174, ICML 2025) — research-grade complexity; prove fusion first
+- Browser agent patterns + CDP adapter — market not mature enough
+- Advanced sandboxes (gVisor, Firecracker, WASM) — Landlock + Seatbelt cover 90% of workstations
+- Fleet deployment tooling — enterprise feature, needs customer pull
 
-**Defer (v0.4+):**
-- Adversarial fine-tuning of Tier 1.6 with transferred examples from Tier 1.5 — needs transfer rate data first
-- ModernBERT as third ensemble member — deferred until ONNX export issues are confirmed resolved
-- Multilingual adversarial test cases — deferred per GitHub issue #5
-- Automated adversarial example generation in CI
+**Explicit anti-features (do not build):**
+- SaaS/cloud-hosted detection — violates the trust model; agent or attacker can intercept/block
+- Custom ML model training platform — IPI Arena retraining showed unacceptable FPR regression (9% → 20-42%)
+- Full governance framework — CloneGuard is a sensor that feeds governance, not a governance platform
+- Real-time dashboard/web UI — months of engineering that does not improve detection quality
+- Claims of "blocking all attacks" — 16.7% bypass rate against adaptive Opus is documented; honesty is a trust differentiator
 
 ### Architecture Approach
 
-The ensemble integrates via two new modules (`ensemble_semantic.py` for the DeBERTa classifier, `ensemble.py` for voting logic) without touching `mini_semantic.py`. Both callers (`hooks.py` and `scanner.py`) replace their direct `MiniSemanticClassifier` calls with `EnsembleClassifier`. The vote table is conservative: any non-SAFE verdict from either classifier produces at minimum WARNING; disagreement produces WARNING. Classifiers run sequentially, not concurrently — GIL + shared CPU make threading counterproductive for ONNX inference. Total estimated latency: 16ms (MiniLM) + 40-60ms (DeBERTa INT8) = ~56-76ms, within the 120ms hook budget. The second model is distributed via a separate HuggingFace repo (`prodnull/deberta-v3-small-prompt-injection-classifier`) fetched by a new `fetch_ensemble_model.py`; bundling both in the wheel would create a 250+ MB download.
+The architecture decomposes the current ~2,000-line monolith across five bounded subsystems connected by immutable dataclasses. Every boundary uses `typing.Protocol` (PEP 544 structural subtyping) so third-party adapters can satisfy the interface without inheriting from CloneGuard base classes — critical for the AGT ToolCallInterceptor integration where CloneGuard must conform to Microsoft's interface. The existing `hooks.py` and `scanner.py` become thin shims (~10 lines each) that construct a `RuntimeOrchestrator` and delegate; backward compatibility with v0.5.0 is non-negotiable. The three module-level singletons in the current codebase (`_engine`, `_mini_classifier`, `_mini_attempted`) must be replaced with constructor injection in `RuntimeOrchestrator` to support testing, parallel execution, and library import.
 
 **Major components:**
-1. `ensemble_semantic.py` — EnsembleSemanticClassifier (DeBERTa-v3-small ONNX); same interface as MiniSemanticClassifier; `model_ensemble/` directory
-2. `ensemble.py` — EnsembleClassifier, VoteResult, voting policy; single entry point for both hooks.py and scanner.py
-3. `scripts/train_ensemble_model.py` — DeBERTa-v3-small fine-tuning; separate from train_mini_model.py (different `hidden_size`, `MAX_SEQ_LEN`, `use_fast=False` tokenizer)
-4. `scripts/training_utils.py` — shared `load_dataset`, `evaluate`, `select_device`; extracted from train_mini_model.py to avoid duplication
-5. `scripts/transferability_experiment.py` — gate experiment; TextAttack against MiniLM, measured on DeBERTa
+1. Input Adapters (`adapters/`) — normalize agent-specific protocol JSON into `ToolCallEvent` dataclass; all agent-specific parsing lives here, never in the detection engine
+2. Detection Engine (`detection/`) — three signals (PatternEngine, SemanticClassifier, SequenceAnalyzer) fused by FusionLayer into calibrated `DetectionResult`; extract from `hooks.py` without architectural changes first, add fusion layer after
+3. Policy Engine (`policy/`) — maps `DetectionResult` + `ToolCallEvent` + operator config to `PolicyDecision` (ALLOW/CONSTRAIN/BLOCK); strictly a decision function, never a detection function
+4. Enforcement Layer (`enforcement/`) — `SandboxAdapter` Protocol with `NoopAdapter` (default), `LandlockAdapter`, `SeatbeltAdapter`; auto-detects available capability at startup via `probe.py`
+5. Audit Layer (`audit/`) — `EventBuilder` assembles `AuditEvent` from all pipeline stages; emitters for NDJSON, SARIF, OTel run in parallel on the same event; audit emitter failures must not block other emitters
 
-**Build order (respects dependencies):**
-`training_utils.py` → `train_ensemble_model.py` → `fetch_ensemble_model.py` → `ensemble_semantic.py` → `ensemble.py` → `hooks.py` → `scanner.py` → `mcp_plugin.py` → `transferability_experiment.py`
+**Build order:** Types → Detection extraction → Audit (NDJSON+SARIF) → Policy (YAML) → Enforcement (Noop) → Orchestrator + shims → Real sandboxes + adapters → Enterprise policy backends
 
 ### Critical Pitfalls
 
-1. **DeBERTa ONNX export produces constant predictions (Silent breakage)** — Use `ORTModelForSequenceClassification(..., export=True)` not `optimum-cli`; immediately run 50-sample balanced sanity check as automated CI step; validate ONNX vs. PyTorch logit agreement (atol ≤ 0.001). Warning sign: ONNX file is double the expected size; 100% precision + 0% recall on any balanced split.
+1. **FPR explosion from signal fusion** — Naive `max(scores)` or `any(fires)` fusion pushes combined FPR to 22.2% (measured). Calibrate the FusionLayer on the 208K trajectory dataset before shipping. Set SUSPICIOUS floor at 0.5+ at launch. Track FPR by content type, not only aggregate.
 
-2. **Transferability experiment gives misleadingly optimistic verdict** — Run two-stage experiment: Stage 1 = non-adaptive (TextFooler/BERTAttack/PWWS); Stage 2 = adaptive (ensemble-targeting both models simultaneously). Report both. Stage 1 is a lower bound on attacker capability, not a ceiling. Define the gate before running: FR > 40% = pivot. FR > 60% = architecture needs revision.
+2. **Enforcement as DoS vector** — Sandbox constraints that miscapture benign developer workflows silently break tools with opaque OS errors. Ship NoopAdapter as default; require explicit opt-in; run dry-run mode for ≥2 weeks of real usage before enabling enforcement; every constraint denial must surface a CloneGuard-attributed error, not a raw "Permission denied."
 
-3. **Correlated decision boundaries from shared training data** — Use different augmentation pipelines per model (NeurIPS 2023 Deng & Mu; Pang et al. 2019). This is non-optional: without augmentation diversity, both models learn the same shortcuts and the ensemble provides near-zero benefit against adversarial examples targeting dataset artifacts (28% of top features per arxiv 2602.14161).
+3. **Detection engine extraction breaks 20ms budget** — Abstraction layers (Protocol dispatch, dataclass allocation, event normalization) compound in Python. Establish a benchmark regression gate in CI before extraction begins. Keep the hot path zero-copy for the Claude Code common case. Extraction should be mechanical (move functions, update imports), not architectural.
 
-4. **OR-vote inflates FPR from 3.8% toward 7-9%** — Current FPR is already at operational boundary. Mode-gate OR-vote to STRICT mode (agent instruction files); use confidence threshold p > 0.65 in standard mode; measure ensemble FPR on held-out benign set before finalizing vote policy. Both models will share correlated false positives on the same ambiguous content (CLAUDE.md, .clinerules, system prompts).
+4. **Exit code backward compatibility** — The three-verdict model must not introduce a third exit code. SUSPICIOUS + NoopAdapter = exit 0 (warning on stdout). SUSPICIOUS + real sandbox = apply constraints out-of-band, return exit 0. MALICIOUS = exit 2. Reserve exit 1 for CloneGuard internal errors. Test against all four hook protocols (Claude Code, Gemini CLI, Cursor, Windsurf).
 
-5. **False sense of security framing** — Ensemble does not stop adaptive attackers with both public ONNX models. The correct framing throughout: "raises attacker cost." NIST AI 100-2e2025 requires adaptive attack evaluation as mandatory in any adversarial robustness claim. Report adaptive ensemble attack results (Stage 2) alongside non-adaptive results. Never use "secure" or "protected" in benchmark writeup.
+5. **Layer 0 trust invariant** — Any code path where sandbox adapter or policy engine reads a file from the repo root violates the Layer 0 security property (repo content must not influence enforcement posture). Enforcement config lives exclusively in `~/.cloneguard/`. Add a CI check that greps for `Path.cwd()` reads in sandbox/policy initialization code.
 
----
+6. **Input adapter abstraction leaks protocol semantics** — Too-tight normalization discards protocol-specific signals needed for detection (e.g., MCP tool descriptions for tool poisoning). Design: core required fields + `extra` dict for protocol-specific context. Test the same attack payload through every adapter; detection must not regress as adapters are added.
+
+7. **Seatbelt deprecation (macOS platform risk)** — Apple deprecated `sandbox-exec` in macOS 10.15. No replacement programmatic sandboxing API exists for unprivileged CLI tools. Implement SeatbeltAdapter behind the adapter interface so it can be swapped. Monitor WWDC annually. Do not make macOS enforcement load-bearing for the value proposition.
 
 ## Implications for Roadmap
 
-Based on combined research, the natural phase structure follows the hard dependency chain: transferability gate → model training/export → integration/voting → benchmark/publication.
+Based on the combined research, the architecture's Phase A-G build order maps directly to the following product phases. The ordering is constrained by type dependencies (types before components), the 20ms latency non-negotiable (benchmark gate before extraction), and the EU AI Act deadline (NDJSON by August 2026).
 
-### Phase 1: Transferability Gate and Architecture Validation
+### Phase 1: Foundation — Core Types, Detection Extraction, and Audit
 
-**Rationale:** Everything else in v0.3.0 is blocked by this. Fine-tuning DeBERTa on 6,340 samples takes compute time; if the gate fails, that investment is wasted. Use ProtectAI's existing `deberta-v3-small-prompt-injection-v2` as a proxy before committing to custom training — evaluate it against CloneGuard's adversarial benchmark to measure transfer rate at zero training cost. Only if the proxy passes the 40% gate does custom fine-tuning proceed.
+**Rationale:** Detection engine extraction is the highest-risk refactor in the entire project (touching 2,000+ LOC of production code). Do it first, while the codebase is otherwise stable, with a benchmark regression gate. NDJSON audit follows immediately because it is the EU AI Act Article 12 compliance deliverable and the simplest subsystem to build. SARIF adds GitHub Advanced Security integration at low marginal cost. The result: existing v0.5.0 users see identical behavior via thin shims, while the architecture is now ready for all subsequent phases.
 
-**Delivers:** Go/no-go decision on ensemble approach; if go, validated architecture choice with empirical transfer rate baseline.
+**Delivers:** Modular detection engine with typed contracts; backward-compatible thin shims; NDJSON structured audit (EU AI Act ready); SARIF 2.1.0 output (GitHub Security tab); packaging fix (uv/pipx); hook config integrity self-check; benchmark regression CI gate
 
-**Addresses:** Transferability experiment (P1 feature); architecture selection validation.
+**Addresses (FEATURES.md):** Structured audit logging, SARIF output, sub-50ms latency preservation, CLI installation, hook config integrity
 
-**Avoids:** Pitfall 1 (constant predictions — export validated during proxy eval), Pitfall 2 (misleading experiment — adaptive attack stage designed upfront), Pitfall 7 (false security framing — gate threshold defined before results).
+**Avoids (PITFALLS.md):** Detection extraction latency regression (benchmark gate), triple emission maintenance burden (NDJSON + SARIF only in Phase 1), audit event raw content leak (hash tool_input in schema from day one)
 
-**Research flag:** Standard patterns — TextAttack methodology is well-documented; ProtectAI ONNX loading is documented. No deep research needed.
+### Phase 2: Adaptive Enforcement — Policy Engine and Sandbox Adapters
 
-### Phase 2: DeBERTa-v3-small Fine-Tune and ONNX Export
+**Rationale:** Policy engine must exist before enforcement — the `PolicyDecision.constraints` type defines what enforcement implements. The three-verdict model (SAFE/SUSPICIOUS/MALICIOUS) requires policy before it can produce differentiated outcomes. NoopAdapter ships alongside policy to prove the interface before introducing OS-level complexity. Landlock and Seatbelt adapters ship after NoopAdapter is proven. Dry-run mode with structured logging is the default; explicit opt-in is required for active enforcement.
 
-**Rationale:** Only begins after Phase 1 gate passes. Training the model correctly requires differential augmentation for DeBERTa vs. MiniLM before the training run, not after. ONNX export must include automated sanity check as part of the export script.
+**Delivers:** YAML policy engine; three-verdict model (SAFE/SUSPICIOUS/MALICIOUS); Allow-But-Constrain enforcement; NoopAdapter (default); LandlockAdapter (Linux); SeatbeltAdapter (macOS); sandbox capability auto-detection; dry-run mode; exit code compatibility matrix; Layer 0 trust boundary enforcement
 
-**Delivers:** `deberta-v3-small-prompt-injection-classifier` ONNX model ready for integration; `scripts/train_ensemble_model.py`; `scripts/training_utils.py`; `scripts/fetch_ensemble_model.py`.
+**Uses (STACK.md):** Pydantic v2 for `PolicyDecision`/`ConstraintSet` models; ctypes/subprocess for Landlock/Seatbelt; Pydantic config schema for `~/.cloneguard/`
 
-**Uses:** `microsoft/deberta-v3-small`, `optimum[onnxruntime]>=1.24.0`, `torch>=2.2.0`, differential augmentation pipeline (back-translation or character perturbations different from v3 augmentation used for MiniLM).
+**Avoids (PITFALLS.md):** Enforcement as DoS (dry-run default, explicit opt-in), exit code backward compatibility (SUSPICIOUS = exit 0), Layer 0 trust invariant (enforcement reads only `~/.cloneguard/`), policy engine becoming second detection engine (IR excludes content fields)
 
-**Avoids:** Pitfall 1 (ONNX export breakage — automated sanity check), Pitfall 3 (correlated boundaries — differential augmentation), Pitfall 6 (latency budget — INT8 quantization post-export, CPUExecutionProvider latency probe before architecture commitment).
+### Phase 3: Framework Integration — Input Adapter Abstraction and Multi-Agent Support
 
-**Research flag:** Needs research. Differential augmentation pipeline specifics for DeBERTa need a focused sub-task. Also: INT8 quantization validation procedure for DeBERTa ONNX needs verification on Apple M-series hardware.
+**Rationale:** Input adapter abstraction is the gateway to the multi-agent market. It cannot be built correctly in Phase 1 without existing enforcement and audit infrastructure to test end-to-end. MCP middleware is the highest-value non-hook adapter (30+ CVEs in 60 days, OWASP ASI-04, MITRE ATLAS "Publish Poisoned AI Agent Tool" technique). AGT ToolCallInterceptor plugin positions CloneGuard as a sensor within Microsoft's governance pipeline. OTel spans ship here (after NDJSON/SARIF are proven) as an enterprise observability integration.
 
-### Phase 3: Ensemble Integration and Voting Policy
+**Delivers:** `InputAdapter` Protocol with `ToolCallEvent` normalization; Gemini CLI adapter (near-free via `gemini hooks migrate --from-claude`); Cursor adapter; MCP protocol middleware (request + response scanning); AGT ToolCallInterceptor plugin; OTel span emission; CI/CD runner deployment (GitHub Actions); package hallucination detection (slopsquatting via registry cross-reference)
 
-**Rationale:** Once ONNX model is ready and validated, wiring the voting logic into the existing pipeline is straightforward. The architecture is fully specified (two new modules + two modified callers). Mode-gated voting must be finalized after measuring ensemble FPR on held-out benign set.
+**Uses (STACK.md):** `mcp` SDK (1.26.0) for MCP middleware; `agent-governance-toolkit` (3.0.1) interface for AGT plugin; `opentelemetry-sdk` (1.40.0) for OTel; `opentelemetry-api` (separate from SDK for consumers)
 
-**Delivers:** `ensemble_semantic.py`, `ensemble.py`, modified `hooks.py`, `scanner.py`, `mcp_plugin.py`; disagreement state in JSON hook output; graceful degradation (four availability states); version bump to 0.3.0.
+**Avoids (PITFALLS.md):** Input adapter detection leakage (core fields + `extra` dict; same-attack cross-adapter test suite), OTel cardinality explosion (semantic conventions, no dynamic span names), MCP response blind spot (intercept both request and response)
 
-**Implements:** EnsembleClassifier, VoteResult, parallel vote table, lazy-loaded singleton pattern extension, disagreement-as-WARNING conservative policy.
+### Phase 4: Detection Excellence — Three-Signal Fusion and Calibration
 
-**Avoids:** Pitfall 4 (OR-vote FPR inflation — mode-gated OR-vote, confidence threshold p > 0.65 in standard mode); Anti-patterns 1-5 from ARCHITECTURE.md (voting logic centralized in ensemble.py, one class per model, no threading).
+**Rationale:** Three-signal fusion is deferred until Phase 4 deliberately. Phases 1-3 give production usage data: real confidence distributions across real agent types with real benign baselines. Calibrating FusionLayer on production data rather than only the 208K coding-trajectory dataset produces significantly better weights for MCP, CI/CD, and browser agent contexts. MELON selective re-execution (arXiv:2502.05174, ICML 2025) follows as an additive layer on top of proven fusion, not as a replacement for it.
 
-**Research flag:** Standard patterns — architecture is fully specified. No deep research needed.
+**Delivers:** Calibrated FusionLayer with per-agent-type weights; per-signal weight functions keyed to scan mode (STRICT/STANDARD/LENIENT); per-content-type FPR tracking (CI configs, security docs, test fixtures separately); cross-agent pattern libraries (browser/, cicd/, mcp/, common/); MELON selective re-execution (opt-in, circuit breaker, per-agent-type zone configuration)
 
-### Phase 4: Adversarial Benchmark and Publication Prep
+**Uses (STACK.md):** Existing ONNX Runtime + 208K trajectory dataset + production data; MELON algorithm reimplemented from arXiv:2502.05174 (not the reference repo — research code, not production-ready)
 
-**Rationale:** The benchmark is the publishable artifact. It must include both non-adaptive and adaptive (ensemble-targeting) attack results per NIST AI 100-2e2025 requirements. Correlated failure analysis (which samples both models get wrong) is required before reporting ensemble FPR as a single number.
+**Avoids (PITFALLS.md):** FPR explosion (calibrated FusionLayer, not max/any), MELON cost explosion (circuit breaker at >15% trigger rate, per-agent-type zones, opt-in), fusion calibration without auth-paradox test (run Campbell et al. auth-marker FPR test on the fused pipeline)
 
-**Delivers:** Extended `scripts/multitier_benchmark.py` with ensemble adversarial benchmark; ASR/FR/robust accuracy table; correlated failure analysis; HuggingFace model card update; results in `docs/results/`; version 0.3.0 tagged.
+### Phase 5: Enterprise Governance — OPA, Cedar, and Fleet
 
-**Addresses:** Ensemble adversarial benchmark (P1 feature); fooling rate published alongside F1 (differentiator); second model trained on same dataset (differentiator).
+**Rationale:** OPA/Rego and Cedar policy backends are deferred until enterprises actually use them and demand integration. Phase 4 must demonstrate stable detection before adding policy complexity. Fleet deployment tooling (MDM/Ansible) requires customer pull to justify the engineering investment. SPIFFE agent identity belongs here as a zero-trust enterprise feature.
 
-**Avoids:** Pitfall 2 (misleading experiment — both attack stages reported), Pitfall 5 (correlated vulnerability documented as known limitation), Pitfall 7 (honest framing — "raises attacker cost" throughout).
+**Delivers:** OPA/Rego policy backend (`regopy` in-process); Cedar policy backend (`cedarpy` Rust bindings); OPA WASM compilation for single-binary deployment; policy composition and inheritance for multi-site enterprises; fleet deployment tooling; SIEM integration guides (NDJSON to Splunk HEC, Sentinel, Elasticsearch); SPIFFE identity on audit events; ISO 42001 A.6.2.8 compliance documentation
 
-**Research flag:** Adaptive ensemble attack (Stage 2) design may need a targeted research sub-task if AdaEA-style multi-gradient optimization is not already in the benchmark plan.
+**Uses (STACK.md):** `regopy` (1.3.0), `cedarpy` (4.8.0)
+
+**Avoids (PITFALLS.md):** Policy engine becoming detection engine (IR schema validation rejects content-accessing fields), OPA IPC cost (in-process `regopy` or WASM, not subprocess OPA binary), OPA bundle MITM (cryptographic signature verification, local-only default)
 
 ### Phase Ordering Rationale
 
-- Phase 1 gates Phase 2 on empirical evidence, not theory. Proxy model evaluation costs one day; training costs compute and calendar time. The gate prevents sunk cost.
-- Differential augmentation must be designed before Phase 2 training, not after. Decision boundary diversity cannot be retrofitted.
-- Phase 3 integration is straightforward once the ONNX artifact exists. The architecture is fully specified and the build order is dependency-correct.
-- Phase 4 benchmark must be the last phase because it depends on the integrated ensemble being operational. Running the benchmark before voting policy is finalized would require rerunning it.
-- Across all phases: maintain the "raises attacker cost" framing. Do not claim the ensemble blocks adaptive attackers.
+- **Types and extraction before everything** (Phase 1): The detection engine extraction is a 2,000-LOC refactor with a 20ms latency non-negotiable. It must happen with nothing else in flight and with a benchmark gate established in CI first. The build order is strictly bottom-up: types → extraction → audit → policy → enforcement → orchestrator → adapters → enterprise.
+- **Audit before policy** (Phase 1 before Phase 2): NDJSON audit provides immediate EU AI Act Article 12 compliance value and validates the `AuditEvent` schema that every subsequent phase serializes.
+- **Policy before enforcement** (Phase 2 ordering): `PolicyDecision.constraints` type must be defined before any sandbox adapter can implement it. Building enforcement without policy produces an untestable sandbox.
+- **Enforcement with dry-run default** (Phase 2): The enforcement-as-DoS risk is the highest user-facing risk in the project. Dry-run mode for ≥2 weeks is required before active enforcement is default-on.
+- **Adapters after core is proven** (Phase 3): Input adapter abstraction built on top of production detection + policy + enforcement gives a real end-to-end system to test against, not a stub pipeline.
+- **Fusion calibration after production data** (Phase 4): The 208K coding-trajectory dataset is a good calibration baseline but covers only one agent type. MCP, CI/CD, and browser agent confidence distributions are unknown until Phase 3 ships adapters that collect real data.
+- **Enterprise backends last** (Phase 5): OPA and Cedar add external dependencies and integration complexity. They should follow, not lead, the product's proven detection and enforcement capabilities.
 
 ### Research Flags
 
-Phases needing deeper research during planning:
-- **Phase 2:** Differential augmentation pipeline specifics — what augmentation strategy to use for DeBERTa training that is meaningfully different from the back-translation + paraphrase used for v3 MiniLM augmentation. Also: INT8 dynamic quantization verification on Apple M-series CPUExecutionProvider — no authoritative M-series CPU benchmark found for DeBERTa ONNX.
-- **Phase 4:** Adaptive ensemble attack implementation — if AdaEA (Chen et al. ICCV 2023) joint gradient optimization is out of scope, define the minimum viable adaptive attack that satisfies NIST AI 100-2e2025 requirements.
+Phases likely needing deeper research during planning:
+- **Phase 2 (Sandbox Adapters):** Landlock ABI v5 unprivileged operation; Seatbelt profile syntax for common developer tool constraints; subprocess vs. ctypes performance for per-call application. The "apply constraints to subprocess, not self" requirement (Pitfall 10 + Integration Gotchas) has non-obvious implementation implications.
+- **Phase 3 (MCP Middleware):** MCP SDK response interception API surface; how MCP servers handle CloneGuard as a proxy. MCP protocol evolves rapidly (30+ CVEs in 60 days); API research needed at planning time, not now.
+- **Phase 4 (MELON):** The ICML 2025 paper describes the algorithm clearly, but the production integration (masked re-execution in a constrained execution context with no network access) requires design work. MELON's known failure modes in response-based attacks (72.73%) need mitigation strategy for non-coding agent types.
 
-Phases with standard patterns (skip deep research):
-- **Phase 1:** TextAttack methodology and ProtectAI ONNX loading are fully documented; proxy model evaluation procedure is straightforward.
-- **Phase 3:** Architecture fully specified in ARCHITECTURE.md; all integration points, build order, and anti-patterns documented.
-
----
+Phases with standard patterns (skip research):
+- **Phase 1 (Detection Extraction + NDJSON/SARIF):** Well-documented refactoring patterns. NDJSON is stdlib `json` + `\n`. SARIF 2.1.0 is a published OASIS specification with `sarif-pydantic` providing Pydantic v2 models. No research needed beyond validating output against OASIS schema.
+- **Phase 5 (OPA/Cedar backends):** `regopy` and `cedarpy` are documented PyPI packages with Python examples. The integration is additive behind the existing `PolicyBackend` Protocol.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | DeBERTa-v3-small: 5 agents converge. ONNX export gotchas verified via primary GitHub issues. TokenBreak paper directly confirms tokenizer rationale. ProtectAI production model validates toolchain. One known gap: M-series CPU latency for DeBERTa INT8 — no authoritative benchmark found. |
-| Features | MEDIUM-HIGH | MVP scope well-defined. Voting strategy HIGH (evidence from multiple peer-reviewed sources). Transferability experiment design MEDIUM (no study directly measures MiniLM-to-DeBERTa for prompt injection specifically). |
-| Architecture | HIGH | Codebase read directly. All component boundaries, data flows, anti-patterns, and build order specified from source. Two ONNX gotchas verified via primary GitHub issues. |
-| Pitfalls | HIGH | All critical pitfalls verified via primary GitHub issues, peer-reviewed papers (NeurIPS 2023, EMNLP 2021, NIST AI 100-2e2025), or direct codebase analysis. Adversarial plan validation adds 5 independent agent confirmations on key risks. |
+| Stack | MEDIUM-HIGH | Versions verified via PyPI dry-run. Sandbox libraries (Landlock ctypes, Seatbelt subprocess) are technically straightforward but the "apply to subprocess, not self" architecture has not been prototyped. Seatbelt deprecation is a known unknown. |
+| Features | HIGH | Competitive landscape well-documented via primary sources. OWASP/MITRE/EU AI Act deadlines are fixed. Feature dependencies mapped end-to-end in FEATURES.md. |
+| Architecture | HIGH | Build order is constrained by dependency graph, not preference. Typed contract pattern is proven in Python production systems. Anti-patterns are grounded in the existing codebase's failure modes. |
+| Pitfalls | HIGH | Grounded in CloneGuard's own empirical FPR measurements, documented production failures in adjacent tools, and peer-reviewed research (Campbell et al. arXiv:2603.01246). Not theoretical. |
 
-**Overall confidence:** MEDIUM-HIGH
+**Overall confidence:** HIGH
 
 ### Gaps to Address
 
-- **Differential augmentation strategy for DeBERTa:** The research confirms this is required but does not specify which augmentation pipeline to use. Need to define concrete augmentation for Phase 2 (back-translation via a specific library, character-level perturbations, paraphrase model) that does not overlap with v3 augmentation rounds 7-8. Address in Phase 2 planning.
-
-- **DeBERTa INT8 ONNX latency on Apple M-series CPUExecutionProvider:** No authoritative benchmark found. The 40-60ms estimate is derived from parameter count scaling from known MiniLM latency. A latency probe must be the first step of Phase 2 before committing to the architecture. If latency exceeds 80ms per 128-token window, DeBERTa-v3-xsmall becomes the fallback.
-
-- **Adaptive ensemble attack implementation scope:** NIST AI 100-2e2025 requires adaptive evaluation. AdaEA (Chen et al. ICCV 2023) joint gradient optimization is the gold standard but may be out of v0.3.0 scope. Define the minimum viable adaptive attack that satisfies the requirement without requiring ICCV-level implementation effort. Address in Phase 4 planning.
-
-- **WARNING rate on benign inputs:** If ensemble disagreement rate on benign inputs exceeds 10%, the WARNING tier becomes operationally noisy. This cannot be measured until Phase 3 integration. Set ceiling threshold in Phase 3 planning and make it a go/no-go criterion for Phase 4.
-
----
+- **Fusion calibration for non-coding agent types:** The 208K trajectory dataset covers SWE-bench coding workflows only. MCP, browser, CI/CD, and financial agent workflows have different benign baselines. Plan to collect trajectory data from each new adapter type as Phase 3 ships. Do not set SUSPICIOUS floor below 0.5 until per-agent-type calibration data exists.
+- **Landlock "apply to subprocess" prototype:** The integration gotcha (Landlock restrictions are inherited by child processes and cannot be removed; apply only to the subprocess executing the tool call, not to the CloneGuard process itself) is architecturally important but not yet prototyped. This needs a ≤1-day spike at the start of Phase 2 to confirm feasibility before the full adapter implementation.
+- **macOS Seatbelt deprecation replacement:** No confirmed replacement API exists for unprivileged programmatic sandboxing on macOS without `.app` bundle entitlements. WASM-based sandboxing (Wasmtime) is a cross-platform alternative but with different isolation semantics. This is a known long-term risk that must be re-evaluated at each macOS major release.
+- **Trust cache concurrency:** Current JSON-file trust cache is not safe for concurrent agent sessions. This is documented as technical debt (SQLite or similar needed). Acceptable for Phase 1 (single-session), must be resolved before multi-session enterprise deployment.
+- **Gemini CLI hook protocol version stability:** `gemini hooks migrate --from-claude` is confirmed, but the protocol is not formally versioned. Pin to verified version and test in CI against both Claude Code and Gemini CLI.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-
-- arxiv:2506.07948 (TokenBreak) — 55.62% WordPiece vs 0% Unigram adversarial success; directly confirms tokenizer dissimilarity rationale
-- arxiv:2504.08716 — ModernBERT vs DeBERTa-v3 controlled study; DeBERTa-v3 superior on classification
-- huggingface/optimum issue #2075 — DeBERTa-v3 ONNX CLI export always-same-label bug; confirmed unresolved
-- huggingface/optimum issue #968 — `token_type_ids` / `pipeline()` bug; confirmed closed "not planned"
-- ProtectAI deberta-v3-small-prompt-injection-v2 (HuggingFace) — production ONNX model for identical task; F1=94.62%; validates toolchain
-- NIST AI 100-2e2025 — adversarial ML taxonomy; adaptive attack evaluation as mandatory standard
-- arxiv:2111.09543 (DeBERTaV3) — original RTD + GDES architecture paper
-- NeurIPS 2023: Deng & Mu, "Understanding and Improving Ensemble Adversarial Defense" — diversity training required for meaningful ensemble robustness
-- Pang et al. 2019 (arxiv:1901.09981) — diversity training; correlated decision boundaries as primary ensemble failure mode
-- arxiv:2602.14161 — 28% of PI classifier features are dataset shortcuts; confirms correlated vulnerability risk
-- Athalye, Carlini, Wagner 2018 — Obfuscated Gradients; ensemble gradient attacks on systems with combined gradients
-- Chen et al. ICCV 2023 (AdaEA) — adaptive ensemble attacks; two-model ensembles particularly vulnerable
+- [EU AI Act Article 12: Record-Keeping](https://artificialintelligenceact.eu/article/12/) — logging requirements for high-risk AI systems, 2026-08-02 enforcement deadline
+- [OWASP Top 10 for Agentic Applications 2026](https://genai.owasp.org/resource/owasp-top-10-for-agentic-applications-for-2026/) — ASI-01 through ASI-06 risk framework
+- [MITRE ATLAS](https://atlas.mitre.org/) — AML.T0051, "Publish Poisoned AI Agent Tool" technique
+- [MELON paper](https://arxiv.org/abs/2502.05174) — arXiv:2502.05174v4, ICML 2025
+- [Landlock kernel docs](https://docs.kernel.org/userspace-api/landlock.html) — stable kernel ABI
+- [OpenTelemetry GenAI Semantic Conventions](https://opentelemetry.io/docs/specs/semconv/gen-ai/gen-ai-agent-spans/) — agent span standards
+- [PEP 544 — Protocols: Structural Subtyping](https://peps.python.org/pep-0544/) — Python Protocol class specification
+- PyPI packages verified via `uv pip install --dry-run`: cedarpy 4.8.0, regopy 1.3.0, sarif-pydantic 0.6.2, opentelemetry-sdk 1.40.0, agent-governance-toolkit 3.0.1, mcp 1.26.0
 
 ### Secondary (MEDIUM confidence)
-
-- Yuan et al. EMNLP 2021 (aclanthology.org/2021.emnlp-main.121) — NLP adversarial transfer rates 12-55%; four transfer factors
-- Papernot et al. 2016 (arxiv:1605.07277) — foundational transferability theory
-- Tramèr et al. ICLR 2018 (arxiv:1705.07204) — ensemble adversarial training; black-box transfer vulnerability
-- Morris et al. EMNLP 2020 — TextAttack framework; standard attack library
-- Scientific Reports 2025 (PMC12019570) — weighted average 98.78% vs majority 87.34% in intrusion detection ensemble
-- Krishnan et al. NAACL 2021 — BERT transferability despite architectural mismatch; model extraction threat
-- huggingface/transformers issue #35545 — ModernBERT ONNX export fragility; closed Feb 2026, exact resolution unclear
+- [Microsoft AGT release](https://opensource.microsoft.com/blog/2026/04/02/introducing-the-agent-governance-toolkit-open-source-runtime-security-for-ai-agents/) — 2026-04-02, 10/10 OWASP coverage claim
+- [AWS Bedrock AgentCore Policy GA](https://aws.amazon.com/blogs/aws/amazon-bedrock-agentcore-adds-quality-evaluations-and-policy-controls-for-deploying-trusted-ai-agents/) — Cedar-based, GA 2026-03-03
+- [LlamaFirewall](https://ai.meta.com/research/publications/llamafirewall-an-open-source-guardrail-system-for-building-secure-ai-agents/) — PromptGuard 2 + AlignmentCheck + CodeShield architecture
+- [Slopsquatting research](https://www.aikido.dev/blog/slopsquatting-ai-package-hallucination-attacks) — 20% hallucination rate, 43% recurrence
+- [Bessemer 2026 agentic security analysis](https://www.bvp.com/atlas/securing-ai-agents-the-defining-cybersecurity-challenge-of-2026) — market sizing, 48% cite agentic AI as top attack vector
+- CloneGuard empirical data: 208K trajectory dataset, SEQ-004 FPR 15.80%, combined pipeline FPR 22.2% vs 9.2% standalone, 16.7% adaptive bypass rate (Opus iterative)
+- Campbell et al. arXiv:2603.01246 (ICLR 2026 Workshop) — authorization preamble FPR amplification
 
 ### Tertiary (LOW confidence)
-
-- ONNX Runtime CPUExecutionProvider latency patterns (inworld.ai blog) — cited for architectural pattern; no authoritative benchmark
-- DeBERTa INT8 latency estimates (15-20ms per 128-token sequence) — derived from parameter scaling; unverified on Apple M-series CPUExecutionProvider; must be empirically verified in Phase 2
+- [Agent sandbox comparison](https://pierce.dev/notes/a-deep-dive-on-agent-sandboxes) — community analysis, Seatbelt deprecation notes
+- [MCP Security 2026: 30 CVEs in 60 Days](https://www.heyuan110.com/posts/ai/2026-03-10-mcp-security-2026/) — attack surface characterization
 
 ---
-
-*Research completed: 2026-03-10*
+*Research completed: 2026-04-05*
 *Ready for roadmap: yes*
