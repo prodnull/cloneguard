@@ -1,96 +1,100 @@
-# CloneGuard
+# CloneGuard v2: Universal Agentic Defense
 
 ## What This Is
 
-Pre-execution defense layer that raises the cost of prompt injection attacks against AI coding agents (Claude Code, GitHub Copilot, Cursor, Gemini CLI, Codex CLI). Scans repository files, tool output, and agent configurations before agents process them. Multi-tier detection: 197 regex patterns across 25 categories (Tier 0), adversarially hardened ONNX semantic classifier with per-ScanMode context-aware thresholds (Tier 1.5, v4 FreeLB+PWWS), Mahalanobis anomaly scoring, CaMeL-lite behavioral monitoring of tool call sequences, and Ollama LLM fallback (Tier 2).
+CloneGuard evolves from a coding-agent prompt injection scanner into a universal agentic defense layer — the independent trust boundary between any AI agent and any execution environment. It detects, constrains, and audits tool calls across agent platforms from a position the agent itself cannot compromise.
 
 ## Core Value
 
-Make prompt injection attacks against AI coding agents expensive enough that attackers move on to easier targets.
+The only vendor-neutral, sandbox-agnostic defense layer that fuses pattern + semantic + behavioral signals to detect prompt injection, then enforces adaptive constraints — not just allow/block but allow-but-constrain — across any agent type.
 
 ## Requirements
 
 ### Validated
 
-- v0.2.3: 193 regex patterns across 24 categories (Tier 0)
-- v0.2.3: 4-layer hook defense (L0 wrapper, L1 InstructionsLoaded, L2 PostToolUse, L3 PreToolUse)
-- v0.2.3: SHA-256 trust cache, content-hash allowlist
-- v0.2.3: MCP Gateway plugin
-- v0.2.3: Multi-agent hook support (Claude Code, Gemini CLI, Cursor, Windsurf, VS Code Copilot)
-- v0.2.3: Mode-restricted patterns (strict/standard/lenient)
-- v0.2.3: Ollama qwen2.5:7b fallback (Tier 2)
-- ✓ Transferability gate — empirically validated ensemble approach (58.0% transfer, CI 47.5%-67.7%) — v0.3
-- ✓ PWWS adversarial augmentation + FreeLB AT — ASR reduced from 65.7% to 9.7% — v0.3
-- ✓ Mahalanobis anomaly detector — integrated, 2.7% detection (marginal orthogonal signal) — v0.3
-- ✓ Hardened pipeline benchmark — recall 90.3%, latency p95 16.61ms — v0.3
-- ✓ Adaptive attacks measured — 20.3% ASR ceiling (CI 14.6%-27.5%) — v0.3
-- ✓ Correlated failure analysis — 18/185 structural both-miss samples identified — v0.3
-- ✓ Honest "raises attacker cost" framing enforced via automated audit — v0.3
-- ✓ v4 ONNX model (dual-output logits + cls_embedding, 6,472-sample dataset) — v0.3
-- ✓ Authorization paradox confirmed: +12.7pp Tier 1.5 FPR from auth preambles (Campbell et al. 2026 cited) — v0.4
-- ✓ Strict-only pattern audit against defensive security corpus (CI-004, CI-006, SC-001, MCP-005) — v0.4
-- ✓ Structural FPR limits documented with empirical evidence — v0.4
-- ✓ Per-ScanMode context-aware thresholds (STRICT/STANDARD/LENIENT) threaded end-to-end — v0.4
-- ✓ Workflow FPR reduced from 30.2% to 18.9% (CI-001 restricted to strict, agent_instructions 18.4%) — v0.4
-- ✓ 197 patterns across 25 categories including Log-To-Leak exfiltration (LTL-001–LTL-004) — v0.4
-- ✓ CaMeL-lite behavioral monitoring: ToolCallMonitor with SEQ-001–SEQ-004, JSONL logging, <0.5ms overhead — v0.4
+- ✓ **204 regex patterns** across 25 YAML rule files — existing
+- ✓ **MiniLM ONNX semantic classifier** (Tier 1.5) — existing
+- ✓ **Ollama fallback classifier** (Tier 2) — existing
+- ✓ **4 defense layers** (L0 wrapper, L1 InstructionsLoaded, L2 PostToolUse, L3 PreToolUse) — existing
+- ✓ **6 SEQ behavioral rules** (3 enforce, 3 advisory) — existing
+- ✓ **Claude Code hook integration** (JSON stdin/stdout, exit 0/2) — existing
+- ✓ **Session trust caching** and TOCTOU-safe design — existing
+- ✓ **Allowlist system** with content-hash verification — existing
+- ✓ **1,321 tests passing**, eval harness (20/20, 0 FP) — existing
+- ✓ **Trajectory dataset** (208,127 trajectories, 8.3M actions) — existing
 
 ### Active
 
-(None — next milestone requirements TBD via `/gsd:new-milestone`)
+- [ ] Structured event schema (NDJSON) and SARIF 2.1.0 emitter
+- [ ] Detection engine extracted from hooks.py into standalone module
+- [ ] Sandbox adapter interface with NoopAdapter, LandlockAdapter, SeatbeltAdapter
+- [ ] Three-verdict model (SAFE / SUSPICIOUS / MALICIOUS)
+- [ ] Policy engine with YAML configuration
+- [ ] Input adapter abstraction (decouple from Claude Code hook protocol)
+- [ ] Three-signal fusion layer calibrated on trajectory dataset
+- [ ] Package hallucination detection (npm/pip cross-reference)
+- [ ] MELON selective re-execution (SEQ-006)
+- [ ] Microsoft AGT ToolCallInterceptor plugin
+- [ ] MCP protocol middleware adapter
+- [ ] CI/CD runner deployment (GitHub Actions)
+- [ ] OTel span emission
+- [ ] OPA/Rego and Cedar policy backends
+- [ ] Browser agent, autonomous agent, and financial agent pattern libraries
+- [ ] Additional sandbox adapters (gVisor, Firecracker, WASM, Docker)
 
 ### Out of Scope
 
-- Full multilingual coverage — deferred to GitHub issue #5
-- Randomized smoothing — incompatible with 20ms latency budget (100-5000x multiplier)
-- IBP certified training — 3-8% clean accuracy cost, MiniLM attention bounds too loose
-- Defensive distillation — broken for text (Carlini & Wagner 2016)
-- DeBERTa ensemble — gate failed: structural attacks transfer at 88-100% regardless of architecture
-- Retraining MiniLM-L6-v2 base model
-- Tier 2 (Ollama) changes
-- Subsuming mcp-guard as sub-project
+- Building a governance framework — CloneGuard is a sensor that feeds governance, not governance itself
+- Building a sandbox — CloneGuard orchestrates existing sandboxes via adapters
+- Custom ML classifier training — MiniLM is commodity; value is in fusion + calibration
+- Mobile/desktop GUI — CLI and library integration only
+- SaaS deployment — on-device, no phone-home
 
 ## Context
 
-- 1,261 tests passing, CI green
-- v4 adversarially hardened MiniLM ONNX model (FreeLB + 2 rounds PWWS augmentation)
-- Dataset: v4, 6,472 samples (v3 base + 132 PWWS adversarial augmentation), published on HuggingFace (gated)
-- 197 regex patterns across 25 categories (Tier 0), including Log-To-Leak exfiltration
-- Per-ScanMode context-aware thresholds: STRICT=(0.5,0.8), STANDARD=(0.65,0.88), LENIENT=(0.75,0.92)
-- Workflow combined FPR (STANDARD): 18.9%, agent_instructions FPR: 18.4%
-- Combined pipeline: recall 90.3%, false block rate 3.8%, latency p95 16.61ms
-- CaMeL-lite ToolCallMonitor: SEQ-001–SEQ-004 rules, JSONL logging, <0.5ms overhead
-- Adaptive ASR ceiling: 20.3% (PWWS against hardened model)
-- Both-miss structural limit: 18/185 samples (fragmentation 55%, implicit_instruction 25%)
-- White-box attack surface remains: ONNX model is public, architecture documented
-- Tech stack: Python, ONNX Runtime, transformers tokenizer, scikit-learn (Mahalanobis)
-- ~25,192 LOC Python (src + tests + scripts)
+- **Existing codebase**: Python 3.11+, PyYAML, ONNX Runtime, hatchling build
+- **Current state**: v0.5.0 with detection-only (allow/block). No enforcement layer.
+- **Competitive landscape**: $2.1B+ in acquisitions absorbed first-wave PI defense startups. Remaining independents pivoting to agentic AI security. None operate at hook/tool-call boundary.
+- **Standards tailwinds**: EU AI Act Article 12 enforceable 2026-08-02, OWASP Agentic Top 10, MITRE ATLAS v5.4.0, NIST CAISI
+- **Research assets**: 208K trajectory dataset, adaptive red team methodology, honest adversarial evaluation (16.7% bypass rate reported)
+- **IP status**: Apache 2.0 license. CLA, trademark, provisional patent pending (~$5,500 total)
 
 ## Constraints
 
-- **ONNX-only inference**: No PyTorch at runtime. Classifier must export to ONNX for CPUExecutionProvider.
-- **Dependency budget**: Minimize new dependencies. onnxruntime + transformers tokenizer already present.
-- **Latency**: Combined pipeline must stay under ~25ms/sample on Apple M-series CPU.
-- **Clean accuracy floor**: Any model changes must not drop 5-fold CV below 94.5%.
+- **Tech stack**: Python 3.11+, ONNX Runtime for inference, no external service dependencies for core detection
+- **Performance**: <20ms per hook invocation for Tier 0+1.5, <370ms full repo scan
+- **Backward compatibility**: NoopAdapter must preserve current v0.5.0 exit-code behavior exactly
+- **Security**: Layer 0 runs BEFORE agent — position must remain uncompromisable by repo content
+- **Packaging**: Must support `uv tool install` / `pipx` standalone binary
+- **Open-core split**: Core detection + basic adapters open source; enterprise features (fleet mgmt, compliance exports, SIEM integrations) proprietary
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Transferability experiment as gate | Don't trust theory — validate empirically before committing | ✓ Good — gate failed at 58%, saved months of wasted ensemble work |
-| Ensemble over perturbation detection | Architecturally diverse models defeat transfer attacks | ⚠️ Invalidated — structural attacks transfer at 88-100% regardless |
-| Adversarial hardening over second classifier | AT + Mahalanobis: higher ROI, lower complexity, +1-5ms vs +40-60ms | ✓ Good — ASR 9.7%, latency p95 16.61ms |
-| Literature projections as targets, not guarantees | ASR ≤35% from A2T extrapolation — must validate experimentally | ✓ Good — exceeded target (9.7% vs ≤35%) |
-| Mahalanobis on single-layer CLS | Literature projected 60% detection; single-layer CLS is cheaper | ⚠️ Revisit — 2.7% detection, CLS distributions overlap |
-| Dual-output ONNX (logits + cls_embedding) | Enable downstream anomaly detection without separate inference | ✓ Good — clean architecture, negligible latency cost |
-| dynamo=False for ONNX export | PyTorch 2.9 dynamo fails on LayerNorm dynamic axes | — Workaround, monitor future PyTorch releases |
-| Publish negative results honestly | Mahalanobis miss, adaptive ceiling, both-miss — all disclosed | ✓ Good — credibility over marketing |
+| Three-verdict model (SAFE/SUSPICIOUS/MALICIOUS) | Binary allow/block is too coarse for production use | -- Pending |
+| Sandbox-agnostic adapter interface | Don't build a sandbox; orchestrate any sandbox | -- Pending |
+| Format-agnostic policy engine (YAML/OPA/Cedar) | Meet enterprises where they are | -- Pending |
+| MELON selective triggering (0.4-0.6 confidence zone) | Full re-execution overhead is prohibitive; selective limits to ~5-10% of calls | -- Pending |
+| Simultaneous SARIF + OTel + NDJSON output | Different consumers need different formats; emit all three | -- Pending |
+| Agent-type-agnostic core with per-type pattern libraries | Core engine shouldn't know about agent types; patterns are configuration | -- Pending |
 
-| Campbell et al. FPR investigation before pattern expansion | Embedding-space structural limits are information-theoretic — investigate before tuning | ✓ Good — confirmed +12.7pp auth paradox, informed per-ScanMode thresholds |
-| Per-ScanMode context-aware thresholds | Single global threshold can't serve defensive security (STRICT) and CI/workflows (LENIENT) | ✓ Good — workflow FPR 30.2%→18.9%, agent_instructions 33%→18.4% |
-| CI-001 restricted to strict mode | 23.9% workflow FPR floor from CI-001 in STANDARD mode — CI-002 covers run-context detection | ✓ Good — eliminated structural Tier 0 floor |
-| CaMeL-lite log-only (not blocking) | FPR risk for sequence rules too high for blocking enforcement at v0.4 | ✓ Good — <0.5ms overhead, no false blocks |
-| Cross-phase FPR collaboration | Workflow FPR target required Phase 5 (thresholds) + Phase 6 (CI-001 fix) | ✓ Good — honest negative result documented |
+## Evolution
+
+This document evolves at phase transitions and milestone boundaries.
+
+**After each phase transition** (via `/gsd-transition`):
+1. Requirements invalidated? -> Move to Out of Scope with reason
+2. Requirements validated? -> Move to Validated with phase reference
+3. New requirements emerged? -> Add to Active
+4. Decisions to log? -> Add to Key Decisions
+5. "What This Is" still accurate? -> Update if drifted
+
+**After each milestone** (via `/gsd-complete-milestone`):
+1. Full review of all sections
+2. Core Value check -- still the right priority?
+3. Audit Out of Scope -- reasons still valid?
+4. Update Context with current state
 
 ---
-*Last updated: 2026-03-12 after v0.4 milestone*
+*Last updated: 2026-04-05 after initialization*
