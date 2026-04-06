@@ -53,7 +53,7 @@ Plans:
 Plans:
 - [x] 02-01-PLAN.md -- Enforcement types, verdict transition (SAFE/SUSPICIOUS/MALICIOUS), SandboxAdapter Protocol, NoopAdapter
 - [x] 02-02-PLAN.md -- YAML policy engine with Pydantic validation, threshold gating, per-tool overrides, dry-run default
-- [ ] 02-03-PLAN.md -- OS-level sandbox adapters: LandlockAdapter (Linux) and SeatbeltAdapter (macOS)
+- [x] 02-03-PLAN.md -- OS-level sandbox adapters: LandlockAdapter (Linux) and SeatbeltAdapter (macOS)
 - [x] 02-04-PLAN.md -- Package hallucination detection via npm/PyPI registry cross-reference
 - [ ] 02-05-PLAN.md -- Pipeline integration: wire enforcement into hooks.py, update audit events, end-to-end tests
 

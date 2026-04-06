@@ -15,10 +15,7 @@ Covers:
 from __future__ import annotations
 
 import json
-from typing import Any
 from unittest import mock
-
-import pytest
 
 from cloneguard.enforcement.adapter import SandboxAdapter
 
@@ -154,7 +151,7 @@ class TestSeatbeltGenerateProfile:
         # network-outbound should NOT appear when no domains allowed
         # (deny default handles this)
         lines = [line.strip() for line in profile.split("\n")]
-        network_lines = [l for l in lines if "network-outbound" in l and "allow" in l]
+        network_lines = [ln for ln in lines if "network-outbound" in ln and "allow" in ln]
         assert len(network_lines) == 0
 
 
@@ -187,9 +184,7 @@ class TestSeatbeltApplyRestrictions:
             readable=["/usr/lib"],
         )
 
-        with mock.patch(
-            "cloneguard.enforcement.seatbelt._get_libsystem"
-        ) as mock_get_lib:
+        with mock.patch("cloneguard.enforcement.seatbelt._get_libsystem") as mock_get_lib:
             mock_lib = mock.MagicMock()
             mock_lib.sandbox_init_with_parameters.return_value = 0
             mock_get_lib.return_value = mock_lib
@@ -218,9 +213,7 @@ class TestSeatbeltApplyRestrictions:
         adapter = SeatbeltAdapter()
         adapter.restrict_filesystem(writable=["/Users/dev"], readable=[])
 
-        with mock.patch(
-            "cloneguard.enforcement.seatbelt._get_libsystem"
-        ) as mock_get_lib:
+        with mock.patch("cloneguard.enforcement.seatbelt._get_libsystem") as mock_get_lib:
             mock_lib = mock.MagicMock()
             mock_lib.sandbox_init_with_parameters.return_value = -1
             mock_get_lib.return_value = mock_lib

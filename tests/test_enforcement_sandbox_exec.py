@@ -18,10 +18,7 @@ import base64
 import json
 import os
 import tempfile
-from typing import Any
 from unittest import mock
-
-import pytest
 
 
 class TestSandboxExecMainSpecFile:
@@ -46,7 +43,7 @@ class TestSandboxExecMainSpecFile:
 
         try:
             with (
-                mock.patch("cloneguard.enforcement.sandbox_exec.os.execvp") as mock_exec,
+                mock.patch("cloneguard.enforcement.sandbox_exec.os.execvp"),
                 mock.patch(
                     "cloneguard.enforcement.sandbox_exec.get_sandbox_adapter"
                 ) as mock_get_adapter,
@@ -91,9 +88,7 @@ class TestSandboxExecMainSpecFile:
                 mock.patch(
                     "cloneguard.enforcement.sandbox_exec.get_sandbox_adapter"
                 ) as mock_get_adapter,
-                mock.patch(
-                    "sys.argv", ["sandbox-exec", "--spec-file", spec_path, "--", "ls"]
-                ),
+                mock.patch("sys.argv", ["sandbox-exec", "--spec-file", spec_path, "--", "ls"]),
             ):
                 mock_adapter = mock.MagicMock()
                 mock_get_adapter.return_value = mock_adapter
@@ -147,7 +142,7 @@ class TestSandboxExecMainPolicy:
         encoded = base64.b64encode(json.dumps(constraints).encode()).decode()
 
         with (
-            mock.patch("cloneguard.enforcement.sandbox_exec.os.execvp") as mock_exec,
+            mock.patch("cloneguard.enforcement.sandbox_exec.os.execvp"),
             mock.patch(
                 "cloneguard.enforcement.sandbox_exec.get_sandbox_adapter"
             ) as mock_get_adapter,
