@@ -205,6 +205,7 @@ class DetectionEngine:
         self._mini_classifier: Any = None
         self._mini_attempted: bool = False
         self._session_trust: dict[str, str] = {}
+        self._registry_client: Any = None
 
     def _get_pattern_engine(self) -> PatternEngine:
         """Lazy-load PatternEngine singleton."""
@@ -226,6 +227,18 @@ class DetectionEngine:
         except ImportError:
             pass
         return self._mini_classifier
+
+    def _get_registry_client(self) -> Any:
+        """Lazy-load PackageRegistryClient. Returns None if import fails."""
+        if self._registry_client is not None:
+            return self._registry_client
+        try:
+            from cloneguard.enforcement.registry import PackageRegistryClient
+
+            self._registry_client = PackageRegistryClient()
+        except ImportError:
+            pass
+        return self._registry_client
 
     def scan(self, event: ToolCallEvent) -> DetectionResult:
         """Generic scan: run pattern engine on content, optionally semantic.
@@ -614,6 +627,33 @@ class DetectionEngine:
                             )
                         ],
                     )
+
+            # --- Package hallucination check (D-15, D-16, D-17) ---
+            registry_client = self._get_registry_client()
+            if registry_client is not None:
+                try:
+                    hallucination_signals = (
+                        registry_client.check_packages_for_hallucination(command)
+                    )
+                    if hallucination_signals:
+                        hallucinated = [
+                            s.details.get("package", "?") for s in hallucination_signals
+                        ]
+                        msg = (
+                            f"WARNING: Potentially hallucinated package(s) detected: "
+                            f"{', '.join(hallucinated)}. These packages do not exist "
+                            f"in their respective registries and may be slopsquatting "
+                            f"targets."
+                        )
+                        return DetectionResult(
+                            verdict="detected",
+                            confidence=0.95,
+                            exit_code=2,
+                            message=msg,
+                            signals=hallucination_signals,
+                        )
+                except Exception:
+                    pass  # Registry check must never break the hook pipeline
 
             # Build command warnings
             for build_cmd in BUILD_COMMANDS:
