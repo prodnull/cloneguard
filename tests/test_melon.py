@@ -283,9 +283,7 @@ class TestEngineIntegration:
         mock_fusion.fuse.return_value = FusionResult(
             confidence=0.5,
             verdict="suspicious",
-            signals=(
-                SignalResult(signal_type="pattern", verdict="suspicious", confidence=0.5),
-            ),
+            signals=(SignalResult(signal_type="pattern", verdict="suspicious", confidence=0.5),),
         )
         engine._fusion_layer = mock_fusion
 
@@ -328,9 +326,7 @@ class TestEngineIntegration:
         mock_fusion.fuse.return_value = FusionResult(
             confidence=0.8,
             verdict="detected",
-            signals=(
-                SignalResult(signal_type="pattern", verdict="detected", confidence=0.8),
-            ),
+            signals=(SignalResult(signal_type="pattern", verdict="detected", confidence=0.8),),
         )
         engine._fusion_layer = mock_fusion
 

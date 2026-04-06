@@ -599,7 +599,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 
 | Component | Latency | Context |
 |-----------|---------|---------|
-| Tier 0 regex (204 patterns) | <50 ms | Full repo scan (~20 files) |
+| Tier 0 regex (222 patterns) | <50 ms | Full repo scan (~20 files) |
 | Tier 1.5 ONNX (per file) | ~16 ms | Single file classification |
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |

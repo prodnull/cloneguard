@@ -224,9 +224,7 @@ def _parse_weight_profile(data: dict[str, Any]) -> WeightProfile:
     mode_multipliers: list[tuple[str, tuple[tuple[str, float], ...]]] = []
     for mode_name, signal_dict in raw_mults.items():
         if isinstance(signal_dict, dict):
-            signal_tuples = tuple(
-                (str(k), float(v)) for k, v in signal_dict.items()
-            )
+            signal_tuples = tuple((str(k), float(v)) for k, v in signal_dict.items())
             mode_multipliers.append((str(mode_name), signal_tuples))
 
     return WeightProfile(

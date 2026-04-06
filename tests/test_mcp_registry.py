@@ -10,10 +10,7 @@ import json
 import textwrap
 from pathlib import Path
 
-import pytest
-
-from cloneguard.detection.patterns import PatternEngine, ScanMode, Verdict
-
+from cloneguard.detection.patterns import PatternEngine
 
 # ---------------------------------------------------------------------------
 # MCPRegistry Unit Tests
@@ -50,9 +47,7 @@ class TestCheckToolFingerprint:
         registry = MCPRegistry.load()
         # Use a description within the registered length range
         description = "x" * 150  # Within [100, 300] range
-        result = registry.check_tool_fingerprint(
-            "mcp__filesystem__read_file", description
-        )
+        result = registry.check_tool_fingerprint("mcp__filesystem__read_file", description)
         # With empty hash in registry, falls back to length check
         assert result is True
 
@@ -63,9 +58,7 @@ class TestCheckToolFingerprint:
         registry = MCPRegistry.load()
         # Use a description way outside the registered length range
         description = "short"  # 5 chars, outside [100, 300]
-        result = registry.check_tool_fingerprint(
-            "mcp__filesystem__read_file", description
-        )
+        result = registry.check_tool_fingerprint("mcp__filesystem__read_file", description)
         assert result is False
 
     def test_unknown_tool_returns_none(self) -> None:
@@ -73,9 +66,7 @@ class TestCheckToolFingerprint:
         from cloneguard.detection.mcp_registry import MCPRegistry
 
         registry = MCPRegistry.load()
-        result = registry.check_tool_fingerprint(
-            "mcp__unknown__tool", "some description"
-        )
+        result = registry.check_tool_fingerprint("mcp__unknown__tool", "some description")
         assert result is None
 
     def test_hash_match_returns_true(self, tmp_path: Path) -> None:
@@ -206,6 +197,4 @@ class TestRADEPatterns:
         """Benign tool descriptions should not fire RADE patterns."""
         content = '"description": "Read a file from the local filesystem"'
         result = engine.scan(content, "mcp_config.json")
-        assert not any(
-            m.pattern_id.startswith(("MCPF-", "RADE-")) for m in result.matches
-        )
+        assert not any(m.pattern_id.startswith(("MCPF-", "RADE-")) for m in result.matches)

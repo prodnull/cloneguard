@@ -119,7 +119,7 @@ cloneguard --bypass
 
 ### Detection Tiers
 
-**Tier 0 (regex)** — 204 patterns across 25 categories. Fast (~50ms), catches known attack patterns. 91% precision but only 23% recall — evasion-prone to creative rewording.
+**Tier 0 (regex)** — 222 patterns across 25 categories. Fast (~50ms), catches known attack patterns. 91% precision but only 23% recall — evasion-prone to creative rewording.
 
 **Tier 1.5 (ONNX mini model)** — Bundled fine-tuned MiniLM-L6-v2 ([HuggingFace](https://huggingface.co/prodnull/minilm-prompt-injection-classifier)). 94.3% cross-validated F1 (v4), 93.7% recall (v4 CV) (5-fold cross-validated) at ~16 ms/sample. Catches semantic attacks: synonym substitution, social engineering, encoding evasion, homoglyphs, counter-defensive attacks. Hyperparameters selected via 192-configuration grid search. Install with `pip install cloneguard[mini]`. See [`docs/MINI-SEMANTIC-MODEL.md`](docs/MINI-SEMANTIC-MODEL.md).
 
@@ -222,7 +222,7 @@ Model and dataset published on Hugging Face: [`prodnull/minilm-prompt-injection-
 
 ## What It Detects
 
-**25 attack categories, 204 patterns** — cross-validated against [Mindgard's AI IDE vulnerability taxonomy](https://github.com/Mindgard/ai-ide-vuln-patterns) (20/22 patterns covered):
+**25 attack categories, 222 patterns** — cross-validated against [Mindgard's AI IDE vulnerability taxonomy](https://github.com/Mindgard/ai-ide-vuln-patterns) (20/22 patterns covered):
 
 - Instruction override (IO) — "ignore all previous instructions"
 - Authority impersonation (AI) — fake system messages, developer notes
@@ -289,7 +289,7 @@ pytest
 ```bash
 pytest                                   # all tests (1,321)
 pytest tests/test_security_vectors.py    # security proof tests
-pytest tests/test_integration_all_patterns.py  # all 204 patterns through full pipeline
+pytest tests/test_integration_all_patterns.py  # all 222 patterns through full pipeline
 pytest tests/test_evasion_resistance.py  # trust cache + evasion boundary tests
 pytest -m ollama                         # Tier 2 live tests (requires Ollama)
 pytest -m docker                         # container integration tests (requires Docker)

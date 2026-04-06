@@ -378,9 +378,8 @@ class DetectionEngine:
             # MELON post-fusion: selective re-execution for ambiguous zone
             melon_verdict = fusion_result.verdict
             melon_confidence = fusion_result.confidence
-            if (
-                self._melon_detector is not None
-                and self._melon_detector.should_trigger(fusion_result.confidence)
+            if self._melon_detector is not None and self._melon_detector.should_trigger(
+                fusion_result.confidence
             ):
                 try:
                     # Extract suspicious spans from pattern signal if available

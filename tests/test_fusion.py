@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
@@ -20,7 +20,7 @@ from cloneguard.detection.types import SignalResult, ToolCallEvent
 # Test 1: Single pattern signal produces weighted confidence
 # ---------------------------------------------------------------------------
 def test_fuse_single_pattern_signal_returns_weighted_confidence() -> None:
-    from cloneguard.detection.fusion import FusionLayer, WeightProfile
+    from cloneguard.detection.fusion import FusionLayer
 
     layer = FusionLayer()
     signals = [
@@ -194,7 +194,7 @@ mode_multipliers:
 # Test 10: load_weight_profile() returns default when file not found
 # ---------------------------------------------------------------------------
 def test_load_weight_profile_returns_default_when_not_found() -> None:
-    from cloneguard.detection.fusion import WeightProfile, load_weight_profile
+    from cloneguard.detection.fusion import load_weight_profile
 
     profile = load_weight_profile(agent_type="nonexistent-agent-xyz")
     # Should return default values

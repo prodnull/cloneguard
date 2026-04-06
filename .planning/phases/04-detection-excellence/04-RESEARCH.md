@@ -622,23 +622,19 @@ class CircuitBreaker:
 | A5 | Weight profile YAML schema and default values | Calibration Pipeline | If default weights produce worse FPR than uncalibrated baseline, need rapid iteration. Mitigation: calibration report documents per-content-type FPR at each grid point. |
 | A6 | MCP registry JSON schema and initial tool entries | MCP Fingerprinting | If MCP tool descriptions change frequently across versions, registry maintenance becomes burdensome. Mitigation: version-keyed entries, stale detection. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Trajectory data availability for calibration**
+1. **Trajectory data availability for calibration** (RESOLVED)
    - What we know: `scripts/download_trajectories.py` downloads from HuggingFace to `data/trajectories/`. Directories do not exist in the working tree.
-   - What's unclear: Whether the 208K dataset is still accessible on HuggingFace, how large the download is, and whether CI can run calibration.
-   - Recommendation: Calibration script must handle missing data gracefully (use default weights). Include data download as an explicit setup step.
+   - Resolution: Calibration script handles missing data gracefully -- if `--data-dir` does not exist or is empty, the script prints a warning and exits with code 0, shipping default uncalibrated weights. Data download is a separate explicit step (`python scripts/download_trajectories.py`). The adversarial eval harness also handles missing benchmark corpus gracefully (warning + exit 0, or uses embedded synthetic payloads). CI does NOT run calibration; calibration is an offline developer task.
 
-2. **MELON masking strategy for hook context**
-   - What we know: Paper masks user task with task-neutral prompt. CloneGuard doesn't have a "user task" -- it has content being scanned.
-   - What's unclear: Exactly which sections of content to mask for re-classification. Options: (a) mask embedded instructions, (b) mask code blocks, (c) mask segments identified by pattern engine as suspicious.
-   - Recommendation: Mask the sections flagged by pattern matches (if any) plus sliding-window segments. Compare classification of masked vs. original. Start simple, iterate based on adversarial eval results.
+2. **MELON masking strategy for hook context** (RESOLVED)
+   - What we know: Paper masks user task with task-neutral prompt. CloneGuard does not have a "user task" -- it has content being scanned.
+   - Resolution: MELON masks the specific byte spans flagged by pattern matches (suspicious_spans from PatternMatch positions). If no pattern matches exist (ambiguous zone reached via semantic signal only), MELON falls back to heuristic masking: remove lines matching instruction-override patterns (lines containing "ignore previous", "you are now", "system:" etc.) and markdown headers with directive content. This is the "mask suspicious sections, not entire content" approach. Iteration based on adversarial eval results in Plan 04.
 
-3. **Weight profile per agent type vs. shared**
+3. **Weight profile per agent type vs. shared** (RESOLVED)
    - What we know: D-04 specifies agent-type-driven weight profiles. Phase 3 provides 6 adapters (claude-code, gemini-cli, cursor, cicd, mcp, generic).
-   - What's unclear: Whether the trajectory data contains enough agent diversity to calibrate per-agent weights, or if a single "default" profile with minor agent-type adjustments is more practical.
-   - Recommendation: Start with one "default" profile from calibration. Create per-agent overrides only where data supports meaningful differences. Ship all profiles but document which are calibrated vs. copied from default.
-
+   - Resolution: Ship one "default" profile from calibration (if trajectory data available) or from static defaults. Per-agent YAML files (claude-code.yaml, gemini-cli.yaml, cursor.yaml) ship as copies of default with `agent_type` set and a note documenting they are uncalibrated copies pending agent-specific trajectory data. Operators can override per-agent weights via `~/.cloneguard/policy.yaml` under `fusion.weights`. Per-agent calibration deferred until agent-specific trajectory data is available.
 ## Environment Availability
 
 | Dependency | Required By | Available | Version | Fallback |

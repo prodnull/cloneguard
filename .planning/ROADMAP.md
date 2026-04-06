@@ -86,10 +86,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 04-01-PLAN.md -- FusionLayer module, engine signal collection refactor, weight profiles, calibration pipeline
+- [x] 04-01-PLAN.md -- FusionLayer module, engine signal collection refactor, weight profiles, calibration pipeline
 - [ ] 04-02-PLAN.md -- MELON selective re-execution with circuit breaker, snapshot/rollback for Landlock and Seatbelt
 - [ ] 04-03-PLAN.md -- Pattern library reorganization (rules/ subdirectories), memory/config poisoning, MCP fingerprinting
-- [ ] 04-04-PLAN.md -- Adversarial evaluation harness with fusion-targeting payloads and honest reporting
+- [x] 04-04-PLAN.md -- Adversarial evaluation harness with fusion-targeting payloads and honest reporting
 
 ### Phase 5: Enterprise Governance and Agent Expansion
 **Goal**: Enterprise teams can express enforcement policy in OPA/Cedar, deploy CloneGuard at fleet scale, and detect attacks targeting browser, autonomous, financial, and CI/CD agent types
