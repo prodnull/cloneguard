@@ -1,10 +1,14 @@
 #!/usr/bin/env python3
-"""CloneGuard hook handlers for Claude Code -- thin shim layer (D-02).
+"""CloneGuard hook handlers -- thin shim layer with multi-agent adapter support.
 
-Provides in-process defense layers (1-3) running inside the Claude Code process:
+Provides in-process defense layers (1-3) running inside any supported agent process:
 - Layer 1 (InstructionsLoaded): Scan instruction files for injection patterns
 - Layer 2 (PostToolUse): Scan tool output for injection patterns
 - Layer 3 (PreToolUse): Protect config paths, gate build commands, scan writes
+
+Event normalization is delegated to the InputAdapter registry (D-04). The adapter
+auto-detects the agent platform from JSON structure and normalizes into ToolCallEvent.
+Handlers dispatch by event_type, not by platform-specific field names.
 
 Each handler is a thin shim (~10 lines) that delegates to DetectionEngine for
 all detection logic, then maps the result back to the hook protocol (exit 0/2).
@@ -12,7 +16,7 @@ Audit events are emitted via NDJSONEmitter AFTER the exit code is determined,
 never on the critical path (Pitfall 6).
 
 TOCTOU hardening: All content is scanned from the stdin JSON payload provided
-by Claude Code's hook protocol. File content is NEVER re-read from disk.
+by the agent's hook protocol. File content is NEVER re-read from disk.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ import re
 import sys
 from typing import Any
 
+from cloneguard.adapters import get_adapter
 from cloneguard.detection.engine import (
     DetectionResult,
     get_detection_engine,
@@ -100,6 +105,7 @@ def _emit_audit_event(
     result: DetectionResult,
     event_type_str: str,
     policy_decision: Any = None,  # PolicyDecision from enforcement
+    agent_type: str = "claude-code",  # Agent platform that generated this event
 ) -> None:
     """Emit structured audit event. Lazy-imports Pydantic. Never raises (T-02-02).
 
@@ -108,6 +114,7 @@ def _emit_audit_event(
     - action="constrain", dry_run=True -> enforcement_action="DRY_RUN", would_apply populated
     - action="constrain", dry_run=False -> "CONSTRAIN", constraints_applied set
     When policy_decision is None (backward compat), derives from exit code.
+    agent_type is propagated to AuditEvent for observability (D-04).
     """
     try:
         import hashlib
@@ -335,21 +342,71 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
 
 
 def main() -> None:
-    """Entry point for hook handler. Reads JSON from stdin, dispatches to handler."""
+    """Entry point for hook handler. Reads JSON from stdin, dispatches to handler.
+
+    Auto-detects the agent platform from JSON structure via the adapter registry
+    (D-04). For Claude Code, delegates to existing handler methods for backward
+    compatibility. For other agents, normalizes via adapter.normalize() and uses
+    the generic DetectionEngine.scan() path.
+    """
     data = json.load(sys.stdin)
-    hook_type = data.get("hook_type", "")
 
-    if hook_type == "InstructionsLoaded":
-        exit_code = handle_instructions_loaded(data)
-    elif hook_type == "PreToolUse":
-        exit_code = handle_pre_tool_use(data)
-    elif hook_type == "PostToolUse":
-        exit_code = handle_post_tool_use(data)
+    # Auto-detect agent platform and get the appropriate adapter
+    adapter = get_adapter("auto", raw_event=data)
+
+    if adapter.agent_type == "claude-code":
+        # Claude Code: use existing handler methods for full backward compatibility
+        hook_type = data.get("hook_type", "")
+        if hook_type == "InstructionsLoaded":
+            exit_code = handle_instructions_loaded(data)
+        elif hook_type == "PreToolUse":
+            exit_code = handle_pre_tool_use(data)
+        elif hook_type == "PostToolUse":
+            exit_code = handle_post_tool_use(data)
+        else:
+            exit_code = 0
+        sys.exit(exit_code)
+
+    # Non-Claude agents: normalize via adapter, scan via generic engine path
+    event = adapter.normalize(data)
+
+    if event.event_type in ("InstructionsLoaded", "PreToolUse", "PostToolUse"):
+        engine = _get_bridged_engine()
+        result = engine.scan(event)
+
+        # Policy evaluation for audit trail
+        policy_decision = None
+        try:
+            from cloneguard.enforcement.policy import get_policy_engine
+
+            policy_engine = get_policy_engine()
+            policy_decision = policy_engine.evaluate(
+                result,
+                tool_name=event.tool_name,
+            )
+        except Exception:
+            pass  # Enforcement failure must never break the hook pipeline
+
+        if result.message:
+            print(result.message)
+        _emit_audit_event(
+            data, result, event.event_type, policy_decision,
+            agent_type=adapter.agent_type,
+        )
+
+        # Format response for the agent's protocol
+        response = adapter.format_response(result, data)
+
+        # For non-Claude agents, output JSON response to stdout
+        if response.get("exit_code") is not None:
+            sys.exit(response["exit_code"])
+        else:
+            # JSON response protocol (Gemini CLI, Cursor)
+            print(json.dumps(response))
+            sys.exit(0 if result.exit_code == 0 else 2)
     else:
-        # Unknown hook type -- pass through
-        exit_code = 0
-
-    sys.exit(exit_code)
+        # Unknown event type -- pass through
+        sys.exit(0)
 
 
 if __name__ == "__main__":

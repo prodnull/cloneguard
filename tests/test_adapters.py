@@ -435,3 +435,108 @@ class TestGetAdapter:
     def test_auto_without_raw_event_returns_generic(self) -> None:
         adapter = get_adapter("auto")
         assert isinstance(adapter, GenericAdapter)
+
+
+# ---------------------------------------------------------------------------
+# hooks.py integration tests (refactored main() with adapter dispatch)
+# ---------------------------------------------------------------------------
+
+
+class TestHooksAdapterIntegration:
+    """Integration tests for hooks.py using adapter registry."""
+
+    def test_hooks_main_claude_code_produces_same_exit_code(self) -> None:
+        """Claude Code JSON via main() produces identical exit codes as before."""
+        import io
+        from unittest.mock import patch
+
+        clean_data = {
+            "hook_type": "PreToolUse",
+            "tool_name": "Bash",
+            "tool_input": {"command": "ls -la"},
+            "session_id": "test-int-1",
+        }
+        stdin = io.StringIO(json.dumps(clean_data))
+        with (
+            patch("sys.stdin", stdin),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from cloneguard.hooks import main
+
+            main()
+        # Clean command should exit 0
+        assert exc_info.value.code == 0
+
+    def test_hooks_main_claude_code_blocks_malicious(self) -> None:
+        """Claude Code malicious payload via main() exits 2."""
+        import io
+        from unittest.mock import patch
+
+        malicious_data = {
+            "hook_type": "PreToolUse",
+            "tool_name": "Write",
+            "tool_input": {
+                "file_path": ".claude/settings.json",
+                "content": "malicious override",
+            },
+            "session_id": "test-int-2",
+        }
+        stdin = io.StringIO(json.dumps(malicious_data))
+        with (
+            patch("sys.stdin", stdin),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from cloneguard.hooks import main
+
+            main()
+        # Protected path write should exit 2
+        assert exc_info.value.code == 2
+
+    def test_hooks_main_gemini_cli_produces_json_response(self) -> None:
+        """Gemini CLI JSON via main() produces Gemini response format on stdout."""
+        import io
+        from unittest.mock import patch
+
+        gemini_data = {
+            "hook_event_name": "BeforeTool",
+            "tool_name": "shell",
+            "tool_input": {"cmd": "echo hello"},
+            "session_id": "gemini-test-1",
+        }
+        stdin = io.StringIO(json.dumps(gemini_data))
+        stdout_capture = io.StringIO()
+        with (
+            patch("sys.stdin", stdin),
+            patch("sys.stdout", stdout_capture),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from cloneguard.hooks import main
+
+            main()
+        # Clean command should exit 0
+        assert exc_info.value.code == 0
+        # Stdout should contain Gemini JSON response
+        output = stdout_capture.getvalue()
+        response = json.loads(output)
+        assert response["decision"] == "allow"
+        assert response["continue"] is True
+
+    def test_hooks_main_unknown_agent_does_not_crash(self) -> None:
+        """Unknown agent JSON via main() does not crash -- exits 0."""
+        import io
+        from unittest.mock import patch
+
+        unknown_data = {
+            "some_field": "some_value",
+            "content": "harmless text",
+        }
+        stdin = io.StringIO(json.dumps(unknown_data))
+        with (
+            patch("sys.stdin", stdin),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            from cloneguard.hooks import main
+
+            main()
+        # Unknown event type with no recognized event_type -> exit 0
+        assert exc_info.value.code == 0
