@@ -29,6 +29,8 @@ class SandboxAdapter(Protocol):
     Phase 2 core methods:
         restrict_filesystem: Apply filesystem read/write restrictions
         restrict_network: Apply network access restrictions
+        apply_restrictions: Apply stored restrictions to CURRENT process
+            (called only from cloneguard-sandbox-exec, never from hook handler)
 
     Deferred methods (D-05, default no-op):
         snapshot: Capture pre-execution state (Phase 4 MELON)
@@ -47,7 +49,7 @@ class SandboxAdapter(Protocol):
         writable: list[str],
         readable: list[str],
     ) -> None:
-        """Apply filesystem restrictions to tool call subprocess.
+        """Store filesystem restrictions for later application.
 
         writable: paths the subprocess can read AND write
         readable: paths the subprocess can read only
@@ -59,10 +61,18 @@ class SandboxAdapter(Protocol):
         self,
         allow: list[str],
     ) -> None:
-        """Apply network restrictions to tool call subprocess.
+        """Store network restrictions for later application.
 
         allow: list of allowed domains/CIDRs
         Empty list = deny all network. Must NEVER restrict CloneGuard.
+        """
+        ...
+
+    def apply_restrictions(self) -> None:
+        """Apply stored restrictions to the CURRENT process.
+
+        Called ONLY from cloneguard-sandbox-exec wrapper, never from
+        the hook handler. Restrictions persist across exec.
         """
         ...
 
@@ -105,6 +115,9 @@ class NoopAdapter:
         self,
         allow: list[str],
     ) -> None:
+        pass  # Detection-only mode: no sandbox enforcement
+
+    def apply_restrictions(self) -> None:
         pass  # Detection-only mode: no sandbox enforcement
 
     def snapshot(self) -> Any:

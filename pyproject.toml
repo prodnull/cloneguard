@@ -36,6 +36,7 @@ all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4"]
 
 [project.scripts]
 cloneguard = "cloneguard.cli:main"
+cloneguard-sandbox-exec = "cloneguard.enforcement.sandbox_exec:main"
 
 [build-system]
 requires = ["hatchling"]

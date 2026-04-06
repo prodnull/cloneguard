@@ -122,13 +122,19 @@ class TestGetSandboxAdapter:
 
     def test_probe_failure_returns_noop(self) -> None:
         """If all probes fail/raise, auto returns NoopAdapter."""
-        with (
-            mock.patch(
-                "cloneguard.enforcement.adapter._probe_landlock", side_effect=Exception("fail")
+        # Mock the registry directly since it stores function references at import time
+        failing_registry: list[tuple[str, object, str]] = [
+            (
+                "landlock",
+                mock.MagicMock(side_effect=Exception("fail")),
+                "cloneguard.enforcement.landlock",
             ),
-            mock.patch(
-                "cloneguard.enforcement.adapter._probe_seatbelt", side_effect=Exception("fail")
+            (
+                "seatbelt",
+                mock.MagicMock(side_effect=Exception("fail")),
+                "cloneguard.enforcement.seatbelt",
             ),
-        ):
+        ]
+        with mock.patch("cloneguard.enforcement.adapter._ADAPTER_REGISTRY", failing_registry):
             adapter = get_sandbox_adapter(preferred="auto")
             assert isinstance(adapter, NoopAdapter)
