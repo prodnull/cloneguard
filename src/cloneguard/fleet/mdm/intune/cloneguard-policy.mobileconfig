@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  CloneGuard Policy Configuration Profile (Microsoft Intune)
+
+  UNSIGNED TEMPLATE - Sign before deploying via MDM:
+    security cms -S -N 'Your Org Cert' -i cloneguard-policy.mobileconfig -o signed-policy.mobileconfig
+
+  Delivers default policy.yaml to ~/.cloneguard/policy.yaml with safe
+  defaults (dry_run=true). Customize thresholds before signing.
+-->
+<plist version="1.0">
+<dict>
+  <key>PayloadDisplayName</key>
+  <string>CloneGuard Policy Configuration</string>
+
+  <key>PayloadDescription</key>
+  <string>Deploys CloneGuard policy configuration with safe defaults (dry_run enabled).</string>
+
+  <key>PayloadIdentifier</key>
+  <string>com.microsoft.intune.cloneguard.policy</string>
+
+  <key>PayloadOrganization</key>
+  <string>Your Organization</string>
+
+  <key>PayloadType</key>
+  <string>Configuration</string>
+
+  <key>PayloadUUID</key>
+  <string>REPLACE-WITH-GENERATED-UUID</string>
+
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CloneGuard Policy Delivery</string>
+
+      <key>PayloadIdentifier</key>
+      <string>com.microsoft.intune.cloneguard.policy.delivery</string>
+
+      <key>PayloadType</key>
+      <string>com.apple.ManagedClient.preferences</string>
+
+      <key>PayloadUUID</key>
+      <string>REPLACE-WITH-GENERATED-UUID-2</string>
+
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+
+      <key>PayloadContent</key>
+      <dict>
+        <key>com.microsoft.intune.cloneguard.policy</key>
+        <dict>
+          <key>Forced</key>
+          <array>
+            <dict>
+              <key>mcx_preference_settings</key>
+              <dict>
+                <key>policy_script</key>
+                <string><![CDATA[#!/bin/bash
+# CloneGuard Policy Deployment Script
+# Deployed via Microsoft Intune MDM profile
+set -euo pipefail
+
+POLICY_DIR="$HOME/.cloneguard"
+POLICY_FILE="$POLICY_DIR/policy.yaml"
+
+mkdir -p "$POLICY_DIR"
+chmod 0700 "$POLICY_DIR"
+
+# Deploy policy.yaml with safe defaults
+cat > "$POLICY_FILE" << 'POLICY_EOF'
+# CloneGuard Policy Configuration
+# Managed by MDM -- local edits may be overwritten on next profile sync.
+version: "1"
+
+verdicts:
+  thresholds:
+    suspicious_floor: 0.3
+    malicious_floor: 0.7
+  overrides: {}
+
+enforcement:
+  suspicious: {}
+  malicious:
+    action: block
+
+sandbox:
+  preferred: auto
+  fallback: noop
+
+dry_run: true
+POLICY_EOF
+
+chmod 0600 "$POLICY_FILE"
+echo "CloneGuard policy deployed to $POLICY_FILE"
+]]></string>
+              </dict>
+            </dict>
+          </array>
+        </dict>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

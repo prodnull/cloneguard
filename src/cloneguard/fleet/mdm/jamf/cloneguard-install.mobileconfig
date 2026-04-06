@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  CloneGuard Installation Profile (Jamf)
+
+  UNSIGNED TEMPLATE - Sign before deploying via MDM:
+    security cms -S -N 'Your Org Cert' -i cloneguard-install.mobileconfig -o signed-install.mobileconfig
+
+  This profile installs CloneGuard with the [mini] extras and configures
+  global Claude Code hooks. Replace the PayloadUUID values with your own
+  before signing.
+-->
+<plist version="1.0">
+<dict>
+  <key>PayloadDisplayName</key>
+  <string>CloneGuard Installation</string>
+
+  <key>PayloadDescription</key>
+  <string>Installs CloneGuard agentic defense layer with global hook configuration for Claude Code.</string>
+
+  <key>PayloadIdentifier</key>
+  <string>com.cloneguard.install</string>
+
+  <key>PayloadOrganization</key>
+  <string>Your Organization</string>
+
+  <key>PayloadType</key>
+  <string>Configuration</string>
+
+  <key>PayloadUUID</key>
+  <string>REPLACE-WITH-GENERATED-UUID</string>
+
+  <key>PayloadVersion</key>
+  <integer>1</integer>
+
+  <key>PayloadContent</key>
+  <array>
+    <dict>
+      <key>PayloadDisplayName</key>
+      <string>CloneGuard Install Script</string>
+
+      <key>PayloadIdentifier</key>
+      <string>com.cloneguard.install.script</string>
+
+      <key>PayloadType</key>
+      <string>com.apple.ManagedClient.preferences</string>
+
+      <key>PayloadUUID</key>
+      <string>REPLACE-WITH-GENERATED-UUID-2</string>
+
+      <key>PayloadVersion</key>
+      <integer>1</integer>
+
+      <key>PayloadContent</key>
+      <dict>
+        <key>com.cloneguard.install</key>
+        <dict>
+          <key>Forced</key>
+          <array>
+            <dict>
+              <key>mcx_preference_settings</key>
+              <dict>
+                <key>install_script</key>
+                <string><![CDATA[#!/bin/bash
+# CloneGuard Installation Script
+# Deployed via Jamf MDM profile
+set -euo pipefail
+
+INSTALL_LOG="/var/log/cloneguard-install.log"
+exec >> "$INSTALL_LOG" 2>&1
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) Starting CloneGuard installation"
+
+# Determine installer
+if command -v uv >/dev/null 2>&1; then
+  INSTALLER="uv"
+elif command -v pipx >/dev/null 2>&1; then
+  INSTALLER="pipx"
+elif command -v pip3 >/dev/null 2>&1; then
+  INSTALLER="pip3"
+else
+  echo "ERROR: No Python package installer found (uv, pipx, or pip3)"
+  exit 1
+fi
+
+echo "Using installer: $INSTALLER"
+
+# Install CloneGuard with mini extras
+case "$INSTALLER" in
+  uv)
+    uv tool install cloneguard --with 'cloneguard[mini]'
+    ;;
+  pipx)
+    pipx install 'cloneguard[mini]'
+    ;;
+  pip3)
+    pip3 install --user 'cloneguard[mini]'
+    ;;
+esac
+
+# Initialize global hooks
+cloneguard init --global
+
+# Create config directory with restricted permissions
+mkdir -p ~/.cloneguard
+chmod 0700 ~/.cloneguard
+
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) CloneGuard installation complete"
+cloneguard --version
+]]></string>
+              </dict>
+            </dict>
+          </array>
+        </dict>
+      </dict>
+    </dict>
+  </array>
+</dict>
+</plist>

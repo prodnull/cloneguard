@@ -6,6 +6,7 @@ requiring Ansible or MDM tools to be installed.
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from pathlib import Path
 
 import yaml
@@ -218,3 +219,119 @@ class TestAnsibleSitePlaybook:
         )
         assert isinstance(parsed, list), "site.yml should be a list of plays"
         assert len(parsed) >= 2
+
+
+# ---------------------------------------------------------------------------
+# MDM profiles -- paths
+# ---------------------------------------------------------------------------
+
+MDM_DIR = FLEET_DIR / "mdm"
+MDM_PROFILES = [
+    MDM_DIR / "jamf" / "cloneguard-install.mobileconfig",
+    MDM_DIR / "jamf" / "cloneguard-policy.mobileconfig",
+    MDM_DIR / "intune" / "cloneguard-install.mobileconfig",
+    MDM_DIR / "intune" / "cloneguard-policy.mobileconfig",
+]
+
+
+# ---------------------------------------------------------------------------
+# MDM profiles -- XML validity
+# ---------------------------------------------------------------------------
+
+
+class TestMdmXmlValidity:
+    """All .mobileconfig files must be valid XML."""
+
+    def test_all_profiles_parse_as_xml(self) -> None:
+        for path in MDM_PROFILES:
+            content = path.read_text()
+            try:
+                ET.fromstring(content)
+            except ET.ParseError as exc:
+                raise AssertionError(f"{path} is not valid XML: {exc}") from exc
+
+    def test_all_profiles_exist(self) -> None:
+        for path in MDM_PROFILES:
+            assert path.exists(), f"Missing MDM profile: {path}"
+
+
+# ---------------------------------------------------------------------------
+# MDM profiles -- required plist keys
+# ---------------------------------------------------------------------------
+
+
+class TestMdmPlistKeys:
+    """Each .mobileconfig must contain required Apple Configuration Profile keys."""
+
+    def test_payload_type_present(self) -> None:
+        for path in MDM_PROFILES:
+            content = path.read_text()
+            assert "PayloadType" in content, f"{path.name} missing PayloadType"
+
+    def test_payload_identifier_present(self) -> None:
+        for path in MDM_PROFILES:
+            content = path.read_text()
+            assert "PayloadIdentifier" in content, f"{path.name} missing PayloadIdentifier"
+
+    def test_payload_version_present(self) -> None:
+        for path in MDM_PROFILES:
+            content = path.read_text()
+            assert "PayloadVersion" in content, f"{path.name} missing PayloadVersion"
+
+    def test_payload_uuid_present(self) -> None:
+        for path in MDM_PROFILES:
+            content = path.read_text()
+            assert "PayloadUUID" in content, f"{path.name} missing PayloadUUID"
+
+
+# ---------------------------------------------------------------------------
+# MDM profiles -- platform-specific identifiers
+# ---------------------------------------------------------------------------
+
+
+class TestMdmIdentifiers:
+    """Jamf and Intune profiles must use correct PayloadIdentifier prefixes."""
+
+    def test_jamf_install_identifier(self) -> None:
+        content = (MDM_DIR / "jamf" / "cloneguard-install.mobileconfig").read_text()
+        assert "com.cloneguard.install" in content
+
+    def test_jamf_policy_identifier(self) -> None:
+        content = (MDM_DIR / "jamf" / "cloneguard-policy.mobileconfig").read_text()
+        assert "com.cloneguard.policy" in content
+
+    def test_intune_install_identifier(self) -> None:
+        content = (MDM_DIR / "intune" / "cloneguard-install.mobileconfig").read_text()
+        assert "com.microsoft.intune.cloneguard.install" in content
+
+    def test_intune_policy_identifier(self) -> None:
+        content = (MDM_DIR / "intune" / "cloneguard-policy.mobileconfig").read_text()
+        assert "com.microsoft.intune.cloneguard.policy" in content
+
+
+# ---------------------------------------------------------------------------
+# MDM README
+# ---------------------------------------------------------------------------
+
+
+class TestMdmReadme:
+    """Validate MDM README content."""
+
+    def test_readme_exists(self) -> None:
+        assert (MDM_DIR / "README.md").exists()
+
+    def test_readme_contains_signing(self) -> None:
+        content = (MDM_DIR / "README.md").read_text()
+        assert "signing" in content.lower() or "sign" in content.lower()
+
+    def test_readme_contains_signing_command(self) -> None:
+        content = (MDM_DIR / "README.md").read_text()
+        assert "security cms -S" in content
+
+    def test_readme_contains_jamf(self) -> None:
+        content = (MDM_DIR / "README.md").read_text()
+        assert "Jamf" in content
+
+    def test_readme_contains_intune(self) -> None:
+        content = (MDM_DIR / "README.md").read_text()
+        assert "Intune" in content
