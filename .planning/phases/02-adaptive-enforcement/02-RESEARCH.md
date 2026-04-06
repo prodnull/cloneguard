@@ -603,7 +603,7 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
 | A2 | 3-second timeout is sufficient for registry API calls | Pitfall 6 | Too short: misses legitimate slow responses. Too long: blocks agent. Easily tunable via policy config |
 | A3 | HEAD requests work for npm registry existence checks | Code Examples, Pattern 5 | npm registry may not support HEAD method efficiently. Fallback: GET with small response. Verified GET works via live test |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **How does CloneGuard apply sandbox restrictions when the agent spawns the subprocess, not CloneGuard?** **RESOLVED**
    - **Resolution:** Wrapper binary approach (`cloneguard-sandbox-exec`). The hook handler determines the PolicyDecision and writes a constraint spec file (JSON with adapter name, writable/readable paths, network_allow) to a temp file via `write_constraint_spec()`. The `cloneguard-sandbox-exec` entry point (installed alongside CloneGuard) reads the spec file, applies Landlock/Seatbelt restrictions to its own process via `adapter.apply_restrictions()`, deletes the spec file, then `os.execvp()` the target command -- which inherits the restrictions.
@@ -611,15 +611,17 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
    - **Key design decisions:** (a) Spec file uses mkstemp (0600 perms, unpredictable name) and is deleted after read (one-shot enforcement). (b) Adapters implement `apply_restrictions()` which applies OS sandbox to the current process -- called only from within sandbox-exec, never from the hook handler. (c) Any failure in sandbox application degrades to running unrestricted (fail-open, matching NoopAdapter).
    - **Resolved:** 2026-04-06 during plan revision based on checker feedback.
 
-2. **SBPL network restrictions: per-domain or per-IP only?**
+2. **SBPL network restrictions: per-domain or per-IP only?** **RESOLVED**
    - What we know: SBPL supports `(allow network-outbound (remote ip "x.x.x.x"))` for IP-level filtering.
    - What's unclear: Whether SBPL can filter by hostname directly.
    - Recommendation: Start with allow-all or deny-all network. Per-domain is a later refinement.
+   - **Resolved:** 2026-04-06 -- Plan 02-03 implements SeatbeltAdapter with allow-all or deny-all network; per-domain filtering deferred.
 
-3. **npm registry HEAD method support**
+3. **npm registry HEAD method support** **RESOLVED**
    - What we know: GET to registry.npmjs.org/{pkg} returns 200/404 correctly (verified live).
    - What's unclear: Whether HEAD returns the same status codes without downloading the full packument.
    - Recommendation: Use GET with short timeout. The metadata response is small enough that overhead is negligible.
+   - **Resolved:** 2026-04-06 -- Plan 02-04 implements GET method with 3-second timeout per this recommendation.
 
 ## Environment Availability
 
