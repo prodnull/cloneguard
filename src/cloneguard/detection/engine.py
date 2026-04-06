@@ -907,9 +907,8 @@ class DetectionEngine:
                     signals=fused.signals,
                 )
             else:
-                warning = (
-                    f"WARNING: Suspicious patterns in tool output from {source_path}\n"
-                    + (fused.message or "")
+                warning = f"WARNING: Suspicious patterns in tool output from {source_path}\n" + (
+                    fused.message or ""
                 )
                 return DetectionResult(
                     verdict="detected",
