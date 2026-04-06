@@ -1,0 +1,17 @@
+# CloneGuard -> Microsoft Sentinel connector configuration
+# Reference: https://learn.microsoft.com/en-us/azure/azure-monitor/logs/logs-ingestion-api-overview
+#
+# Prerequisites:
+#   1. Create a Data Collection Rule (DCR) in Azure Monitor
+#   2. Create a custom table "CloneGuard_CL" with the schema below
+#   3. Set env vars for endpoint and rule ID
+#
+# Usage: cloneguard forward --config examples/siem/sentinel-dcr.yaml
+
+connector: sentinel_dcr
+endpoint_env: "CLONEGUARD_SENTINEL_ENDPOINT"     # DCE endpoint from env var
+rule_id_env: "CLONEGUARD_SENTINEL_RULE_ID"       # DCR immutable ID from env var
+stream_name: "Custom-CloneGuard_CL"
+# Auth via DefaultAzureCredential (managed identity, CLI credential, or service principal)
+batch_size: 50
+flush_interval_seconds: 10

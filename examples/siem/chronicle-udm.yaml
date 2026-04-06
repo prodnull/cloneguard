@@ -1,0 +1,16 @@
+# CloneGuard -> Chronicle (Google SecOps) connector configuration
+# Reference: https://cloud.google.com/chronicle/docs/reference/ingestion-api
+#
+# Prerequisites:
+#   1. Create a Google Cloud service account with Chronicle Ingestion API permissions
+#   2. Set GOOGLE_APPLICATION_CREDENTIALS to the service account key file path
+#
+# Usage: cloneguard forward --config examples/siem/chronicle-udm.yaml
+
+connector: chronicle_udm
+# Auth via GOOGLE_APPLICATION_CREDENTIALS env var (Application Default Credentials)
+customer_id_env: "CLONEGUARD_CHRONICLE_CUSTOMER_ID"
+region: "us"  # or "eu", "asia-southeast1"
+log_type: "CLONEGUARD"
+batch_size: 100
+flush_interval_seconds: 15

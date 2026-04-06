@@ -1,0 +1,15 @@
+# CloneGuard -> Splunk HEC connector configuration
+# Reference: https://docs.splunk.com/Documentation/Splunk/latest/Data/FormateventsforHTTPEventCollector
+#
+# Usage: cloneguard forward --config examples/siem/splunk-hec.yaml
+# Or configure in ~/.cloneguard/siem.yaml
+
+connector: splunk_hec
+endpoint: "https://splunk.example.com:8088/services/collector"
+token_env: "CLONEGUARD_SPLUNK_HEC_TOKEN"  # Token read from this env var (NEVER put token here)
+sourcetype: "cloneguard"
+source: "cloneguard:hooks"
+index: "security"
+verify_ssl: true
+batch_size: 10
+flush_interval_seconds: 5
