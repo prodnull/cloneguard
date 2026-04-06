@@ -83,11 +83,13 @@ Plans:
   2. FPR is tracked per content type (CI configs, security docs, test fixtures, MCP tool descriptions) and remains below the standalone baseline (9.2%) for each category
   3. MELON selective re-execution triggers only in the configurable ambiguous confidence zone (default 0.4-0.6) with a circuit breaker at >15% trigger rate
   4. Adversarial evaluation against "Attacker Moves Second" methodology produces published results with honest bypass rates
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: TBD
-- [ ] 04-02: TBD
+- [ ] 04-01-PLAN.md -- FusionLayer module, engine signal collection refactor, weight profiles, calibration pipeline
+- [ ] 04-02-PLAN.md -- MELON selective re-execution with circuit breaker, snapshot/rollback for Landlock and Seatbelt
+- [ ] 04-03-PLAN.md -- Pattern library reorganization (rules/ subdirectories), memory/config poisoning, MCP fingerprinting
+- [ ] 04-04-PLAN.md -- Adversarial evaluation harness with fusion-targeting payloads and honest reporting
 
 ### Phase 5: Enterprise Governance and Agent Expansion
 **Goal**: Enterprise teams can express enforcement policy in OPA/Cedar, deploy CloneGuard at fleet scale, and detect attacks targeting browser, autonomous, financial, and CI/CD agent types
@@ -116,5 +118,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 | 1. Foundation | 4/4 | Complete | - |
 | 2. Adaptive Enforcement | 0/5 | Planning complete | - |
 | 3. Framework Integration | 0/3 | Planning complete | - |
-| 4. Detection Excellence | 0/2 | Not started | - |
+| 4. Detection Excellence | 0/4 | Planning complete | - |
 | 5. Enterprise Governance and Agent Expansion | 0/3 | Not started | - |
