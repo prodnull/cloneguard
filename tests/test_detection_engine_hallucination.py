@@ -15,7 +15,6 @@ import pytest
 
 from cloneguard.detection.engine import DetectionEngine
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -75,23 +74,17 @@ class TestDetectionEngineHallucination:
         assert result.verdict == "detected"
         assert result.exit_code == 2
         assert "definitely-fake-pkg-xyz" in result.message
-        assert any(
-            s.signal_type == "package_hallucination" for s in result.signals
-        )
+        assert any(s.signal_type == "package_hallucination" for s in result.signals)
 
     @patch("cloneguard.enforcement.registry.urllib.request.urlopen")
-    def test_real_package_allowed(
-        self, mock_urlopen: MagicMock, engine: DetectionEngine
-    ) -> None:
+    def test_real_package_allowed(self, mock_urlopen: MagicMock, engine: DetectionEngine) -> None:
         """npm install of a 200 package should not trigger hallucination detection."""
         mock_urlopen.return_value = _mock_response_200()
         data = _make_pre_tool_data("npm install express")
         result = engine.scan_pre_tool_use(data)
         # Should get the normal build command warning, not a hallucination block
         assert result.exit_code == 0
-        assert not any(
-            s.signal_type == "package_hallucination" for s in result.signals
-        )
+        assert not any(s.signal_type == "package_hallucination" for s in result.signals)
 
     @patch("cloneguard.enforcement.registry.urllib.request.urlopen")
     def test_mixed_real_and_fake_detected(
@@ -123,9 +116,7 @@ class TestDetectionEngineHallucination:
         data = _make_pre_tool_data("ls -la")
         result = engine.scan_pre_tool_use(data)
         assert result.exit_code == 0
-        assert not any(
-            s.signal_type == "package_hallucination" for s in result.signals
-        )
+        assert not any(s.signal_type == "package_hallucination" for s in result.signals)
 
     @patch("cloneguard.enforcement.registry.urllib.request.urlopen")
     def test_network_error_allows_gracefully(
@@ -137,9 +128,7 @@ class TestDetectionEngineHallucination:
         result = engine.scan_pre_tool_use(data)
         # Should not block -- network error means skip check
         assert result.exit_code == 0
-        assert not any(
-            s.signal_type == "package_hallucination" for s in result.signals
-        )
+        assert not any(s.signal_type == "package_hallucination" for s in result.signals)
 
     def test_write_tool_unaffected(self, engine: DetectionEngine) -> None:
         """Write tool should not trigger hallucination checks (only Bash)."""
@@ -149,6 +138,4 @@ class TestDetectionEngineHallucination:
         }
         result = engine.scan_pre_tool_use(data)
         assert result.exit_code == 0
-        assert not any(
-            s.signal_type == "package_hallucination" for s in result.signals
-        )
+        assert not any(s.signal_type == "package_hallucination" for s in result.signals)

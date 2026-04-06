@@ -47,9 +47,24 @@ _YARN_ADD_RE = re.compile(r"\byarn\s+add\s+(.+?)(?:\s*[;&|]|$)")
 _VERSION_SPLIT_RE = re.compile(r"[><=!~]+")
 
 # Flags that consume a following argument (the argument is NOT a package name)
-_FLAGS_WITH_ARG = frozenset({"-r", "--requirement", "-c", "--constraint", "-e", "--editable",
-                              "-f", "--find-links", "-i", "--index-url",
-                              "--extra-index-url", "--no-index", "-t", "--target"})
+_FLAGS_WITH_ARG = frozenset(
+    {
+        "-r",
+        "--requirement",
+        "-c",
+        "--constraint",
+        "-e",
+        "--editable",
+        "-f",
+        "--find-links",
+        "-i",
+        "--index-url",
+        "--extra-index-url",
+        "--no-index",
+        "-t",
+        "--target",
+    }
+)
 
 
 def _is_flag(token: str) -> bool:
@@ -161,12 +176,17 @@ class PackageRegistryClient:
             else:
                 logger.warning(
                     "Registry check for %s/%s returned HTTP %d",
-                    registry, package, exc.code,
+                    registry,
+                    package,
+                    exc.code,
                 )
                 result = None
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             logger.warning(
-                "Network error checking %s/%s: %s", registry, package, exc,
+                "Network error checking %s/%s: %s",
+                registry,
+                package,
+                exc,
             )
             result = None
 
@@ -174,7 +194,8 @@ class PackageRegistryClient:
         return result
 
     def check_packages_for_hallucination(
-        self, command: str,
+        self,
+        command: str,
     ) -> list[SignalResult]:
         """Extract packages from command and check registries.
 
@@ -203,7 +224,9 @@ class PackageRegistryClient:
                 )
             elif exists is None:
                 logger.debug(
-                    "Skipping hallucination check for %s/%s (network error)", registry, name,
+                    "Skipping hallucination check for %s/%s (network error)",
+                    registry,
+                    name,
                 )
 
         return signals

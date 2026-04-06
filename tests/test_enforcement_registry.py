@@ -10,7 +10,6 @@ Verifies:
 
 from __future__ import annotations
 
-import socket
 import urllib.error
 import urllib.request
 from http.client import HTTPResponse
@@ -21,7 +20,6 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from cloneguard.enforcement.registry import PackageRegistryClient
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -179,7 +177,7 @@ class TestCheckPackage:
     def test_timeout_returns_none(
         self, mock_urlopen: MagicMock, client: PackageRegistryClient
     ) -> None:
-        mock_urlopen.side_effect = socket.timeout("timed out")
+        mock_urlopen.side_effect = TimeoutError("timed out")
         result = client.check_package("some-pkg", "npm")
         assert result is None
 
@@ -267,14 +265,10 @@ class TestCheckPackagesForHallucination:
             return _mock_response(200)
 
         mock_urlopen.side_effect = side_effect
-        signals = client.check_packages_for_hallucination(
-            "pip install requests flask fake-pkg"
-        )
+        signals = client.check_packages_for_hallucination("pip install requests flask fake-pkg")
         assert len(signals) == 1
         assert signals[0].details["package"] == "fake-pkg"
 
-    def test_non_install_command_returns_empty(
-        self, client: PackageRegistryClient
-    ) -> None:
+    def test_non_install_command_returns_empty(self, client: PackageRegistryClient) -> None:
         signals = client.check_packages_for_hallucination("ls -la")
         assert signals == []

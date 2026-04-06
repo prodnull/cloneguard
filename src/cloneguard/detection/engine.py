@@ -632,8 +632,8 @@ class DetectionEngine:
             registry_client = self._get_registry_client()
             if registry_client is not None:
                 try:
-                    hallucination_signals = (
-                        registry_client.check_packages_for_hallucination(command)
+                    hallucination_signals = registry_client.check_packages_for_hallucination(
+                        command
                     )
                     if hallucination_signals:
                         hallucinated = [
