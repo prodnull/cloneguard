@@ -34,10 +34,18 @@ mini = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26"]
 semantic = ["ollama>=0.4"]
 opa = ["regopy>=1.3"]
 cedar = ["cedarpy>=4.8"]
-governance = ["regopy>=1.3", "cedarpy>=4.8", "spiffe>=0.2.6"]
+spiffe = ["spiffe>=0.2.6"]
+splunk = ["requests>=2.31"]
+sentinel = ["azure-monitor-ingestion>=1.1", "azure-identity>=1.15"]
+chronicle = ["requests>=2.31"]
+governance = [
+    "regopy>=1.3", "cedarpy>=4.8", "spiffe>=0.2.6",
+    "requests>=2.31", "azure-monitor-ingestion>=1.1", "azure-identity>=1.15",
+]
 all = [
     "onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4",
-    "regopy>=1.3", "cedarpy>=4.8",
+    "regopy>=1.3", "cedarpy>=4.8", "spiffe>=0.2.6",
+    "requests>=2.31", "azure-monitor-ingestion>=1.1", "azure-identity>=1.15",
 ]
 
 [project.scripts]
@@ -66,7 +74,7 @@ strict = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "scipy.*", "regopy.*", "cedarpy.*"]
+module = ["sklearn.*", "scipy.*", "regopy.*", "cedarpy.*", "spiffe.*", "azure.*", "google.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]
