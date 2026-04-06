@@ -23,9 +23,7 @@ class TestSandboxAdapterProtocol:
 
     def test_protocol_is_runtime_checkable(self) -> None:
         """SandboxAdapter must be decorated with @runtime_checkable."""
-        assert hasattr(SandboxAdapter, "__protocol_attrs__") or isinstance(
-            SandboxAdapter, type
-        )
+        assert hasattr(SandboxAdapter, "__protocol_attrs__") or isinstance(SandboxAdapter, type)
         # The real test: isinstance works at runtime
         noop = NoopAdapter()
         assert isinstance(noop, SandboxAdapter)
@@ -124,10 +122,13 @@ class TestGetSandboxAdapter:
 
     def test_probe_failure_returns_noop(self) -> None:
         """If all probes fail/raise, auto returns NoopAdapter."""
-        with mock.patch(
-            "cloneguard.enforcement.adapter._probe_landlock", side_effect=Exception("fail")
-        ), mock.patch(
-            "cloneguard.enforcement.adapter._probe_seatbelt", side_effect=Exception("fail")
+        with (
+            mock.patch(
+                "cloneguard.enforcement.adapter._probe_landlock", side_effect=Exception("fail")
+            ),
+            mock.patch(
+                "cloneguard.enforcement.adapter._probe_seatbelt", side_effect=Exception("fail")
+            ),
         ):
             adapter = get_sandbox_adapter(preferred="auto")
             assert isinstance(adapter, NoopAdapter)
