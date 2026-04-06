@@ -161,3 +161,7 @@ def write_constraint_spec(constraints: dict[str, Any]) -> str:
     with os.fdopen(fd, "w") as f:
         json.dump(constraints, f)
     return path
+
+
+if __name__ == "__main__":
+    main()
