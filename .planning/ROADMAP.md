@@ -70,9 +70,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 03-01-PLAN.md -- InputAdapter Protocol, adapter registry, Claude Code/Gemini CLI/Cursor/Generic adapters, hooks.py delegation
-- [ ] 03-02-PLAN.md -- Microsoft AGT ToolCallInterceptor plugin and MCP middleware adapter refactor
-- [ ] 03-03-PLAN.md -- GitHub Actions composite action with SARIF upload and OTel span emitter
+- [x] 03-01-PLAN.md -- InputAdapter Protocol, adapter registry, Claude Code/Gemini CLI/Cursor/Generic adapters, hooks.py delegation
+- [x] 03-02-PLAN.md -- Microsoft AGT ToolCallInterceptor plugin and MCP middleware adapter refactor
+- [x] 03-03-PLAN.md -- GitHub Actions composite action with SARIF upload and OTel span emitter
 
 ### Phase 4: Detection Excellence
 **Goal**: Three-signal fusion (pattern + semantic + sequence) is calibrated on production data across agent types, producing measurably better detection with controlled FPR
