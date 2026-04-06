@@ -201,6 +201,16 @@ def _emit_audit_event(
             emitter.emit(event)
         finally:
             emitter.close()
+
+        # OTel span emission (zero-cost no-op when opentelemetry-api unavailable)
+        try:
+            from cloneguard.audit.otel import OTelEmitter
+
+            otel = OTelEmitter()
+            if otel.available:
+                otel.emit(event)
+        except Exception:
+            pass  # OTel failure must never block agent
     except Exception:
         pass  # Audit failure must never block agent (T-02-02)
 
