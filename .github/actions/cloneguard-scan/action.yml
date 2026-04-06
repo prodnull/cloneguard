@@ -1,0 +1,49 @@
+name: 'CloneGuard Scan'
+description: 'Scan repository for prompt injection patterns and upload SARIF results'
+inputs:
+  threshold:
+    description: 'Override suspicious/malicious thresholds (e.g., "0.3/0.7")'
+    required: false
+    default: ''
+  scan-paths:
+    description: 'Directories to scan (comma-separated, defaults to repo root)'
+    required: false
+    default: '.'
+  fail-on:
+    description: 'Verdict level that fails the check (malicious or suspicious)'
+    required: false
+    default: 'malicious'
+  python-version:
+    description: 'Python version for uv'
+    required: false
+    default: '3.12'
+runs:
+  using: composite
+  steps:
+    - name: Install uv
+      uses: astral-sh/setup-uv@v5
+    - name: Install CloneGuard
+      shell: bash
+      run: uv tool install cloneguard[mini]
+    - name: Run scan
+      id: scan
+      shell: bash
+      env:
+        CLONEGUARD_SARIF_OUTPUT: cloneguard-results.sarif
+      run: |
+        EXIT_CODE=0
+        cloneguard scan ${{ inputs.scan-paths }} \
+          --sarif \
+          ${{ inputs.threshold && format('--threshold {0}', inputs.threshold) || '' }} || EXIT_CODE=$?
+        echo "exit_code=$EXIT_CODE" >> "$GITHUB_OUTPUT"
+        if [ "${{ inputs.fail-on }}" = "suspicious" ] && [ "$EXIT_CODE" -ge 1 ]; then
+          exit 1
+        elif [ "${{ inputs.fail-on }}" = "malicious" ] && [ "$EXIT_CODE" -ge 2 ]; then
+          exit 1
+        fi
+    - name: Upload SARIF
+      uses: github/codeql-action/upload-sarif@v4
+      if: always()
+      with:
+        sarif_file: cloneguard-results.sarif
+        category: cloneguard

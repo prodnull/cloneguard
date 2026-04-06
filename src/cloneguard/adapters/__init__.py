@@ -113,6 +113,7 @@ def get_adapter(
 
 # Import adapter modules to trigger registration via @register_adapter decorators.
 # These imports must come after the registry and Protocol definitions above.
+import cloneguard.adapters.cicd as _ci  # noqa: E402, F401
 import cloneguard.adapters.claude_code as _cc  # noqa: E402, F401
 import cloneguard.adapters.cursor as _cu  # noqa: E402, F401
 import cloneguard.adapters.gemini_cli as _gc  # noqa: E402, F401
