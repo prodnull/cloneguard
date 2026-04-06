@@ -87,7 +87,7 @@ Detects multi-step attack sequences by tracking tool-call patterns across the ag
 
 ### Tier 1: Pattern Engine (Regex)
 
-204 compiled regex patterns across 25 categories. Executes in under 50ms. Each pattern has an ID, severity (LOW/MEDIUM/HIGH/CRITICAL), and description.
+197 compiled regex patterns across 25 categories. Executes in under 50ms. Each pattern has an ID, severity (LOW/MEDIUM/HIGH/CRITICAL), and description.
 
 **Categories include:** instruction override, authority impersonation, credential harvesting, exfiltration, behavioral manipulation, viral propagation, config file injection, privilege escalation, encoding obfuscation, HTML/SVG injection, build script attacks, CI/CD poisoning, environment variable hijacking, devcontainer abuse, MCP tool poisoning, and more.
 
@@ -132,118 +132,6 @@ Install from [GitHub Releases](https://github.com/prodnull/cloneguard/releases) 
 Ollama-based classification using `qwen2.5:7b`. Used only when the mini model is not installed. Significantly slower (~680 ms/sample) and less accurate (42% recall) than the mini model — it is a general-purpose LLM not fine-tuned for this task.
 
 Verdicts: SAFE, SUSPICIOUS, MALICIOUS (with confidence score).
-
-## Enforcement Layer (Phase 2)
-
-CloneGuard v2 adds adaptive enforcement beyond detection. Instead of binary allow/block, suspicious tool calls are constrained at the OS kernel level.
-
-### Three-Verdict Model
-
-| Verdict | Trigger | Action | Hook Exit |
-|---------|---------|--------|-----------|
-| SAFE | Below suspicious threshold | No constraints | 0 |
-| SUSPICIOUS | Between suspicious and malicious thresholds | **Constrain** — sandbox tightened | 0 |
-| MALICIOUS | Above malicious threshold, or critical pattern match | **Block** — no execution | 2 |
-
-Default thresholds: `suspicious_floor: 0.3`, `malicious_floor: 0.7`. Operator-configurable per ScanMode and per tool name via `~/.cloneguard/policy.yaml`.
-
-The SUSPICIOUS verdict is the key differentiator. A suspicious `npm install` is not killed — it runs inside a sandbox with filesystem and network restrictions. If the command was benign, the developer is never interrupted. If it was malicious, the damage is contained.
-
-### Sandbox Adapters
-
-Enforcement uses OS-level sandbox primitives — the sandboxed process cannot bypass restrictions because they are enforced by the kernel, not by CloneGuard.
-
-| Adapter | Platform | Mechanism | Isolation Level |
-|---------|----------|-----------|-----------------|
-| NoopAdapter | Any | No-op | Detection-only (v0.5.0 behavior) |
-| LandlockAdapter | Linux 5.13+ | Landlock LSM syscalls (444-446) | Kernel filesystem restriction |
-| SeatbeltAdapter | macOS | sandbox_init_with_parameters (libSystem) | Kernel filesystem + network |
-
-**Architecture:** The hook handler determines a `PolicyDecision`, serializes constraints to a temp spec file, and the tool call is routed through `cloneguard-sandbox-exec`. This wrapper binary reads the spec, applies OS restrictions to itself via `apply_restrictions()`, deletes the spec file, then `exec`'s the target command. The target inherits the sandbox because both Landlock and Seatbelt restrictions persist across `exec`.
-
-**Auto-selection:** CloneGuard probes available capabilities at startup and selects the strongest adapter. Operator can override via `sandbox.preferred` in YAML config. Fallback is always NoopAdapter — CloneGuard never fails to start.
-
-### Security Hardening (Adversarially Validated)
-
-The enforcement adapters were subjected to adversarial review (38 breakout test cases) and cross-validated with Gemini. Six security fixes were implemented:
-
-| Fix | Issue | Resolution |
-|-----|-------|------------|
-| prctl portability | Hardcoded x86_64 syscall number silently fails on aarch64 | `libc.prctl()` with `hasattr` check, fallback to architecture-specific syscall map |
-| /proc narrowing | Full `/proc` readable exposed other processes' env vars | Narrowed to `/proc/self` only — blocks cross-process information leaks |
-| W^X enforcement | Writable paths were also executable | `_ACCESS_WRITE` no longer includes EXECUTE. Separate `_ACCESS_WRITE_EXEC` for paths that need it (opt-in via policy) |
-| Private tmpdir | Shared `/tmp` enabled covert channel between sandboxed and unsandboxed processes | Per-invocation `mkdtemp()` with TMPDIR/TEMP/TMP env vars. Sandboxed process never touches shared `/tmp` |
-| Network enforcement | `restrict_network()` was a no-op | Landlock v4+ (kernel 6.7+) TCP port-based rules. Port filtering only — domain filtering not possible with Landlock |
-| ABI-aware flags | Missing TRUNCATE (v3+), REFER (v2+) | Dynamic `_build_handled_access_fs()` based on detected ABI version |
-
-### Accepted Risks (Enforcement)
-
-These limitations were identified during adversarial review, evaluated for fix feasibility, and deliberately accepted with rationale:
-
-**1. Seatbelt `bsd.sb` grants broad Mach IPC (macOS)**
-
-The SBPL profile imports `bsd.sb` (BSD daemon profile), which allows Mach service lookups including `com.apple.mDNSResponder`. This theoretically enables DNS-based data exfiltration even when network is denied.
-
-*Why accepted:* Removing `bsd.sb` breaks all subprocess execution on macOS. `bsd.sb` provides foundational operations (dyld, locale, system logger) that even `bash -c "echo hello"` requires. Building a Chromium-style minimal SBPL is months of work. The deny-default baseline still blocks network-outbound; DNS exfil requires exploiting Mach IPC indirection through mDNSResponder.
-
-**2. Landlock network enforcement is port-based only (not domain)**
-
-Landlock v4 filters by TCP port, not by destination domain or IP address. `network_allow: ["443"]` allows all HTTPS traffic to any host.
-
-*Why accepted:* This is a kernel limitation, not an implementation choice. Domain-level filtering requires iptables/nftables/eBPF integration, which is a different phase of work. Port-based filtering still provides value: `network_allow: []` (empty) denies all TCP connections. Honest documentation is better than false claims of domain filtering.
-
-**3. Python-level escape via ctypes (both platforms)**
-
-A sandboxed Python process can use `ctypes` to make raw syscalls. Since Python is an interpreted language, the sandbox restricts filesystem and network but cannot prevent arbitrary syscall invocation.
-
-*Why accepted:* Restricting ctypes would require stripping Python's C FFI, which breaks most libraries. The sandbox restricts the *effects* of syscalls (filesystem access is kernel-enforced), not the ability to make them. A process calling `open("/etc/shadow", ...)` via ctypes still gets EACCES from Landlock.
-
-**4. In-memory env vars accessible to sandboxed process (both platforms)**
-
-The sandboxed process inherits environment variables from the parent. `os.environ` is loaded before sandbox applies. `/proc/self/environ` is readable (though `/proc/[pid]/environ` for other processes is now blocked).
-
-*Why accepted:* Environment variables are inherited by design (`exec` preserves the environment). Stripping env vars before exec would break tools that need them (API keys for registries, PATH, HOME, etc.). The fix is operational: don't pass secrets as env vars to tool calls. Use the spec file mechanism instead.
-
-### Policy Engine
-
-YAML configuration at `~/.cloneguard/policy.yaml`. Validated with Pydantic at load time. Operator controls:
-
-- **Verdict thresholds:** `suspicious_floor`, `malicious_floor` (global and per-ScanMode)
-- **Per-tool enforcement:** Different constraints for `npm install` vs. `bash` vs. `pip install`
-- **Sandbox selection:** `sandbox.preferred: auto | landlock | seatbelt | noop`
-- **Dry-run mode:** `dry_run: true` (default) — logs what would be constrained without enforcing. Switch to `false` when tuning is validated.
-
-**Config path security:** Policy files are loaded exclusively from `~/.cloneguard/policy.yaml`. The engine refuses to load from repo-resident paths, preventing agents from modifying their own constraints.
-
-### Package Hallucination Detection
-
-Cross-references `npm install` and `pip install` package names against registry APIs (registry.npmjs.org, pypi.org) before installation proceeds. A package returning 404 produces a detection signal with high confidence.
-
-- Session-cached: each package checked once per session
-- Network failures degrade gracefully: registry unreachable → skip check, never block
-- 3-second timeout per registry lookup
-
-### Dry-Run Default
-
-All new installations start in dry-run mode. Enforcement events are logged with `enforcement_action: "DRY_RUN"` and a `would_apply` field showing what constraints would have been applied. This lets operators observe enforcement behavior on real workloads before enabling it.
-
-### Enforcement Test Coverage
-
-| Category | Tests | Coverage |
-|----------|-------|----------|
-| Enforcement types + adapter | 42 | Verdict enum, PolicyDecision, NoopAdapter, auto-selection |
-| YAML policy engine | 25 | Threshold gating, per-tool rules, dry-run, variable expansion |
-| Landlock adapter | 16 | Filesystem rules, ABI detection, prctl, graceful degradation |
-| Seatbelt adapter | 19 | SBPL generation, deny-default, path escaping |
-| Sandbox-exec wrapper | 10 | Spec file, policy mode, constraint application, exec |
-| Package hallucination | 39 | Registry checks, caching, graceful degradation, engine integration |
-| Hook integration | 13 | Pipeline wiring, audit events, exit code preservation |
-| End-to-end integration | 12 | Full pipeline: detection → policy → enforcement → audit |
-| Breakout adversarial | 38 | Symlink escape, /proc, FD inheritance, tmp channel, W^X, signals |
-| Security hardening | 32 | prctl portability, /proc narrowing, W^X, private tmpdir, network, ABI |
-| **Live Seatbelt (macOS)** | **6** | **Real OS enforcement verified: write-allow, write-deny, read-deny, system paths, spec-file** |
-
-**Total enforcement tests: 252**
 
 ## Trust Cache
 
@@ -579,7 +467,7 @@ from MCP-capable agents, which is not yet publicly available at scale.
 
 3. **Multilingual gaps.** The mini model has limited non-English training data (~30 samples). Non-English attacks may evade Tier 1.5. Tier 2 (Ollama) handles multilingual content natively if available.
 
-4. **Sandbox is defense-in-depth, not escape-proof.** Phase 2 adds OS-level enforcement (Landlock, Seatbelt) for SUSPICIOUS verdicts. However: (a) A payload that evades detection entirely (SAFE verdict) runs unconstrained. (b) The sandbox restricts filesystem and network but cannot prevent all syscalls — a Python process can still use ctypes for raw kernel calls, though the *effects* of those calls are kernel-restricted. (c) Landlock network filtering is port-based only (not domain). (d) Seatbelt's `bsd.sb` import grants Mach IPC that may enable DNS exfil. See [Accepted Risks (Enforcement)](#accepted-risks-enforcement) for full analysis.
+4. **Not a sandbox.** CloneGuard scans files before the agent processes them. It does not constrain what the agent does after content is approved. A payload that bypasses all detection tiers will execute normally.
 
 5. **Build script scanning is limited.** CloneGuard warns on build commands but does not analyze what build scripts will do. A `Makefile` with an obfuscated payload may pass Tier 1 and execute harmful commands.
 
@@ -599,7 +487,7 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 
 | Component | Latency | Context |
 |-----------|---------|---------|
-| Tier 0 regex (222 patterns) | <50 ms | Full repo scan (~20 files) |
+| Tier 0 regex (204 patterns) | <50 ms | Full repo scan (~20 files) |
 | Tier 1.5 ONNX (per file) | ~16 ms | Single file classification |
 | Tier 2 Ollama (per file) | ~680 ms | Single file, local inference |
 | Layer 0 full scan (Tier 0+1.5, 20 files) | ~370 ms | Pre-execution wrapper |

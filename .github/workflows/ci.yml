@@ -110,41 +110,6 @@ jobs:
       - name: Run Tier 2 tests
         run: uv run pytest -m ollama -v --tb=short
 
-  sandbox-landlock:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - name: Install dependencies
-        run: uv sync --all-extras --dev
-      - name: Fetch ONNX model
-        run: uv run python scripts/fetch_model.py
-      - name: Check Landlock availability
-        run: |
-          if [ -f /sys/kernel/security/landlock/abi_version ]; then
-            echo "Landlock ABI version: $(cat /sys/kernel/security/landlock/abi_version)"
-          else
-            echo "WARNING: Landlock not available on this runner"
-          fi
-      - name: Run Landlock live tests
-        run: uv run pytest tests/integration/test_landlock_live.py -v --tb=short
-
-  sandbox-seatbelt:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
-        with:
-          enable-cache: true
-      - name: Install dependencies
-        run: uv sync --all-extras --dev
-      - name: Fetch ONNX model
-        run: uv run python scripts/fetch_model.py
-      - name: Run Seatbelt live tests
-        run: uv run pytest tests/integration/test_seatbelt_live.py -v --tb=short
-
   security:
     runs-on: ubuntu-latest
     steps:

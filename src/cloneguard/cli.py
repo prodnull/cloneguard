@@ -102,11 +102,6 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
         action="store_true",
         help="Enable trust cache (skip re-scanning unchanged files)",
     )
-    scan_parser.add_argument(
-        "--sarif",
-        action="store_true",
-        help="Output results in SARIF 2.1.0 format (D-08)",
-    )
 
     # cloneguard setup
     subparsers.add_parser(
@@ -142,12 +137,6 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
         "--trust-cache", action="store_true", help="Set up trust cache directory"
     )
 
-    # cloneguard check-hooks
-    subparsers.add_parser(
-        "check-hooks",
-        help="Verify hook configuration integrity (CVE-2025-59536 defense, D-13)",
-    )
-
     # cloneguard hook-check --event <EventName>
     # Called by Claude Code hook configuration. Reads JSON from stdin,
     # dispatches to the appropriate hook handler in hooks.py.
@@ -177,76 +166,14 @@ def handle_scan(
     tier2: bool = False,
     tier2_model: str | None = None,
     cache: bool = False,
-    sarif: bool = False,
 ) -> int:
-    """Run standalone scan and return exit code.
-
-    When --sarif is set or CLONEGUARD_SARIF_OUTPUT env var is set, SARIF 2.1.0
-    output is produced (D-08). --sarif writes to stdout; env var writes to file
-    while human-readable report still goes to stdout.
-    """
+    """Run standalone scan and return exit code."""
     repo_path = Path(path_str).resolve()
     scanner = RepoScanner(tier2=tier2, tier2_model=tier2_model, cache=cache)
     report = scanner.scan(repo_path)
-
-    sarif_output_path = os.environ.get("CLONEGUARD_SARIF_OUTPUT", "")
-    emit_sarif = sarif or bool(sarif_output_path)
-
-    if emit_sarif:
-        from cloneguard.audit.sarif import SARIFEmitter, _build_rules_from_patterns
-        from cloneguard.detection.patterns import PatternEngine
-
-        # Convert ScanReport file results to SARIF-compatible dicts
-        scan_results = _scan_report_to_sarif_dicts(report)
-        engine = PatternEngine()
-        rules = _build_rules_from_patterns(engine)
-        emitter = SARIFEmitter()
-        sarif_json = emitter.emit_json(scan_results, rules=rules)
-
-        if sarif_output_path:
-            # Write SARIF to file, human report to stdout
-            Path(sarif_output_path).write_text(sarif_json + "\n", encoding="utf-8")
-            color = sys.stdout.isatty()
-            print(report.format(color=color))
-        else:
-            # --sarif flag: SARIF to stdout
-            print(sarif_json)
-    else:
-        color = sys.stdout.isatty()
-        print(report.format(color=color))
-
+    color = sys.stdout.isatty()
+    print(report.format(color=color))
     return report.exit_code
-
-
-def _scan_report_to_sarif_dicts(report: Any) -> list[dict[str, Any]]:
-    """Convert a ScanReport's FileResults to SARIF-compatible result dicts."""
-    results: list[dict[str, Any]] = []
-    for fr in report.file_results:
-        # Each issue string in FileResult represents a detection
-        for issue in fr.issues:
-            # Parse issue strings to extract structured data
-            # Issues are formatted as "[SEVERITY] description" in the report
-            severity = "medium"
-            verdict = "detected"
-            if "BLOCKED" in str(fr.status.value):
-                verdict = "detected"
-            elif "WARNING" in str(fr.status.value):
-                verdict = "suspicious"
-            elif "CLEAN" in str(fr.status.value):
-                verdict = "clean"
-
-            results.append(
-                {
-                    "verdict": verdict,
-                    "severity": severity,
-                    "rule_id": "PATTERN",
-                    "file_path": fr.path,
-                    "line_number": 1,
-                    "matched_text": issue,
-                    "message": issue,
-                }
-            )
-    return results
 
 
 def handle_init(
@@ -486,7 +413,6 @@ def main(argv: list[str] | None = None) -> None:
             tier2=args.tier2 or bool(args.tier2_model),
             tier2_model=args.tier2_model,
             cache=args.cache,
-            sarif=args.sarif,
         )
         sys.exit(code)
 
@@ -511,34 +437,7 @@ def main(argv: list[str] | None = None) -> None:
         handle_init(scope=scope, trust_cache=args.trust_cache)
         return
 
-    if args.command == "check-hooks":
-        from cloneguard.integrity import check_hook_integrity
-
-        warnings = check_hook_integrity()
-        if warnings:
-            for w in warnings:
-                print(f"WARNING: {w}", file=sys.stderr)
-            sys.exit(1)
-        else:
-            print("Hook configuration OK.")
-        return
-
     if args.command == "hook-check":
-        # Lightweight startup integrity check (once per process, D-13)
-        if not os.environ.get("_CLONEGUARD_INTEGRITY_CHECKED"):
-            import logging as _logging
-
-            _logger = _logging.getLogger("cloneguard.integrity")
-            try:
-                from cloneguard.integrity import check_hook_integrity
-
-                integrity_warnings = check_hook_integrity()
-                for w in integrity_warnings:
-                    _logger.warning("Hook integrity: %s", w)
-            except Exception:
-                pass  # Never block hook execution on integrity check failure
-            os.environ["_CLONEGUARD_INTEGRITY_CHECKED"] = "1"
-
         from cloneguard.hooks import main as hooks_main
 
         hooks_main()

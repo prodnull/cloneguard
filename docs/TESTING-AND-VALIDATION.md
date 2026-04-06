@@ -258,7 +258,7 @@ All measurements on Apple M-series CPU. Latency varies by hardware.
 
 | Component | Latency | Notes |
 |-----------|:-------:|-------|
-| Tier 0 regex | < 50 ms | Full repo scan, 222 compiled patterns |
+| Tier 0 regex | < 50 ms | Full repo scan, 204 compiled patterns |
 | Tier 1.5 ONNX | ~16 ms/sample | Single file classification |
 | Tier 2 Ollama | ~680 ms/sample | qwen2.5:7b, local inference |
 
@@ -286,7 +286,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|
-| `test_integration_all_patterns.py` | 355 | All 222 patterns through full scan pipeline: end-to-end pattern coverage |
+| `test_integration_all_patterns.py` | 355 | All 204 patterns through full scan pipeline: end-to-end pattern coverage |
 | `test_security_vectors.py` | 130 | Real-world attack vector proofs across 13+ categories |
 | `test_patterns.py` | 126 | Pattern engine unit tests: loading, matching, severity mapping, scan modes |
 | `test_new_patterns.py` | 74 | Gap closure patterns from PoC validation |
@@ -336,7 +336,7 @@ pytest tests/test_security_vectors.py
 # Pattern engine — regex loading, matching, severity
 pytest tests/test_patterns.py
 
-# Full pipeline — all 222 patterns end-to-end
+# Full pipeline — all 204 patterns end-to-end
 pytest tests/test_integration_all_patterns.py
 
 # Tier 1.5 ONNX model

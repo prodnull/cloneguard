@@ -7,7 +7,7 @@ license = "Apache-2.0"
 requires-python = ">=3.11"
 authors = [{ name = "prodnull" }]
 keywords = ["prompt-injection", "ai-security", "llm", "coding-agent", "defense"]
-dependencies = ["pyyaml>=6.0", "pydantic>=2.0", "sarif-pydantic>=0.6"]
+dependencies = ["pyyaml>=6.0"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -32,14 +32,10 @@ Issues = "https://github.com/prodnull/cloneguard/issues"
 dev = ["pytest>=8.0", "pytest-cov>=6.0", "ruff>=0.8", "mypy>=1.13", "types-PyYAML>=6.0"]
 mini = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26"]
 semantic = ["ollama>=0.4"]
-agt = ["agent-os-kernel>=3.0,<4.0"]
-mcp = ["mcp>=1.26"]
-otel = ["opentelemetry-api>=1.40"]
-all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4", "agent-os-kernel>=3.0,<4.0", "mcp>=1.26", "opentelemetry-api>=1.40"]
+all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4"]
 
 [project.scripts]
 cloneguard = "cloneguard.cli:main"
-cloneguard-sandbox-exec = "cloneguard.enforcement.sandbox_exec:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -64,7 +60,7 @@ strict = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "scipy.*", "sarif_pydantic.*"]
+module = ["sklearn.*", "scipy.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

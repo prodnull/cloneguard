@@ -71,7 +71,7 @@ def check_pattern_count() -> None:
 
     rules_dir = ROOT / "src" / "cloneguard" / "rules"
     actual = 0
-    for yaml_file in sorted(rules_dir.glob("**/*.yaml")):
+    for yaml_file in sorted(rules_dir.glob("*.yaml")):
         content = yaml_file.read_text()
         actual += len(re.findall(r"^\s*- id:", content, re.MULTILINE))
     print(f"  Actual patterns in YAML: {actual}")
