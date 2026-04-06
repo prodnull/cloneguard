@@ -224,12 +224,24 @@ def test_span_does_not_include_tool_call_arguments() -> None:
 
 def test_emit_does_not_call_force_flush() -> None:
     """emit() never calls force_flush() on tracer provider (Pitfall 3)."""
+    import ast
     import inspect
+    import textwrap
 
     from cloneguard.audit.otel import OTelEmitter
 
     source = inspect.getsource(OTelEmitter)
-    assert "force_flush" not in source
+    tree = ast.parse(textwrap.dedent(source))
+    # Walk AST for any function call to force_flush
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            func = node.func
+            name = ""
+            if isinstance(func, ast.Attribute):
+                name = func.attr
+            elif isinstance(func, ast.Name):
+                name = func.id
+            assert name != "force_flush", "force_flush() must not be called"
 
 
 # ---------------------------------------------------------------------------

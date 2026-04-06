@@ -34,7 +34,8 @@ mini = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26"]
 semantic = ["ollama>=0.4"]
 agt = ["agent-os-kernel>=3.0,<4.0"]
 mcp = ["mcp>=1.26"]
-all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4", "agent-os-kernel>=3.0,<4.0", "mcp>=1.26"]
+otel = ["opentelemetry-api>=1.40"]
+all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4", "agent-os-kernel>=3.0,<4.0", "mcp>=1.26", "opentelemetry-api>=1.40"]
 
 [project.scripts]
 cloneguard = "cloneguard.cli:main"

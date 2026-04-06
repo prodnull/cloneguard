@@ -15,5 +15,6 @@ Public API:
 """
 
 from cloneguard.audit.ndjson import NDJSONEmitter  # noqa: F401
+from cloneguard.audit.otel import OTelEmitter  # noqa: F401
 from cloneguard.audit.sarif import SARIFEmitter, build_sarif  # noqa: F401
 from cloneguard.audit.types import AuditEvent, EventType, SignalDetails  # noqa: F401
