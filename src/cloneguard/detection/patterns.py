@@ -25,8 +25,13 @@ class Severity(Enum):
 
 
 class Verdict(Enum):
-    CLEAN = "clean"
+    # v2 canonical names (Phase 2+)
+    SAFE = "clean"  # Was CLEAN -- string value preserved for backward compat
     SUSPICIOUS = "suspicious"
+    MALICIOUS = "detected"  # Was DETECTED -- string value preserved for backward compat
+
+    # Backward-compatible aliases (Phase 1 code uses these names)
+    CLEAN = "clean"
     DETECTED = "detected"
 
 
