@@ -32,7 +32,8 @@ Issues = "https://github.com/prodnull/cloneguard/issues"
 dev = ["pytest>=8.0", "pytest-cov>=6.0", "ruff>=0.8", "mypy>=1.13", "types-PyYAML>=6.0"]
 mini = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26"]
 semantic = ["ollama>=0.4"]
-all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4"]
+agt = ["agent-os-kernel>=3.0,<4.0"]
+all = ["onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4", "agent-os-kernel>=3.0,<4.0"]
 
 [project.scripts]
 cloneguard = "cloneguard.cli:main"
