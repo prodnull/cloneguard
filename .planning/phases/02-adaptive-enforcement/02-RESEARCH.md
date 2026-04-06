@@ -605,11 +605,11 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
 
 ## Open Questions
 
-1. **How does CloneGuard apply sandbox restrictions when the agent spawns the subprocess, not CloneGuard?**
-   - What we know: Hook handlers receive JSON on stdin and return exit codes. The agent spawns the tool subprocess, not CloneGuard. Landlock/Seatbelt can only be applied by the process spawning the subprocess (via preexec_fn or wrapper).
-   - What's unclear: CloneGuard does not control subprocess spawning. The hook protocol has no channel for returning sandbox metadata to the agent.
-   - Recommendation: Two viable approaches: (a) For PreToolUse Bash commands, CloneGuard wraps the command -- the hook response includes a modified command string that pipes through `cloneguard-sandbox-exec <restrictions> -- <original-command>`. This requires the agent to honor the modified command. (b) CloneGuard acts as the process launcher itself when enforcement is active, intercepting the subprocess spawn. Both need a spike to validate feasibility within the agent hook protocol.
-   - **This is the highest-priority architectural spike for Phase 2.** The entire enforcement model depends on resolving this.
+1. **How does CloneGuard apply sandbox restrictions when the agent spawns the subprocess, not CloneGuard?** **RESOLVED**
+   - **Resolution:** Wrapper binary approach (`cloneguard-sandbox-exec`). The hook handler determines the PolicyDecision and writes a constraint spec file (JSON with adapter name, writable/readable paths, network_allow) to a temp file via `write_constraint_spec()`. The `cloneguard-sandbox-exec` entry point (installed alongside CloneGuard) reads the spec file, applies Landlock/Seatbelt restrictions to its own process via `adapter.apply_restrictions()`, deletes the spec file, then `os.execvp()` the target command -- which inherits the restrictions.
+   - **Why this approach:** The hook protocol returns only exit codes (0/2) and stdout text. It has no channel for returning sandbox metadata or modified commands to the agent. The wrapper binary approach works outside the hook protocol: the hook writes enforcement directives to disk, and the wrapper binary (which the agent's commands are routed through) reads and applies them.
+   - **Key design decisions:** (a) Spec file uses mkstemp (0600 perms, unpredictable name) and is deleted after read (one-shot enforcement). (b) Adapters implement `apply_restrictions()` which applies OS sandbox to the current process -- called only from within sandbox-exec, never from the hook handler. (c) Any failure in sandbox application degrades to running unrestricted (fail-open, matching NoopAdapter).
+   - **Resolved:** 2026-04-06 during plan revision based on checker feedback.
 
 2. **SBPL network restrictions: per-domain or per-IP only?**
    - What we know: SBPL supports `(allow network-outbound (remote ip "x.x.x.x"))` for IP-level filtering.
@@ -686,7 +686,7 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
 
 **Confidence breakdown:**
 - Standard stack: HIGH - Uses only existing dependencies + stdlib. Verified versions.
-- Architecture: HIGH for patterns, MEDIUM for enforcement integration (Open Question 1)
+- Architecture: HIGH for patterns, HIGH for enforcement integration (Open Question 1 RESOLVED -- wrapper binary approach)
 - Pitfalls: HIGH - Grounded in Phase 1 research, kernel docs, published implementations
 - Landlock details: HIGH on Linux, N/A for dev machine (macOS). Must test in CI.
 - Seatbelt details: MEDIUM - Undocumented Apple API, proven by multiple projects.

@@ -66,7 +66,7 @@ Plans:
   2. Microsoft AGT ToolCallInterceptor plugin exposes CloneGuard as a semantic sensor within the AGT governance pipeline
   3. A GitHub Actions workflow runs CloneGuard on PR events and uploads SARIF results to the repository Security tab
   4. OTel spans conforming to GenAI semantic conventions appear in any OTel-compatible collector when OTel emission is enabled
-  5. Package install commands (npm install, pip install) trigger cross-reference checks against registry APIs, flagging hallucinated package names before installation proceeds
+  5. Input adapters normalize tool call events from at least two additional agent platforms (Gemini CLI, Cursor) into the unified ToolCallEvent schema, with adapter-specific tests
 **Plans**: TBD
 
 Plans:
