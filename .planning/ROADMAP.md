@@ -102,12 +102,12 @@ Plans:
   2. Fleet deployment via MDM or Ansible playbooks provisions CloneGuard with centralized policy to N machines with a single configuration push
   3. NDJSON audit events flow into Splunk HEC, Microsoft Sentinel, and Chronicle via tested connectors with example configs (not just docs)
   4. Hook events carry SPIFFE agent identity for zero-trust attribution
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: TBD
-- [ ] 05-02: TBD
-- [ ] 05-03: TBD
+- [ ] 05-01-PLAN.md -- PolicyBackend Protocol with OPA/Rego and Cedar backends compiling to PolicyConfig IR
+- [ ] 05-02-PLAN.md -- SIEM connectors (Splunk HEC, Sentinel DCR, Chronicle UDM) and SPIFFE agent identity
+- [ ] 05-03-PLAN.md -- Fleet deployment tooling (Ansible role and MDM profiles for Jamf/Intune)
 
 ### Phase 6: Agent Expansion
 **Goal**: CloneGuard detects domain-specific attacks targeting browser, autonomous, financial, and CI/CD agent types with dedicated pattern libraries, and provides additional sandbox adapters for container and WASM environments
@@ -133,5 +133,5 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Adaptive Enforcement | 0/5 | Planning complete | - |
 | 3. Framework Integration | 0/3 | Planning complete | - |
 | 4. Detection Excellence | 6/6 | Complete | 2026-04-06 |
-| 5. Enterprise Governance | 0/3 | Context gathered | - |
+| 5. Enterprise Governance | 0/3 | Planning complete | - |
 | 6. Agent Expansion | 0/2 | Not started | - |
