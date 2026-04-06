@@ -514,27 +514,15 @@ flush_interval_seconds: 10
 | A4 | Splunk HEC, Sentinel DCR, and Chronicle UDM API formats are stable and backward-compatible | SIEM Connectors | API changes could break connectors; mitigated by CI mock tests |
 | A5 | secops 0.40.0 is appropriate for Chronicle UDM ingestion | Standard Stack | May need direct HTTP to batchCreate endpoint instead; verify secops API coverage |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **regopy Rego v1.8.0 vs. current OPA v1.x**
-   - What we know: regopy supports Rego "v1.8.0" [CITED: microsoft.github.io/rego-cpp]
-   - What's unclear: Whether enterprise users will need features from newer Rego versions (e.g., v1 module syntax changes in OPA 1.0+)
-   - Recommendation: Document supported Rego version. Ship example policies using only v0.x-compatible syntax. Monitor regopy releases for v1.0+ support.
+1. **regopy Rego v1.8.0 vs. current OPA v1.x** — Resolved: Plan uses v0.x-compatible syntax only, documents supported version in module docstrings.
 
-2. **Cedar `advice` blocks for constraint extraction**
-   - What we know: cedarpy exposes `is_authorized()` with `AuthzResult.decision` and diagnostics
-   - What's unclear: Whether Cedar's `advice` mechanism (or annotations) is the right way to attach constraint data to permit decisions. Standard Cedar only has permit/forbid.
-   - Recommendation: Use Cedar entity attributes to encode constraints rather than trying to use non-standard syntax. The Cedar policy determines allow/block; constraints come from entity data mapped to the tool.
+2. **Cedar `advice` blocks for constraint extraction** — Resolved: Plan uses YAML-wrapper with explicit config dict for constraints, not Cedar advice syntax. Cedar policies map to permit/forbid; constraints come from entity attributes.
 
-3. **secops SDK vs. direct Chronicle Ingestion API**
-   - What we know: `secops` 0.40.0 exists on PyPI with active releases [VERIFIED: PyPI]
-   - What's unclear: Whether its UDM ingestion API wraps the batchCreate endpoint cleanly enough for our needs
-   - Recommendation: Test secops first. If insufficient, fall back to direct HTTP to `malachiteingestion-pa.googleapis.com/v2/udmevents:batchCreate` with google-auth.
+3. **secops SDK vs. direct Chronicle Ingestion API** — Resolved: Plan implements secops-first with direct HTTP fallback if secops library is unavailable.
 
-4. **MDM profile content scope**
-   - What we know: .mobileconfig can install software, set preferences, configure shell environments
-   - What's unclear: Whether MDM profiles should install CloneGuard (via embedded script) or only configure an already-installed CloneGuard
-   - Recommendation: Ship two profiles per MDM: (1) install profile (triggers `uv tool install cloneguard`) and (2) config profile (provisions policy.yaml and hook settings). This separates concerns and matches fleet deployment patterns.
+4. **MDM profile content scope** — Resolved: Plan ships two profiles per MDM (install + config), matching the research recommendation.
 
 ## Environment Availability
 
