@@ -23,19 +23,14 @@ import sys
 from typing import Any
 
 from cloneguard.detection.engine import (
-    BUILD_COMMANDS,
     DetectionResult,
-    _classify_with_tier15,
-    _content_hash,
-    _format_matches,
-    _is_protected_path,
-    _is_sensitive_target,
+    get_detection_engine,
 )
 from cloneguard.detection.engine import (
     _detect_mode_for_tier15 as _engine_detect_mode_for_tier15,
 )
-from cloneguard.detection.patterns import PatternEngine, ScanMode, Severity, Verdict
-from cloneguard.monitor import get_monitor
+from cloneguard.detection.patterns import PatternEngine, ScanMode
+from cloneguard.monitor import get_monitor  # noqa: F401  # Re-export: 6 tests patch this name
 
 # ---------------------------------------------------------------------------
 # Content heuristic markers -- re-exported for backward compatibility
@@ -157,6 +152,23 @@ def _emit_audit_event(
 
 
 # ---------------------------------------------------------------------------
+# Engine bridge — shares hooks-level session trust with the engine singleton
+# ---------------------------------------------------------------------------
+
+
+def _get_bridged_engine() -> Any:
+    """Get engine singleton with session trust bridged to hooks-level dict.
+
+    Ensures the engine and hooks.py share the same _session_trust dict
+    so tests that manipulate _session_trust at the hooks level see
+    consistent state in the engine (T-04-01).
+    """
+    engine = get_detection_engine()
+    engine._session_trust = _session_trust
+    return engine
+
+
+# ---------------------------------------------------------------------------
 # Hook handlers -- thin shims delegating to DetectionEngine (D-02)
 # ---------------------------------------------------------------------------
 
@@ -169,79 +181,12 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
     Warns (exit 0 + stdout) if MEDIUM/LOW detection.
     Trusts (exit 0, no output) if clean or already approved.
     """
-    instructions = data.get("instructions", [])
-    if not instructions:
-        return 0
-
-    engine = _get_engine()
-    blocked_reasons: list[str] = []
-    warnings: list[str] = []
-
-    for instr in instructions:
-        content = instr.get("content", "")
-        path = instr.get("path", instr.get("source", "<unknown>"))
-
-        if not content:
-            continue
-
-        # TOCTOU mitigation: hash from stdin content, never re-read from disk
-        content_sha = _content_hash(content)
-
-        # Check session trust cache
-        if _session_trust.get(path) == content_sha:
-            continue  # Already approved with same hash
-
-        # Scan with STRICT mode for instruction files
-        result = engine.scan(content, path, mode=ScanMode.STRICT)
-
-        if result.verdict == Verdict.DETECTED:
-            # CRITICAL/HIGH -- block
-            reason = f"BLOCKED: Malicious patterns detected in {path}\n" + _format_matches(
-                result.matches, path
-            )
-            blocked_reasons.append(reason)
-        elif result.verdict == Verdict.SUSPICIOUS:
-            # MEDIUM/LOW -- warn but allow
-            warning = f"WARNING: Suspicious patterns detected in {path}\n" + _format_matches(
-                result.matches, path
-            )
-            warnings.append(warning)
-            _session_trust[path] = content_sha
-        else:
-            # Tier 0 clean -- run Tier 1.5 semantic check (STRICT minimum)
-            mode = _detect_mode_for_tier15(path, content, ScanMode.STRICT, engine)
-            classifier = _get_mini_classifier()
-            t15_verdict, t15_reason = _classify_with_tier15(content, path, mode, classifier)
-            if t15_verdict == "MALICIOUS":
-                blocked_reasons.append(
-                    f"BLOCKED: Semantic classifier flagged {path} \u2014 {t15_reason}"
-                )
-            elif t15_verdict == "SUSPICIOUS":
-                warnings.append(f"WARNING: Semantic classifier flagged {path} \u2014 {t15_reason}")
-                _session_trust[path] = content_sha
-            else:
-                _session_trust[path] = content_sha
-
-    if blocked_reasons:
-        msg = "\n".join(blocked_reasons)
-        print(msg)
-        _emit_audit_event(
-            data,
-            DetectionResult(verdict="detected", confidence=1.0, exit_code=2, message=msg),
-            "InstructionsLoaded",
-        )
-        return 2
-
-    if warnings:
-        msg = "\n".join(warnings)
-        print(msg)
-        _emit_audit_event(
-            data,
-            DetectionResult(verdict="suspicious", confidence=0.5, exit_code=0, message=msg),
-            "InstructionsLoaded",
-        )
-
-    return 0
+    engine = _get_bridged_engine()
+    result = engine.scan_instructions_loaded(data)
+    if result.message:
+        print(result.message)
+    _emit_audit_event(data, result, "InstructionsLoaded")
+    return result.exit_code
 
 
 def handle_pre_tool_use(data: dict[str, Any]) -> int:
@@ -251,137 +196,13 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
     2. CONTENT-AWARE WRITE SCANNING (D1): Scan content being written
     3. BUILD SCRIPT GATING: Warn on build commands
     """
-    try:
-        verdict = get_monitor().check_enforcement(data)
-        if verdict is not None:
-            msg = (
-                f"BLOCKED by {verdict.rule_id}: {verdict.description}\n"
-                f"To allowlist: cloneguard sequence-allow {verdict.rule_id} <domain-or-path>"
-            )
-            print(msg)
-            _emit_audit_event(
-                data,
-                DetectionResult(verdict="detected", confidence=1.0, exit_code=2, message=msg),
-                "PreToolUse",
-            )
-            return 2
-    except Exception:
-        pass  # Monitor must never break the hook pipeline
-
-    tool_name = data.get("tool_name", "")
-    tool_input = data.get("tool_input", {})
-
-    # --- 1. Protected path check for Write/Edit tools ---
-    if tool_name in ("Write", "Edit", "NotebookEdit"):
-        file_path = tool_input.get("file_path", "")
-        if _is_protected_path(file_path):
-            msg = f"BLOCKED: Write to protected path: {file_path}"
-            print(msg)
-            _emit_audit_event(
-                data,
-                DetectionResult(
-                    verdict="detected",
-                    confidence=1.0,
-                    exit_code=2,
-                    message=msg,
-                    source_path=file_path,
-                ),
-                "PreToolUse",
-            )
-            return 2
-
-        # --- 2. Content-aware write scanning ---
-        content = tool_input.get("content", "")
-        # For Edit, also check new_text
-        if not content and tool_name == "Edit":
-            content = tool_input.get("new_text", "")
-
-        if content and _is_sensitive_target(file_path):
-            engine = _get_engine()
-            result = engine.scan(content, file_path)
-
-            if result.verdict == Verdict.DETECTED:
-                reason = (
-                    f"BLOCKED: Malicious content being written to {file_path}\n"
-                    + _format_matches(result.matches, file_path)
-                )
-                print(reason)
-                _emit_audit_event(
-                    data,
-                    DetectionResult(
-                        verdict="detected",
-                        confidence=1.0,
-                        exit_code=2,
-                        message=reason,
-                        source_path=file_path,
-                    ),
-                    "PreToolUse",
-                )
-                return 2
-            elif result.verdict == Verdict.SUSPICIOUS:
-                warning = (
-                    f"WARNING: Suspicious content being written to {file_path}\n"
-                    + _format_matches(result.matches, file_path)
-                )
-                print(warning)
-            else:
-                # Tier 0 clean -- Tier 1.5 semantic check on sensitive write content
-                mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD, engine)
-                classifier = _get_mini_classifier()
-                t15_verdict, t15_reason = _classify_with_tier15(
-                    content, file_path, mode, classifier
-                )
-                if t15_verdict == "MALICIOUS":
-                    print(
-                        f"BLOCKED: Semantic classifier flagged write to"
-                        f" {file_path} \u2014 {t15_reason}"
-                    )
-                    return 2
-                elif t15_verdict == "SUSPICIOUS":
-                    print(
-                        f"WARNING: Semantic classifier flagged write to"
-                        f" {file_path} \u2014 {t15_reason}"
-                    )
-
-    # --- 3. Block allowlist manipulation via Bash ---
-    if tool_name == "Bash":
-        command = tool_input.get("command", "")
-        # Block allowlist manipulation and bypass attempts
-        blocked_commands = (
-            "cloneguard allow",
-            "cloneguard remove",
-            "cloneguard --bypass",
-            "claude --bypass",
-        )
-        for blocked in blocked_commands:
-            if blocked in command:
-                print(
-                    f"BLOCKED: Dangerous CloneGuard command detected ({blocked!r}). "
-                    "AI agents cannot modify the allowlist or bypass scanning."
-                )
-                return 2
-
-        # TOCTOU: Scan the command string itself for injection patterns.
-        if command:
-            engine = _get_engine()
-            cmd_result = engine.scan(command, "<bash_command>")
-            if cmd_result.verdict == Verdict.DETECTED:
-                reason = "BLOCKED: Malicious patterns in Bash command\n" + _format_matches(
-                    cmd_result.matches, "<bash_command>"
-                )
-                print(reason)
-                return 2
-
-        for build_cmd in BUILD_COMMANDS:
-            if build_cmd in command:
-                msg = (
-                    f"WARNING: Build command detected: {build_cmd!r} in {command!r}. "
-                    f"Verify the project is trusted before executing build scripts."
-                )
-                print(msg)
-                break  # One warning per command is enough
-
-    return 0
+    engine = _get_bridged_engine()
+    result = engine.scan_pre_tool_use(data)
+    if result.message:
+        print(result.message)
+    if result.exit_code != 0 or result.verdict != "clean":
+        _emit_audit_event(data, result, "PreToolUse")
+    return result.exit_code
 
 
 def handle_post_tool_use(data: dict[str, Any]) -> int:
@@ -392,80 +213,13 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
     HIGH/MEDIUM -> exit 0 + stdout warning injected into context
     CLEAN -> exit 0, no output
     """
-    try:
-        get_monitor().record_event(data)
-    except Exception:
-        pass  # Monitor must never break the hook pipeline
-
-    tool_output = data.get("tool_output", {})
-    if not tool_output:
-        return 0
-
-    content = tool_output.get("content", "")
-    if not content:
-        return 0
-
-    # Use source path from tool_input if available for mode detection
-    tool_input = data.get("tool_input", {})
-    source_path = tool_input.get("file_path", "<tool_output>")
-
-    engine = _get_engine()
-    result = engine.scan(content, source_path)
-
-    if result.verdict == Verdict.DETECTED:
-        max_sev = result.max_severity
-        if max_sev == Severity.CRITICAL:
-            # D5: Block for critical detections
-            reason = (
-                f"BLOCKED: Critical injection patterns in tool output from {source_path}\n"
-                + _format_matches(result.matches, source_path)
-            )
-            print(reason)
-            _emit_audit_event(
-                data,
-                DetectionResult(
-                    verdict="detected",
-                    confidence=1.0,
-                    exit_code=2,
-                    message=reason,
-                    severity="critical",
-                    source_path=source_path,
-                ),
-                "PostToolUse",
-            )
-            return 2
-        else:
-            # HIGH -- warn but allow
-            warning = (
-                f"WARNING: Suspicious patterns in tool output from {source_path}\n"
-                + _format_matches(result.matches, source_path)
-            )
-            print(warning)
-            return 0
-    elif result.verdict == Verdict.SUSPICIOUS:
-        warning = (
-            f"WARNING: Low-confidence patterns in tool output from {source_path}\n"
-            + _format_matches(result.matches, source_path)
-        )
-        print(warning)
-        return 0
-
-    # Tier 0 clean -- run Tier 1.5 semantic check on tool output
-    mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD, engine)
-    classifier = _get_mini_classifier()
-    t15_verdict, t15_reason = _classify_with_tier15(content, source_path, mode, classifier)
-    if t15_verdict == "MALICIOUS":
-        print(
-            f"WARNING: Semantic classifier flagged tool output from"
-            f" {source_path} \u2014 {t15_reason}"
-        )
-    elif t15_verdict == "SUSPICIOUS":
-        print(
-            f"WARNING: Semantic classifier flagged tool output from"
-            f" {source_path} \u2014 {t15_reason}"
-        )
-
-    return 0
+    engine = _get_bridged_engine()
+    result = engine.scan_post_tool_use(data)
+    if result.message:
+        print(result.message)
+    if result.exit_code != 0 or result.verdict != "clean":
+        _emit_audit_event(data, result, "PostToolUse")
+    return result.exit_code
 
 
 def main() -> None:
