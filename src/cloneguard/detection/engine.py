@@ -206,6 +206,8 @@ class DetectionEngine:
         self._mini_attempted: bool = False
         self._session_trust: dict[str, str] = {}
         self._registry_client: Any = None
+        self._fusion_layer: Any = None
+        self._init_fusion()
 
     def _get_pattern_engine(self) -> PatternEngine:
         """Lazy-load PatternEngine singleton."""
@@ -228,6 +230,89 @@ class DetectionEngine:
             pass
         return self._mini_classifier
 
+    def _init_fusion(self) -> None:
+        """Initialize fusion layer with graceful degradation.
+
+        If fusion module fails to import, engine falls back to old waterfall behavior.
+        """
+        try:
+            from cloneguard.detection.fusion import FusionLayer, load_weight_profile
+
+            profile = load_weight_profile()
+            self._fusion_layer = FusionLayer(profile)
+        except Exception:
+            logger.debug("Fusion layer unavailable; falling back to waterfall behavior")
+            self._fusion_layer = None
+
+    def _collect_signals(
+        self, content: str, source_path: str, mode: ScanMode
+    ) -> list[SignalResult]:
+        """Collect all three signal types without early return.
+
+        Runs pattern scan, semantic classification, and sequence check in order,
+        appending each non-clean signal to the list. Does NOT return on first
+        non-clean signal -- all signals are always collected.
+        """
+        engine = self._get_pattern_engine()
+        signals: list[SignalResult] = []
+
+        # Tier 0: pattern scan (always runs)
+        result = engine.scan(content, source_path, mode=mode)
+        if result.verdict != Verdict.CLEAN:
+            confidence = 1.0
+            details: dict[str, Any] = {
+                "match_count": len(result.matches),
+                "scan_time_ms": result.scan_time_ms,
+            }
+            if result.matches:
+                details["top_rule_id"] = result.matches[0].pattern_id
+                details["top_severity"] = result.matches[0].severity.value
+            signals.append(
+                SignalResult(
+                    signal_type="pattern",
+                    verdict=result.verdict.value,
+                    confidence=confidence,
+                    details=details,
+                )
+            )
+
+        # Tier 1.5: semantic classification (always runs, not only when pattern clean)
+        tier15_mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD, engine)
+        t15_verdict, t15_reason = _classify_with_tier15(
+            content, source_path, tier15_mode, self._get_mini_classifier()
+        )
+        if t15_verdict is not None:
+            signals.append(
+                SignalResult(
+                    signal_type="semantic",
+                    verdict="detected" if t15_verdict == "MALICIOUS" else "suspicious",
+                    confidence=0.8 if t15_verdict == "MALICIOUS" else 0.5,
+                    details={"reason": t15_reason},
+                )
+            )
+
+        # Sequence monitoring check (if available)
+        try:
+            from cloneguard.detection.sequence import get_monitor
+
+            monitor = get_monitor()
+            enforcement = monitor.check_enforcement(
+                {"tool_name": "", "tool_input": {"content": content}}
+            )
+            if enforcement is not None:
+                signals.append(
+                    SignalResult(
+                        signal_type="sequence",
+                        verdict="detected",
+                        confidence=1.0,
+                        details={"rule_id": enforcement.rule_id},
+                    )
+                )
+        except Exception:
+            pass  # Sequence monitor must never break detection
+
+        return signals
+
     def _get_registry_client(self) -> Any:
         """Lazy-load PackageRegistryClient. Returns None if import fails."""
         if self._registry_client is not None:
@@ -241,7 +326,10 @@ class DetectionEngine:
         return self._registry_client
 
     def scan(self, event: ToolCallEvent) -> DetectionResult:
-        """Generic scan: run pattern engine on content, optionally semantic.
+        """Generic scan: collect all signals, fuse into calibrated result.
+
+        Uses FusionLayer when available; falls back to waterfall behavior if
+        the fusion module failed to load (graceful degradation).
 
         Returns a DetectionResult with verdict, confidence, signals, and exit_code.
         """
@@ -261,7 +349,69 @@ class DetectionEngine:
         else:
             mode = engine._detect_mode(source_path)
 
-        # Tier 0: pattern scan
+        # Collect all signals (no early return)
+        signals = self._collect_signals(content, source_path, mode)
+
+        # Fuse signals if fusion layer is available
+        if self._fusion_layer is not None:
+            from cloneguard.detection.fusion import FusionResult
+
+            fusion_result: FusionResult = self._fusion_layer.fuse(signals, mode)
+
+            # Extract pattern match details for message formatting
+            severity_str = ""
+            rule_id = ""
+            matched_text = ""
+            line_number = 0
+            message = ""
+
+            # Check if pattern signal fired for detailed output
+            pattern_result = engine.scan(content, source_path, mode=mode)
+            if pattern_result.matches:
+                top = pattern_result.matches[0]
+                severity_str = top.severity.value
+                rule_id = top.pattern_id
+                matched_text = top.matched_text
+                line_number = top.line_number
+                message = _format_matches(pattern_result.matches, source_path)
+
+            # If no pattern message, check semantic signals for message
+            if not message:
+                for sig in fusion_result.signals:
+                    if sig.signal_type == "semantic" and sig.details.get("reason"):
+                        message = sig.details["reason"]
+                        break
+
+            # Map verdict to exit code: "detected" -> 2, else -> 0
+            exit_code = 2 if fusion_result.verdict == "detected" else 0
+
+            return DetectionResult(
+                verdict=fusion_result.verdict,
+                confidence=fusion_result.confidence,
+                signals=list(fusion_result.signals),
+                exit_code=exit_code,
+                message=message,
+                severity=severity_str,
+                primary_rule_id=rule_id,
+                matched_text=matched_text,
+                source_path=source_path,
+                line_number=line_number,
+            )
+
+        # Fallback: waterfall behavior (fusion unavailable)
+        return self._scan_waterfall(content, source_path, mode, engine)
+
+    def _scan_waterfall(
+        self,
+        content: str,
+        source_path: str,
+        mode: ScanMode,
+        engine: PatternEngine,
+    ) -> DetectionResult:
+        """Legacy waterfall scan path -- used when fusion module is unavailable.
+
+        Preserves backward-compatible early-return behavior for graceful degradation.
+        """
         result = engine.scan(content, source_path, mode=mode)
         signals: list[SignalResult] = []
 
