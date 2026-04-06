@@ -90,8 +90,8 @@ Plans:
 - [x] 04-02-PLAN.md -- MELON selective re-execution with circuit breaker, snapshot/rollback for Landlock and Seatbelt
 - [x] 04-03-PLAN.md -- Pattern library reorganization (rules/ subdirectories), memory/config poisoning, MCP fingerprinting
 - [x] 04-04-PLAN.md -- Adversarial evaluation harness with fusion-targeting payloads and honest reporting
-- [ ] 04-05-PLAN.md -- Gap closure: Wire fusion into handler methods, agent-type profile selection, get_cls_embedding() API
-- [ ] 04-06-PLAN.md -- Gap closure: Run calibration pipeline, fix FPR regression, re-run adversarial evaluation
+- [x] 04-05-PLAN.md -- Gap closure: Wire fusion into handler methods, agent-type profile selection, get_cls_embedding() API
+- [x] 04-06-PLAN.md -- Gap closure: Run calibration pipeline, fix FPR regression, re-run adversarial evaluation
 
 ### Phase 5: Enterprise Governance and Agent Expansion
 **Goal**: Enterprise teams can express enforcement policy in OPA/Cedar, deploy CloneGuard at fleet scale, and detect attacks targeting browser, autonomous, financial, and CI/CD agent types
