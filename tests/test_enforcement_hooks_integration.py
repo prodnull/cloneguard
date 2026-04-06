@@ -88,7 +88,8 @@ class TestEmitAuditEventWithPolicyDecision:
         )
 
         captured: list[AuditEvent] = []
-        with patch("cloneguard.hooks.NDJSONEmitter") as mock_emitter_cls:
+        # NDJSONEmitter is lazy-imported inside _emit_audit_event, so patch at source
+        with patch("cloneguard.audit.ndjson.NDJSONEmitter") as mock_emitter_cls:
             mock_emitter = MagicMock()
             mock_emitter_cls.from_env.return_value = mock_emitter
 

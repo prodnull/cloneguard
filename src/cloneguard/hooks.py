@@ -99,8 +99,16 @@ def _emit_audit_event(
     data: dict[str, Any],
     result: DetectionResult,
     event_type_str: str,
+    policy_decision: Any = None,  # PolicyDecision from enforcement
 ) -> None:
-    """Emit structured audit event. Lazy-imports Pydantic. Never raises (T-02-02)."""
+    """Emit structured audit event. Lazy-imports Pydantic. Never raises (T-02-02).
+
+    When policy_decision is provided, enforcement fields are derived from it:
+    - action="block" -> enforcement_action="BLOCK"
+    - action="constrain", dry_run=True -> enforcement_action="DRY_RUN", would_apply populated
+    - action="constrain", dry_run=False -> "CONSTRAIN", constraints_applied set
+    When policy_decision is None (backward compat), derives from exit code.
+    """
     try:
         import hashlib
 
@@ -127,6 +135,42 @@ def _emit_audit_event(
             line_number=result.line_number,
         )
 
+        # Enforcement details (Phase 2)
+        enforcement_action_str = "ALLOW"
+        constraints_dict: dict[str, list[str]] = {}
+        would_apply_dict: dict[str, list[str]] = {}
+        adapter_name = "noop"
+
+        if policy_decision is not None:
+            if policy_decision.action == "block":
+                enforcement_action_str = "BLOCK"
+            elif policy_decision.action == "constrain":
+                if policy_decision.dry_run:
+                    enforcement_action_str = "DRY_RUN"
+                    would_apply_dict = {
+                        "filesystem_writable": list(
+                            policy_decision.constraints.filesystem_writable
+                        ),
+                        "filesystem_readable": list(
+                            policy_decision.constraints.filesystem_readable
+                        ),
+                        "network_allow": list(policy_decision.constraints.network_allow),
+                    }
+                else:
+                    enforcement_action_str = "CONSTRAIN"
+                    constraints_dict = {
+                        "filesystem_writable": list(
+                            policy_decision.constraints.filesystem_writable
+                        ),
+                        "filesystem_readable": list(
+                            policy_decision.constraints.filesystem_readable
+                        ),
+                        "network_allow": list(policy_decision.constraints.network_allow),
+                    }
+        else:
+            # Backward compat: no policy decision available, derive from exit code
+            enforcement_action_str = "ALLOW" if result.exit_code == 0 else "BLOCK"
+
         from cloneguard import __version__
 
         event = AuditEvent(
@@ -137,7 +181,10 @@ def _emit_audit_event(
             verdict=result.verdict,
             confidence=result.confidence,
             signals=sig_data,
-            enforcement_action="ALLOW" if result.exit_code == 0 else "BLOCK",
+            enforcement_action=enforcement_action_str,
+            constraints_applied=constraints_dict,
+            would_apply=would_apply_dict,
+            sandbox_adapter=adapter_name,
             cloneguard_version=__version__,
             source_path=result.source_path,
         )
@@ -174,51 +221,116 @@ def _get_bridged_engine() -> Any:
 
 
 def handle_instructions_loaded(data: dict[str, Any]) -> int:
-    """Handle InstructionsLoaded hook -- thin shim to DetectionEngine (D-02).
+    """Handle InstructionsLoaded hook -- thin shim with enforcement (Phase 2).
 
     Scans each instruction file with STRICT mode.
     Blocks (exit 2) if any CRITICAL/HIGH detection.
     Warns (exit 0 + stdout) if MEDIUM/LOW detection.
     Trusts (exit 0, no output) if clean or already approved.
+    Policy evaluation for audit trail completeness (no constraint spec -- no subprocess).
     """
     engine = _get_bridged_engine()
     result = engine.scan_instructions_loaded(data)
+
+    # Phase 2: Policy evaluation for audit trail (no subprocess to sandbox)
+    policy_decision = None
+    try:
+        from cloneguard.enforcement.policy import get_policy_engine
+
+        policy_engine = get_policy_engine()
+        policy_decision = policy_engine.evaluate(
+            result,
+            tool_name=data.get("tool_name", "InstructionsLoaded"),
+        )
+    except Exception:
+        pass  # Enforcement failure must never break the hook pipeline
+
     if result.message:
         print(result.message)
-    _emit_audit_event(data, result, "InstructionsLoaded")
+    _emit_audit_event(data, result, "InstructionsLoaded", policy_decision)
     return result.exit_code
 
 
 def handle_pre_tool_use(data: dict[str, Any]) -> int:
-    """Handle PreToolUse hook -- thin shim to DetectionEngine (D-02).
+    """Handle PreToolUse hook -- thin shim with enforcement (Phase 2).
 
-    1. PROTECTION: Block writes to trust store and config paths (D3)
-    2. CONTENT-AWARE WRITE SCANNING (D1): Scan content being written
-    3. BUILD SCRIPT GATING: Warn on build commands
+    Pipeline: DetectionEngine.scan() -> PolicyEngine.evaluate() -> enforcement
+    Exit code unchanged: SAFE/SUSPICIOUS -> 0, MALICIOUS -> 2 (Pitfall 5)
     """
     engine = _get_bridged_engine()
     result = engine.scan_pre_tool_use(data)
+
+    # Phase 2: Policy evaluation
+    policy_decision = None
+    try:
+        from cloneguard.enforcement.policy import get_policy_engine
+
+        policy_engine = get_policy_engine()
+        policy_decision = policy_engine.evaluate(
+            result,
+            tool_name=data.get("tool_name", ""),
+        )
+
+        # Write constraint spec for sandbox-exec wrapper (only if not dry-run
+        # and action is constrain). The spec file is consumed by
+        # cloneguard-sandbox-exec which applies OS-level restrictions.
+        if policy_decision.action == "constrain" and not policy_decision.dry_run:
+            from cloneguard.enforcement.adapter import get_sandbox_adapter
+            from cloneguard.enforcement.sandbox_exec import write_constraint_spec
+
+            adapter = get_sandbox_adapter(preferred=policy_engine.sandbox_preferred)
+            spec = {
+                "adapter": adapter.name,
+                "writable": list(policy_decision.constraints.filesystem_writable),
+                "readable": list(policy_decision.constraints.filesystem_readable),
+                "network_allow": list(policy_decision.constraints.network_allow),
+            }
+            spec_path = write_constraint_spec(spec)
+            import os
+
+            os.environ["CLONEGUARD_ENFORCE_SPEC"] = spec_path
+    except Exception:
+        pass  # Enforcement failure must never break the hook pipeline
+
     if result.message:
         print(result.message)
     if result.exit_code != 0 or result.verdict != "clean":
-        _emit_audit_event(data, result, "PreToolUse")
+        _emit_audit_event(data, result, "PreToolUse", policy_decision)
+    elif policy_decision is not None and policy_decision.action != "allow":
+        # Emit audit event for enforcement actions even when detection is clean
+        _emit_audit_event(data, result, "PreToolUse", policy_decision)
     return result.exit_code
 
 
 def handle_post_tool_use(data: dict[str, Any]) -> int:
-    """Handle PostToolUse hook -- thin shim to DetectionEngine (D-02).
+    """Handle PostToolUse hook -- thin shim with enforcement (Phase 2).
 
     Scans tool output for injection patterns.
     CRITICAL -> exit 2 (block/inject warning into context, D5)
     HIGH/MEDIUM -> exit 0 + stdout warning injected into context
     CLEAN -> exit 0, no output
+    Policy evaluation for audit trail completeness (post-execution, no constraint spec).
     """
     engine = _get_bridged_engine()
     result = engine.scan_post_tool_use(data)
+
+    # Phase 2: Policy evaluation for audit trail (post-execution, no constraint spec)
+    policy_decision = None
+    try:
+        from cloneguard.enforcement.policy import get_policy_engine
+
+        policy_engine = get_policy_engine()
+        policy_decision = policy_engine.evaluate(
+            result,
+            tool_name=data.get("tool_name", ""),
+        )
+    except Exception:
+        pass  # Enforcement failure must never break the hook pipeline
+
     if result.message:
         print(result.message)
     if result.exit_code != 0 or result.verdict != "clean":
-        _emit_audit_event(data, result, "PostToolUse")
+        _emit_audit_event(data, result, "PostToolUse", policy_decision)
     return result.exit_code
 
 

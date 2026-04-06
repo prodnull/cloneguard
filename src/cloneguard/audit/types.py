@@ -83,9 +83,10 @@ class AuditEvent(BaseModel):
     confidence: float = 0.0
     signals: SignalDetails = Field(default_factory=SignalDetails)
 
-    # Enforcement (Phase 1 default: ALLOW; Phase 2 adds CONSTRAIN/BLOCK)
+    # Enforcement (Phase 2: DRY_RUN, CONSTRAIN, BLOCK, ALLOW)
     enforcement_action: str = "ALLOW"
     constraints_applied: dict[str, list[str]] = Field(default_factory=dict)
+    would_apply: dict[str, list[str]] = Field(default_factory=dict)  # D-14: dry-run constraints
 
     # Runtime context
     sandbox_adapter: str = "noop"

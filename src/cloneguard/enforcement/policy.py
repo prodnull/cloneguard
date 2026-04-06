@@ -138,6 +138,15 @@ class YAMLPolicyEngine:
         self._config = config or PolicyConfig.default()
         self._variables: dict[str, str] = {}
 
+    @property
+    def sandbox_preferred(self) -> str:
+        """Return the configured sandbox adapter preference.
+
+        Used by hooks.py to pass to get_sandbox_adapter(preferred=...).
+        Avoids exposing the private _config attribute.
+        """
+        return self._config.sandbox.preferred
+
     @classmethod
     def load(cls, policy_path: Path | None = None) -> YAMLPolicyEngine:
         """Load policy from operator-controlled path (D-18).
