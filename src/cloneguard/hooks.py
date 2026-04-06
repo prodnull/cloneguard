@@ -229,6 +229,87 @@ def _format_matches(matches: list[PatternMatch], source: str) -> str:
 
 
 # ---------------------------------------------------------------------------
+# Audit event emission
+# ---------------------------------------------------------------------------
+
+# Lazy-loaded audit emitter and SPIFFE identity
+_ndjson_emitter: Any = None
+_ndjson_attempted: bool = False
+
+
+def _get_emitter() -> Any:
+    """Lazy-load NDJSONEmitter. Returns None if audit module unavailable."""
+    global _ndjson_emitter, _ndjson_attempted  # noqa: PLW0603
+    if _ndjson_attempted:
+        return _ndjson_emitter
+    _ndjson_attempted = True
+    try:
+        from cloneguard.audit.ndjson import NDJSONEmitter
+
+        _ndjson_emitter = NDJSONEmitter.from_env()
+    except Exception:
+        pass
+    return _ndjson_emitter
+
+
+def _emit_audit_event(
+    data: dict[str, Any],
+    result: Any,
+    event_type_str: str,
+    policy_decision: Any = None,
+    agent_type: str = "claude-code",
+) -> None:
+    """Emit an audit event for SIEM consumption. Never raises, never blocks.
+
+    Constructs an AuditEvent from detection results and emits via NDJSONEmitter.
+    SPIFFE agent identity is injected when available (GOVN-06).
+    """
+    emitter = _get_emitter()
+    if emitter is None:
+        return
+
+    try:
+        from cloneguard.audit.types import AuditEvent, EventType
+
+        # SPIFFE agent identity (GOVN-06: zero-trust attribution)
+        agent_identity_str = ""
+        try:
+            from cloneguard.identity import get_agent_identity
+
+            identity = get_agent_identity()
+            agent_identity_str = identity.spiffe_id
+        except Exception:
+            pass  # SPIFFE failure must never block agent
+
+        # Map event type string to enum
+        event_type_map = {
+            "instructions_loaded": EventType.INSTRUCTIONS_LOADED,
+            "pre_tool_use": EventType.PRE_TOOL_USE,
+            "post_tool_use": EventType.POST_TOOL_USE,
+            "scan": EventType.SCAN,
+        }
+        event_type = event_type_map.get(event_type_str, EventType.SCAN)
+
+        event = AuditEvent(
+            session_id=data.get("session_id", ""),
+            agent_type=agent_type,
+            agent_identity=agent_identity_str,
+            event_type=event_type,
+            tool_name=data.get("tool_name", ""),
+            tool_input_hash=_content_hash(
+                json.dumps(data.get("tool_input", {}), sort_keys=True)
+            ),
+            verdict=getattr(result, "verdict", "clean") if result else "clean",
+            confidence=getattr(result, "confidence", 0.0) if result else 0.0,
+            cloneguard_version="0.5.0",
+            source_path=data.get("tool_input", {}).get("file_path", ""),
+        )
+        emitter.emit(event)
+    except Exception:
+        pass  # Audit emission must never break the hook pipeline
+
+
+# ---------------------------------------------------------------------------
 # Hook handlers
 # ---------------------------------------------------------------------------
 
