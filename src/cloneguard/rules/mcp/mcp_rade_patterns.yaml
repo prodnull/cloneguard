@@ -1,0 +1,20 @@
+category: mcpRadePatterns
+description: "Patterns detecting MCP Remote Agent Description Edit (RADE) attacks"
+patterns:
+  - id: RADE-001
+    regex: '(?i)(?:tool|function|method)\s*(?:description|definition)\s*(?:has\s+)?(?:changed|modified|updated|altered|different)'
+    severity: high
+    description: "Reference to tool description change -- potential RADE awareness in payload"
+    evidence: "RADE attacks modify tool descriptions between registration and invocation"
+
+  - id: RADE-002
+    regex: '(?i)"(?:tools|functions)"\s*:\s*\[\s*\{[^}]*"(?:description|inputSchema)"\s*:\s*"[^"]*(?:ignore|override|system|admin|root|sudo)[^"]*"'
+    severity: critical
+    description: "MCP tool list with privilege escalation language in description"
+    evidence: "Tool definitions should not contain privilege escalation instructions"
+
+  - id: RADE-003
+    regex: '(?i)"inputSchema"\s*:\s*\{[^}]*"(?:default|const)"\s*:\s*"[^"]*(?:curl|wget|eval|exec|rm\s|chmod|chown)[^"]*"'
+    severity: critical
+    description: "MCP input schema with dangerous default values"
+    evidence: "Input schema defaults should not contain shell commands or file operations"

@@ -1,0 +1,20 @@
+category: mcpToolFingerprinting
+description: "Patterns detecting MCP tool description anomalies for RADE attack defense"
+patterns:
+  - id: MCPF-001
+    regex: '(?i)"description"\s*:\s*"[^"]{500,}"'
+    severity: high
+    description: "Unusually long MCP tool description -- potential hidden instruction injection"
+    false_positive_hint: "Some tools have legitimately long descriptions. Check for embedded instructions."
+
+  - id: MCPF-002
+    regex: '(?i)"description"\s*:\s*"[^"]*(?:http[s]?://(?!localhost|127\.0\.0\.1|github\.com|npmjs\.com)[^\s"]+)[^"]*"'
+    severity: high
+    description: "MCP tool description contains external URL -- potential phishing or redirect"
+    false_positive_hint: "Tool descriptions should reference official documentation, not arbitrary URLs"
+
+  - id: MCPF-003
+    regex: '(?i)"description"\s*:\s*"[^"]*(?:(?:always|must|should)\s+(?:execute|run|call|invoke)|(?:before|after)\s+(?:any|every|each)\s+(?:response|action|tool))[^"]*"'
+    severity: critical
+    description: "MCP tool description embedding behavioral directives"
+    false_positive_hint: "Tool descriptions should describe capabilities, not prescribe agent behavior"
