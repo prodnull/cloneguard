@@ -104,10 +104,15 @@ def _apply_constraints(constraints: dict[str, Any]) -> None:
     adapter_name = constraints.get("adapter", "auto")
     writable = constraints.get("writable", [])
     readable = constraints.get("readable", [])
+    executable_writable = constraints.get("executable_writable", [])
     network_allow = constraints.get("network_allow", [])
 
     adapter = get_sandbox_adapter(preferred=adapter_name)
-    adapter.restrict_filesystem(writable=writable, readable=readable)
+    adapter.restrict_filesystem(
+        writable=writable,
+        readable=readable,
+        executable_writable=executable_writable,
+    )
     adapter.restrict_network(allow=network_allow)
     adapter.apply_restrictions()
 
@@ -134,8 +139,21 @@ def main() -> None:
     elif policy:
         constraints = _load_constraints_from_policy(policy)
 
-    # Apply constraints if we have them
+    # FIX 4: Create private tmpdir before applying constraints
     if constraints is not None:
+        private_tmp = tempfile.mkdtemp(prefix="cg-sandbox-")
+        os.environ["TMPDIR"] = private_tmp
+        os.environ["TEMP"] = private_tmp
+        os.environ["TMP"] = private_tmp
+
+        # Inject private tmpdir into constraint paths
+        writable = constraints.setdefault("writable", [])
+        if private_tmp not in writable:
+            writable.append(private_tmp)
+        readable = constraints.setdefault("readable", [])
+        if private_tmp not in readable:
+            readable.append(private_tmp)
+
         try:
             _apply_constraints(constraints)
         except Exception:

@@ -95,16 +95,15 @@ class TestSeatbeltGenerateProfile:
         profile = adapter._generate_profile()
         assert "(deny default)" in profile
 
-    def test_includes_always_allowed_temp_paths(self) -> None:
-        """T-02-13: Always-allowed temp paths."""
+    def test_no_system_tmp_in_profile(self) -> None:
+        """FIX 4: system temp paths removed; private tmpdir injected instead."""
         from cloneguard.enforcement.seatbelt import SeatbeltAdapter
 
         adapter = SeatbeltAdapter()
         adapter.restrict_filesystem(writable=[], readable=[])
         profile = adapter._generate_profile()
-        assert "/tmp" in profile
-        assert "/private/tmp" in profile
-        assert "/private/var/folders" in profile
+        # System tmp paths should not appear as always-writable
+        assert "Temp paths (always writable)" not in profile
 
     def test_includes_writable_as_read_write_rules(self) -> None:
         from cloneguard.enforcement.seatbelt import SeatbeltAdapter

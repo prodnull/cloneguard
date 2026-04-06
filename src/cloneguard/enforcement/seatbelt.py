@@ -32,11 +32,10 @@ from typing import Any
 logger = logging.getLogger(__name__)
 
 # Always-allowed system paths for macOS (T-02-13)
-_ALWAYS_WRITABLE = ("/tmp", "/private/tmp", "/private/var/folders")
+# FIX 4: /tmp, /private/tmp, /private/var/folders removed from writable --
+# private tmpdir injected by sandbox_exec
+_ALWAYS_WRITABLE: tuple[str, ...] = ()
 _ALWAYS_READABLE = (
-    "/tmp",
-    "/private/tmp",
-    "/private/var/folders",
     "/usr/lib",
     "/usr/local/lib",
     "/Library/Frameworks",
@@ -91,9 +90,14 @@ class SeatbeltAdapter:
         self,
         writable: list[str],
         readable: list[str],
+        executable_writable: list[str] | None = None,
     ) -> None:
-        """Store filesystem restrictions for profile generation."""
-        self._writable = list(writable)
+        """Store filesystem restrictions for profile generation.
+
+        executable_writable is accepted for Protocol compatibility but
+        Seatbelt does not distinguish W^X at the profile level.
+        """
+        self._writable = list(writable) + list(executable_writable or [])
         self._readable = list(readable)
 
     def restrict_network(
@@ -134,11 +138,13 @@ class SeatbeltAdapter:
             escaped = _escape_sbpl_path(path)
             lines.append(f'(allow file-read* (subpath "{escaped}"))')
 
-        lines.append("")
-        lines.append(";; Temp paths (always writable)")
-        for path in _ALWAYS_WRITABLE:
-            escaped = _escape_sbpl_path(path)
-            lines.append(f'(allow file-read* file-write* (subpath "{escaped}"))')
+        # FIX 4: system temp paths removed; private tmpdir injected via writable
+        if _ALWAYS_WRITABLE:
+            lines.append("")
+            lines.append(";; Temp paths (always writable)")
+            for path in _ALWAYS_WRITABLE:
+                escaped = _escape_sbpl_path(path)
+                lines.append(f'(allow file-read* file-write* (subpath "{escaped}"))')
 
         # User-specified readable paths
         if self._readable:

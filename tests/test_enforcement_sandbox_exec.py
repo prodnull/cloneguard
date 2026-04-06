@@ -54,10 +54,12 @@ class TestSandboxExecMainSpecFile:
                 main()
 
             mock_get_adapter.assert_called_once_with(preferred="noop")
-            mock_adapter.restrict_filesystem.assert_called_once_with(
-                writable=["/home/user"],
-                readable=["/usr/lib"],
-            )
+            # FIX 4: private tmpdir injected into writable + readable
+            fs_call = mock_adapter.restrict_filesystem.call_args
+            writable_arg = fs_call.kwargs.get("writable", [])
+            assert "/home/user" in writable_arg
+            # Private tmpdir should also be in writable
+            assert any(p.startswith("/") and "cg-sandbox-" in p for p in writable_arg)
             mock_adapter.restrict_network.assert_called_once_with(allow=[])
             mock_adapter.apply_restrictions.assert_called_once()
         finally:
@@ -153,10 +155,10 @@ class TestSandboxExecMainPolicy:
             main()
 
         mock_get_adapter.assert_called_once_with(preferred="seatbelt")
-        mock_adapter.restrict_filesystem.assert_called_once_with(
-            writable=["/Users/dev"],
-            readable=["/usr"],
-        )
+        # FIX 4: private tmpdir injected into writable + readable
+        fs_call = mock_adapter.restrict_filesystem.call_args
+        writable_arg = fs_call.kwargs.get("writable", [])
+        assert "/Users/dev" in writable_arg
         mock_adapter.restrict_network.assert_called_once_with(allow=["example.com"])
         mock_adapter.apply_restrictions.assert_called_once()
 

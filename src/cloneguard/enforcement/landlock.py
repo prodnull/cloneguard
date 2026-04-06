@@ -24,6 +24,7 @@ import ctypes
 import ctypes.util
 import logging
 import os
+import platform
 from typing import Any
 
 logger = logging.getLogger(__name__)
@@ -33,12 +34,14 @@ _SYS_LANDLOCK_CREATE_RULESET = 444
 _SYS_LANDLOCK_ADD_RULE = 445
 _SYS_LANDLOCK_RESTRICT_SELF = 446
 
-# prctl constants
-_SYS_PRCTL = 157
+# prctl constants -- prefer libc.prctl() when available (FIX 1)
 _PR_SET_NO_NEW_PRIVS = 38
+# Architecture-specific SYS_prctl numbers for fallback via libc.syscall()
+_PRCTL_SYSCALL_BY_ARCH: dict[str, int] = {"x86_64": 157, "aarch64": 167}
 
-# Landlock rule type
+# Landlock rule types
 _LANDLOCK_RULE_PATH_BENEATH = 0x01
+_LANDLOCK_RULE_NET_PORT = 0x02  # ABI v4+
 
 # Filesystem access flags (Landlock ABI v1+)
 _LANDLOCK_ACCESS_FS_EXECUTE = 1 << 0
@@ -55,19 +58,29 @@ _LANDLOCK_ACCESS_FS_MAKE_FIFO = 1 << 10
 _LANDLOCK_ACCESS_FS_MAKE_BLOCK = 1 << 11
 _LANDLOCK_ACCESS_FS_MAKE_SYM = 1 << 12
 
-# Composite access masks
+# ABI v2+ filesystem flags
+_LANDLOCK_ACCESS_FS_REFER = 1 << 13  # ABI v2+
+_LANDLOCK_ACCESS_FS_TRUNCATE = 1 << 14  # ABI v3+
+
+# Network access flags (Landlock ABI v4+)
+_LANDLOCK_ACCESS_NET_BIND_TCP = 1 << 0
+_LANDLOCK_ACCESS_NET_CONNECT_TCP = 1 << 1
+
+# Composite access masks -- W^X split (FIX 5)
 _ACCESS_READ = _LANDLOCK_ACCESS_FS_READ_FILE | _LANDLOCK_ACCESS_FS_READ_DIR
 _ACCESS_WRITE = (
     _LANDLOCK_ACCESS_FS_READ_FILE
     | _LANDLOCK_ACCESS_FS_WRITE_FILE
     | _LANDLOCK_ACCESS_FS_READ_DIR
-    | _LANDLOCK_ACCESS_FS_EXECUTE
+    | _LANDLOCK_ACCESS_FS_REMOVE_DIR
+    | _LANDLOCK_ACCESS_FS_REMOVE_FILE
     | _LANDLOCK_ACCESS_FS_MAKE_REG
     | _LANDLOCK_ACCESS_FS_MAKE_DIR
 )
+_ACCESS_WRITE_EXEC = _ACCESS_WRITE | _LANDLOCK_ACCESS_FS_EXECUTE
 
-# All filesystem access flags for the handled_access_fs bitmask
-_ALL_FS_ACCESS = (
+# Base filesystem access flags (ABI v1)
+_BASE_FS_ACCESS_V1 = (
     _LANDLOCK_ACCESS_FS_EXECUTE
     | _LANDLOCK_ACCESS_FS_WRITE_FILE
     | _LANDLOCK_ACCESS_FS_READ_FILE
@@ -83,11 +96,26 @@ _ALL_FS_ACCESS = (
     | _LANDLOCK_ACCESS_FS_MAKE_SYM
 )
 
+
+def _build_handled_access_fs(abi_version: int) -> int:
+    """Build handled_access_fs bitmask dynamically based on ABI version (FIX 6).
+
+    ABI v1: base 13 flags. ABI v2: +REFER. ABI v3: +TRUNCATE.
+    """
+    mask = _BASE_FS_ACCESS_V1
+    if abi_version >= 2:
+        mask |= _LANDLOCK_ACCESS_FS_REFER
+    if abi_version >= 3:
+        mask |= _LANDLOCK_ACCESS_FS_TRUNCATE
+    return mask
+
+
 # Minimum always-allowed paths (T-02-13 / Pitfall 2 from research)
-_ALWAYS_WRITABLE = ("/tmp",)
+# FIX 3: /proc narrowed to /proc/self only (blocks /proc/[pid]/environ)
+# FIX 4: /tmp removed -- private tmpdir injected by sandbox_exec
+_ALWAYS_WRITABLE: tuple[str, ...] = ()
 _ALWAYS_READABLE = (
-    "/tmp",
-    "/proc",
+    "/proc/self",  # glibc needs /proc/self/auxv, /proc/self/status, etc.
     "/dev/null",
     "/dev/urandom",
     "/dev/zero",
@@ -95,7 +123,7 @@ _ALWAYS_READABLE = (
     "/usr/local/lib",
     "/lib",
     "/lib64",
-    "/etc",
+    "/etc",  # DNS resolution, user lookup
 )
 
 # ENOSYS errno value
@@ -103,9 +131,12 @@ _ENOSYS = 38
 
 
 class _LandlockRulesetAttr(ctypes.Structure):
-    """struct landlock_ruleset_attr."""
+    """struct landlock_ruleset_attr -- ABI v4+ with network field."""
 
-    _fields_ = [("handled_access_fs", ctypes.c_uint64)]
+    _fields_ = [
+        ("handled_access_fs", ctypes.c_uint64),
+        ("handled_access_net", ctypes.c_uint64),
+    ]
 
 
 class _LandlockPathBeneathAttr(ctypes.Structure):
@@ -114,6 +145,15 @@ class _LandlockPathBeneathAttr(ctypes.Structure):
     _fields_ = [
         ("allowed_access", ctypes.c_uint64),
         ("parent_fd", ctypes.c_int32),
+    ]
+
+
+class _LandlockNetPortAttr(ctypes.Structure):
+    """struct landlock_net_port_attr (ABI v4+)."""
+
+    _fields_ = [
+        ("allowed_access", ctypes.c_uint64),
+        ("port", ctypes.c_uint64),
     ]
 
 
@@ -141,6 +181,7 @@ class LandlockAdapter:
     def __init__(self) -> None:
         self._writable: list[str] = []
         self._readable: list[str] = []
+        self._executable_writable: list[str] = []
         self._network_allow: list[str] = []
         self._abi_version: int = 0
         self._detect_abi_version()
@@ -183,13 +224,16 @@ class LandlockAdapter:
         self,
         writable: list[str],
         readable: list[str],
+        executable_writable: list[str] | None = None,
     ) -> None:
         """Store filesystem restrictions for later application.
 
         Always includes minimum always-allowed paths (T-02-13).
+        executable_writable: paths that need both write AND execute (FIX 5 W^X).
         """
         self._writable = list(set(list(writable) + list(_ALWAYS_WRITABLE)))
         self._readable = list(set(list(readable) + list(_ALWAYS_READABLE)))
+        self._executable_writable = list(executable_writable or [])
 
     def restrict_network(
         self,
@@ -224,17 +268,47 @@ class LandlockAdapter:
                 exc_info=True,
             )
 
-    def _apply_with_libc(self, libc: Any) -> None:
-        """Internal: apply restrictions using the provided libc handle."""
-        # Step 1: prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
-        ret = libc.syscall(_SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+    def _set_no_new_privs(self, libc: Any) -> bool:
+        """Set PR_SET_NO_NEW_PRIVS via libc.prctl() or fallback syscall (FIX 1).
+
+        Returns True on success, False on failure.
+        """
+        if hasattr(libc, "prctl"):
+            ret = libc.prctl(_PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+        else:
+            prctl_nr = _PRCTL_SYSCALL_BY_ARCH.get(platform.machine())
+            if prctl_nr is None:
+                logger.warning(
+                    "Landlock: unknown architecture %s, cannot set NO_NEW_PRIVS",
+                    platform.machine(),
+                )
+                return False
+            ret = libc.syscall(prctl_nr, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
         if ret == -1:
             errno = ctypes.get_errno()
             logger.warning("Landlock: prctl failed, errno=%d", errno)
+            return False
+        return True
+
+    def _apply_with_libc(self, libc: Any) -> None:
+        """Internal: apply restrictions using the provided libc handle."""
+        # Step 1: prctl(PR_SET_NO_NEW_PRIVS) -- FIX 1 portable
+        if not self._set_no_new_privs(libc):
             return
 
-        # Step 2: landlock_create_ruleset
-        attr = _LandlockRulesetAttr(handled_access_fs=_ALL_FS_ACCESS)
+        # Step 2: landlock_create_ruleset -- FIX 6 dynamic ABI flags
+        abi = max(self._abi_version, 1)
+        handled_fs = _build_handled_access_fs(abi)
+
+        # FIX 2: network enforcement for ABI v4+
+        handled_net: int = 0
+        if self._abi_version >= 4 and self._network_allow != ["*"]:
+            handled_net = _LANDLOCK_ACCESS_NET_CONNECT_TCP
+
+        attr = _LandlockRulesetAttr(
+            handled_access_fs=handled_fs,
+            handled_access_net=handled_net,
+        )
         ruleset_fd = libc.syscall(
             _SYS_LANDLOCK_CREATE_RULESET,
             ctypes.byref(attr),
@@ -250,11 +324,18 @@ class LandlockAdapter:
             return
 
         try:
-            # Step 3: Add rules for each path
+            # Step 3a: Add filesystem rules for each path
             for path in self._readable:
                 self._add_path_rule(libc, ruleset_fd, path, _ACCESS_READ)
             for path in self._writable:
                 self._add_path_rule(libc, ruleset_fd, path, _ACCESS_WRITE)
+            # FIX 5: W^X -- executable_writable paths get write+execute
+            for path in self._executable_writable:
+                self._add_path_rule(libc, ruleset_fd, path, _ACCESS_WRITE_EXEC)
+
+            # Step 3b: Add network rules (FIX 2)
+            if handled_net and self._abi_version >= 4:
+                self._add_network_rules(libc, ruleset_fd)
 
             # Step 4: landlock_restrict_self
             ret = libc.syscall(_SYS_LANDLOCK_RESTRICT_SELF, ruleset_fd, 0)
@@ -264,6 +345,47 @@ class LandlockAdapter:
         finally:
             # Step 5: Close ruleset fd
             os.close(ruleset_fd)
+
+    def _add_network_rules(self, libc: Any, ruleset_fd: int) -> None:
+        """Add Landlock v4+ TCP port allow rules (FIX 2).
+
+        When network_allow is empty, handled_access_net catches all TCP connect
+        but no allow rules are added -- effectively deny-all.
+        """
+        if self._abi_version < 4:
+            logger.warning("Landlock: network enforcement requires ABI v4+")
+            return
+
+        for entry in self._network_allow:
+            if entry == "*":
+                continue  # Wildcard handled by not adding handled_access_net
+            # Only accept numeric port strings
+            if not entry.isdigit():
+                logger.warning(
+                    "Landlock: network_allow entry %r is not a port number "
+                    "(domain filtering not supported by Landlock), skipping",
+                    entry,
+                )
+                continue
+            port = int(entry)
+            rule_attr = _LandlockNetPortAttr(
+                allowed_access=_LANDLOCK_ACCESS_NET_CONNECT_TCP,
+                port=port,
+            )
+            ret = libc.syscall(
+                _SYS_LANDLOCK_ADD_RULE,
+                ruleset_fd,
+                _LANDLOCK_RULE_NET_PORT,
+                ctypes.byref(rule_attr),
+                0,
+            )
+            if ret == -1:
+                errno = ctypes.get_errno()
+                logger.debug(
+                    "Landlock: add_rule (net port %d) failed, errno=%d",
+                    port,
+                    errno,
+                )
 
     def _add_path_rule(
         self,
@@ -310,6 +432,7 @@ class LandlockAdapter:
             "adapter": self.name,
             "writable": list(self._writable),
             "readable": list(self._readable),
+            "executable_writable": list(self._executable_writable),
             "network_allow": list(self._network_allow),
         }
 

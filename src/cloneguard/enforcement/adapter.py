@@ -48,11 +48,13 @@ class SandboxAdapter(Protocol):
         self,
         writable: list[str],
         readable: list[str],
+        executable_writable: list[str] | None = None,
     ) -> None:
         """Store filesystem restrictions for later application.
 
-        writable: paths the subprocess can read AND write
+        writable: paths the subprocess can read AND write (no execute)
         readable: paths the subprocess can read only
+        executable_writable: paths needing both write AND execute (W^X split)
         Must NEVER restrict the CloneGuard process itself.
         """
         ...
@@ -108,6 +110,7 @@ class NoopAdapter:
         self,
         writable: list[str],
         readable: list[str],
+        executable_writable: list[str] | None = None,
     ) -> None:
         pass  # Detection-only mode: no sandbox enforcement
 

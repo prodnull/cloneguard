@@ -18,8 +18,6 @@ import ctypes
 from typing import Any
 from unittest import mock
 
-import pytest
-
 from cloneguard.enforcement.adapter import SandboxAdapter
 
 
@@ -65,24 +63,25 @@ class TestLandlockRestrictFilesystem:
         spec = adapter.serialize_constraints()
         assert "/opt/data" in spec["readable"]
 
-    def test_includes_always_allowed_writable(self) -> None:
-        """Minimum always-allowed writable paths (T-02-13: /tmp)."""
+    def test_always_writable_is_empty(self) -> None:
+        """FIX 4: /tmp removed from always-writable (private tmpdir injected)."""
         from cloneguard.enforcement.landlock import LandlockAdapter
 
         adapter = LandlockAdapter()
         adapter.restrict_filesystem(writable=[], readable=[])
         spec = adapter.serialize_constraints()
-        assert "/tmp" in spec["writable"]
+        assert "/tmp" not in spec["writable"]
 
     def test_includes_always_allowed_readable(self) -> None:
-        """Minimum always-allowed readable paths (T-02-13)."""
+        """Minimum always-allowed readable paths (T-02-13, FIX 3: /proc/self)."""
         from cloneguard.enforcement.landlock import LandlockAdapter
 
         adapter = LandlockAdapter()
         adapter.restrict_filesystem(writable=[], readable=[])
         spec = adapter.serialize_constraints()
-        for path in ["/proc", "/dev/null", "/dev/urandom", "/dev/zero", "/usr/lib"]:
+        for path in ["/proc/self", "/dev/null", "/dev/urandom", "/dev/zero", "/usr/lib"]:
             assert path in spec["readable"], f"Missing always-allowed readable: {path}"
+        assert "/proc" not in spec["readable"], "/proc should be narrowed to /proc/self"
 
 
 class TestLandlockRestrictNetwork:
@@ -113,9 +112,7 @@ class TestLandlockApplyRestrictions:
 
         def mock_syscall(*args: Any) -> int:
             syscall_num = args[0]
-            if syscall_num == 157:  # SYS_prctl
-                call_order.append("prctl")
-            elif syscall_num == 444:
+            if syscall_num == 444:
                 call_order.append("create_ruleset")
             elif syscall_num == 445:
                 call_order.append("add_rule")
@@ -127,6 +124,13 @@ class TestLandlockApplyRestrictions:
 
         mock_libc = mock.MagicMock()
         mock_libc.syscall.side_effect = mock_syscall
+
+        # FIX 1: libc.prctl() used directly when available
+        def mock_prctl(*args: Any) -> int:
+            call_order.append("prctl")
+            return 0
+
+        mock_libc.prctl.side_effect = mock_prctl
         return mock_libc
 
     def test_calls_prctl_first(self) -> None:
@@ -215,9 +219,7 @@ class TestLandlockApplyRestrictions:
         ):
             adapter.apply_restrictions()
 
-        assert call_order[-1] == "restrict_self", (
-            f"restrict_self must be last, got {call_order}"
-        )
+        assert call_order[-1] == "restrict_self", f"restrict_self must be last, got {call_order}"
 
     def test_graceful_degradation_enosys(self) -> None:
         """If Landlock unavailable (ENOSYS), apply_restrictions returns without error."""
@@ -233,9 +235,7 @@ class TestLandlockApplyRestrictions:
         mock_libc = mock.MagicMock()
         mock_libc.syscall.side_effect = mock_syscall_enosys
 
-        with mock.patch(
-            "cloneguard.enforcement.landlock._get_libc", return_value=mock_libc
-        ):
+        with mock.patch("cloneguard.enforcement.landlock._get_libc", return_value=mock_libc):
             # Should not raise
             adapter.apply_restrictions()
 
