@@ -367,3 +367,196 @@ class TestOPARoundTrip:
         result_clean = _FakeDetectionResult(verdict="clean", confidence=0.0)
         decision_clean = engine.evaluate(result_clean, tool_name="Write")
         assert decision_clean.action == "allow"
+
+
+# ---------------------------------------------------------------------------
+# Cedar backend availability check
+# ---------------------------------------------------------------------------
+try:
+    import cedarpy  # noqa: F401
+
+    _has_cedarpy = True
+except ImportError:
+    _has_cedarpy = False
+
+# ---------------------------------------------------------------------------
+# Cedar policy fixtures (YAML wrapper with Cedar policy text + config)
+# ---------------------------------------------------------------------------
+BASIC_CEDAR_POLICY = """\
+cedar_policies: |
+  permit(principal, action, resource);
+config:
+  version: "1"
+  verdicts:
+    thresholds:
+      suspicious_floor: 0.3
+      malicious_floor: 0.7
+  dry_run: false
+"""
+
+CEDAR_WITH_CONSTRAINTS = """\
+cedar_policies: |
+  forbid(principal, action, resource)
+  when { context.score > 0 };
+config:
+  version: "1"
+  verdicts:
+    thresholds:
+      suspicious_floor: 0.3
+      malicious_floor: 0.7
+  enforcement:
+    suspicious:
+      Write:
+        filesystem_writable:
+          - "/tmp"
+        filesystem_readable:
+          - "/usr"
+        network_allow: []
+  dry_run: false
+"""
+
+INVALID_CEDAR_POLICY = """\
+cedar_policies: |
+  this is not valid cedar syntax at all
+config:
+  version: "1"
+  dry_run: false
+"""
+
+INVALID_CEDAR_CONFIG = """\
+cedar_policies: |
+  permit(principal, action, resource);
+config:
+  version: "1"
+  verdicts:
+    thresholds:
+      suspicious_floor: "not_a_number"
+"""
+
+CEDAR_MISSING_FIELDS = "just a plain string, not yaml with cedar_policies"
+
+
+# ---------------------------------------------------------------------------
+# Task 3: Cedar policy backend tests
+# ---------------------------------------------------------------------------
+
+@pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
+class TestCedarPolicyBackendName:
+    def test_name_returns_cedar(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        assert backend.name == "cedar"
+
+
+@pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
+class TestCedarPolicyBackendCompile:
+    def test_compile_basic_cedar_returns_policy_config(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+        from cloneguard.enforcement.policy import PolicyConfig
+
+        backend = CedarPolicyBackend()
+        config = backend.compile(BASIC_CEDAR_POLICY)
+        assert isinstance(config, PolicyConfig)
+        assert config.verdicts.thresholds.suspicious_floor == 0.3
+        assert config.verdicts.thresholds.malicious_floor == 0.7
+        assert config.dry_run is False
+
+    def test_compile_cedar_with_constraints(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        config = backend.compile(CEDAR_WITH_CONSTRAINTS)
+        assert "Write" in config.enforcement.suspicious
+        write_cfg = config.enforcement.suspicious["Write"]
+        assert write_cfg.filesystem_writable == ["/tmp"]
+        assert write_cfg.filesystem_readable == ["/usr"]
+        assert write_cfg.network_allow == []
+
+    def test_compile_invalid_cedar_raises_value_error(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        with pytest.raises(ValueError, match="Cedar"):
+            backend.compile(INVALID_CEDAR_POLICY)
+
+    def test_compile_invalid_config_raises_value_error(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        with pytest.raises(ValueError):
+            backend.compile(INVALID_CEDAR_CONFIG)
+
+    def test_compile_missing_cedar_policies_raises_value_error(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        with pytest.raises(ValueError):
+            backend.compile(CEDAR_MISSING_FIELDS)
+
+
+@pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
+class TestCedarPolicyBackendValidate:
+    def test_validate_valid_cedar_returns_empty_list(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        errors = backend.validate(BASIC_CEDAR_POLICY)
+        assert errors == []
+
+    def test_validate_invalid_cedar_returns_error_list(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        errors = backend.validate(INVALID_CEDAR_POLICY)
+        assert len(errors) > 0
+        assert isinstance(errors[0], str)
+
+
+@pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
+class TestCedarGetBackend:
+    def test_get_cedar_backend(self) -> None:
+        from cloneguard.enforcement.backends import get_policy_backend
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = get_policy_backend("cedar")
+        assert isinstance(backend, CedarPolicyBackend)
+
+
+@pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
+class TestCedarPolicyBackendProtocol:
+    def test_cedar_backend_satisfies_protocol(self) -> None:
+        from cloneguard.enforcement.backends import PolicyBackend
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+
+        backend = CedarPolicyBackend()
+        assert isinstance(backend, PolicyBackend)
+
+
+@pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
+class TestCedarRoundTrip:
+    """Compile Cedar -> PolicyConfig -> YAMLPolicyEngine -> PolicyDecision."""
+
+    def test_round_trip_produces_correct_decision(self) -> None:
+        from cloneguard.enforcement.backends.cedar import CedarPolicyBackend
+        from cloneguard.enforcement.policy import YAMLPolicyEngine
+
+        backend = CedarPolicyBackend()
+        config = backend.compile(CEDAR_WITH_CONSTRAINTS)
+        engine = YAMLPolicyEngine(config)
+
+        # Malicious detection above threshold -> block
+        result = _FakeDetectionResult(verdict="detected", confidence=0.8)
+        decision = engine.evaluate(result, tool_name="Write")
+        assert decision.action == "block"
+        assert decision.dry_run is False
+
+        # Suspicious detection above threshold -> constrain
+        result_sus = _FakeDetectionResult(verdict="suspicious", confidence=0.4)
+        decision_sus = engine.evaluate(result_sus, tool_name="Write")
+        assert decision_sus.action == "constrain"
+
+        # Clean detection -> allow
+        result_clean = _FakeDetectionResult(verdict="clean", confidence=0.0)
+        decision_clean = engine.evaluate(result_clean, tool_name="Write")
+        assert decision_clean.action == "allow"
