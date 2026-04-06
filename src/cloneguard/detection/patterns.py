@@ -118,7 +118,7 @@ class PatternEngine:
         if not rules_dir.is_dir():
             return
 
-        for yaml_file in sorted(rules_dir.glob("*.yaml")):
+        for yaml_file in sorted(rules_dir.glob("**/*.yaml")):
             self._load_rule_file(yaml_file)
 
     def _load_rule_file(self, path: Path) -> None:
