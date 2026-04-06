@@ -55,7 +55,7 @@ Plans:
 - [x] 02-02-PLAN.md -- YAML policy engine with Pydantic validation, threshold gating, per-tool overrides, dry-run default
 - [x] 02-03-PLAN.md -- OS-level sandbox adapters: LandlockAdapter (Linux) and SeatbeltAdapter (macOS)
 - [x] 02-04-PLAN.md -- Package hallucination detection via npm/PyPI registry cross-reference
-- [ ] 02-05-PLAN.md -- Pipeline integration: wire enforcement into hooks.py, update audit events, end-to-end tests
+- [x] 02-05-PLAN.md -- Pipeline integration: wire enforcement into hooks.py, update audit events, end-to-end tests
 
 ### Phase 3: Framework Integration
 **Goal**: CloneGuard scans tool calls from any major agent platform (not just Claude Code) and emits observability signals that enterprise SOC teams can consume

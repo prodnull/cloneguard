@@ -123,9 +123,7 @@ class TestDryRunSuspicious:
                 "cloneguard.enforcement.policy.get_policy_engine",
                 return_value=mock_policy,
             ),
-            patch(
-                "cloneguard.enforcement.sandbox_exec.write_constraint_spec"
-            ) as mock_write_spec,
+            patch("cloneguard.enforcement.sandbox_exec.write_constraint_spec") as mock_write_spec,
             patch("cloneguard.audit.ndjson.NDJSONEmitter") as mock_emitter_cls,
         ):
             mock_emitter = MagicMock()
@@ -261,9 +259,7 @@ class TestMaliciousBlock:
 
         with (
             patch("cloneguard.hooks._get_bridged_engine") as mock_engine,
-            patch(
-                "cloneguard.enforcement.sandbox_exec.write_constraint_spec"
-            ) as mock_write_spec,
+            patch("cloneguard.enforcement.sandbox_exec.write_constraint_spec") as mock_write_spec,
             patch("cloneguard.audit.ndjson.NDJSONEmitter") as mock_emitter_cls,
         ):
             mock_emitter = MagicMock()
@@ -448,18 +444,14 @@ class TestThresholdGating:
         """Suspicious with confidence below floor -> PolicyDecision action='allow'."""
         # Default suspicious_floor is 0.3; confidence 0.2 is below
         engine = YAMLPolicyEngine()
-        result = DetectionResult(
-            verdict="suspicious", confidence=0.2, exit_code=0
-        )
+        result = DetectionResult(verdict="suspicious", confidence=0.2, exit_code=0)
         decision = engine.evaluate(result, tool_name="Bash")
         assert decision.action == "allow"
 
     def test_above_threshold_suspicious_becomes_constrain(self) -> None:
         """Suspicious with confidence above floor -> PolicyDecision action='constrain'."""
         engine = YAMLPolicyEngine()
-        result = DetectionResult(
-            verdict="suspicious", confidence=0.5, exit_code=0
-        )
+        result = DetectionResult(verdict="suspicious", confidence=0.5, exit_code=0)
         decision = engine.evaluate(result, tool_name="Bash")
         assert decision.action == "constrain"
 
@@ -488,8 +480,7 @@ class TestPackageHallucinationPipeline:
                 confidence=0.95,
                 exit_code=2,
                 message=(
-                    "WARNING: Potentially hallucinated package(s) detected: "
-                    "nonexistent-pkg-xyz123"
+                    "WARNING: Potentially hallucinated package(s) detected: nonexistent-pkg-xyz123"
                 ),
                 signals=[
                     SignalResult(

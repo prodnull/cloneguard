@@ -17,12 +17,9 @@ from contextlib import redirect_stdout
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-import pytest
-
 from cloneguard.audit.types import AuditEvent, EventType
 from cloneguard.enforcement.policy import PolicyConfig, YAMLPolicyEngine
 from cloneguard.enforcement.types import Constraints, PolicyDecision
-
 
 # ---------------------------------------------------------------------------
 # AuditEvent would_apply field tests (D-14)
@@ -103,7 +100,7 @@ class TestEmitAuditEventWithPolicyDecision:
         return json.loads(captured[0].to_ndjson())
 
     def test_constrain_dry_run_sets_dry_run_action(self) -> None:
-        """Constrain with dry_run=True sets enforcement_action='DRY_RUN' and populates would_apply."""
+        """Constrain+dry_run sets DRY_RUN action and populates would_apply."""
         pd = PolicyDecision(
             action="constrain",
             constraints=Constraints(
@@ -121,7 +118,7 @@ class TestEmitAuditEventWithPolicyDecision:
         assert event.get("constraints_applied", {}) == {}
 
     def test_constrain_active_sets_constrain_action(self) -> None:
-        """Constrain with dry_run=False sets enforcement_action='CONSTRAIN' and populates constraints_applied."""
+        """Constrain+active sets CONSTRAIN action and populates constraints."""
         pd = PolicyDecision(
             action="constrain",
             constraints=Constraints(
@@ -204,12 +201,8 @@ class TestPreToolUseEnforcement:
         }
         with (
             patch("cloneguard.hooks._get_bridged_engine") as mock_engine,
-            patch(
-                "cloneguard.enforcement.policy.get_policy_engine"
-            ) as mock_get_policy,
-            patch(
-                "cloneguard.enforcement.sandbox_exec.write_constraint_spec"
-            ) as mock_write_spec,
+            patch("cloneguard.enforcement.policy.get_policy_engine") as mock_get_policy,
+            patch("cloneguard.enforcement.sandbox_exec.write_constraint_spec") as mock_write_spec,
         ):
             mock_engine.return_value.scan_pre_tool_use.return_value = DetectionResult(
                 verdict="suspicious",
@@ -242,16 +235,12 @@ class TestPreToolUseEnforcement:
         }
         with (
             patch("cloneguard.hooks._get_bridged_engine") as mock_engine,
-            patch(
-                "cloneguard.enforcement.policy.get_policy_engine"
-            ) as mock_get_policy,
+            patch("cloneguard.enforcement.policy.get_policy_engine") as mock_get_policy,
             patch(
                 "cloneguard.enforcement.sandbox_exec.write_constraint_spec",
                 return_value="/tmp/cg-enforce-test.json",
             ) as mock_write_spec,
-            patch(
-                "cloneguard.enforcement.adapter.get_sandbox_adapter"
-            ) as mock_get_adapter,
+            patch("cloneguard.enforcement.adapter.get_sandbox_adapter") as mock_get_adapter,
         ):
             mock_engine.return_value.scan_pre_tool_use.return_value = DetectionResult(
                 verdict="suspicious",
