@@ -42,9 +42,7 @@ class GeminiCLIAdapter:
         hook_event_name = raw_event.get("hook_event_name", "")
         event_type = _EVENT_MAP.get(hook_event_name, hook_event_name)
 
-        tool_name = raw_event.get("tool_name", "") or raw_event.get(
-            "original_request_name", ""
-        )
+        tool_name = raw_event.get("tool_name", "") or raw_event.get("original_request_name", "")
         tool_input = raw_event.get("tool_input", {})
         session_id = raw_event.get("session_id", "")
 
@@ -69,9 +67,7 @@ class GeminiCLIAdapter:
             raw_data=raw_event,
         )
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Format response for Gemini CLI: decision/reason/continue (T-03-04).
 
         Only decision, reason, and continue are exposed -- no internal signals.

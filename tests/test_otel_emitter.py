@@ -9,10 +9,7 @@ from __future__ import annotations
 
 import datetime
 from typing import Any
-from unittest.mock import MagicMock, patch
-
-import pytest
-
+from unittest.mock import MagicMock
 
 # ---------------------------------------------------------------------------
 # Import guard tests (no-op when opentelemetry-api absent)

@@ -52,9 +52,7 @@ class CursorAdapter:
         event_type = _EVENT_MAP.get(hook_event_name, hook_event_name)
 
         # Session ID: conversation_id or generation_id
-        session_id = raw_event.get("conversation_id", "") or raw_event.get(
-            "generation_id", ""
-        )
+        session_id = raw_event.get("conversation_id", "") or raw_event.get("generation_id", "")
 
         content = ""
         tool_name = ""
@@ -97,9 +95,7 @@ class CursorAdapter:
             raw_data=raw_event,
         )
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Format response for Cursor: continue/permission/userMessage (T-03-04).
 
         Only permission and userMessage are exposed -- no internal signals.

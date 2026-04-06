@@ -58,9 +58,7 @@ class GenericAdapter:
             raw_data=raw_event,
         )
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Generic response format: exit_code + message."""
         return {
             "exit_code": result.exit_code,

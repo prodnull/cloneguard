@@ -66,9 +66,7 @@ class ClaudeCodeAdapter:
             raw_data=raw_event,
         )
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Format response for Claude Code: exit_code + message (T-03-04).
 
         Claude Code uses exit codes (0=allow, 2=block) not JSON response body.

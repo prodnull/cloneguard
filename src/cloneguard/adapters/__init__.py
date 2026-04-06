@@ -45,9 +45,7 @@ class InputAdapter(Protocol):
         """
         ...
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Format a DetectionResult into the platform-specific response format.
 
         Must not leak internal state -- only exit_code/message, decision/reason,
@@ -84,9 +82,7 @@ def detect_agent_type(raw_event: dict[str, Any]) -> str:
     return "generic"
 
 
-def get_adapter(
-    agent_type: str = "auto", raw_event: dict[str, Any] | None = None
-) -> InputAdapter:
+def get_adapter(agent_type: str = "auto", raw_event: dict[str, Any] | None = None) -> InputAdapter:
     """Return an instantiated adapter for the given agent type.
 
     If agent_type is "auto" and raw_event is provided, auto-detects the agent

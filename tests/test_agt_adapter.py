@@ -11,12 +11,8 @@ Threat model coverage:
 
 from __future__ import annotations
 
-import sys
 from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Test: Module importable without agent-os-kernel
@@ -72,9 +68,7 @@ def test_before_tool_call_detected_returns_deny() -> None:
     interceptor = CloneGuardInterceptor()
     mock_result = _make_detection_result("detected", 1.0, 2, "injection found")
 
-    with patch(
-        "cloneguard.adapters.agt.get_detection_engine"
-    ) as mock_engine_fn:
+    with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
         mock_engine = MagicMock()
         mock_engine.scan.return_value = mock_result
         mock_engine_fn.return_value = mock_engine
@@ -95,9 +89,7 @@ def test_before_tool_call_suspicious_returns_constrain() -> None:
     interceptor = CloneGuardInterceptor()
     mock_result = _make_detection_result("suspicious", 0.6, 0, "suspicious patterns")
 
-    with patch(
-        "cloneguard.adapters.agt.get_detection_engine"
-    ) as mock_engine_fn:
+    with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
         mock_engine = MagicMock()
         mock_engine.scan.return_value = mock_result
         mock_engine_fn.return_value = mock_engine
@@ -117,9 +109,7 @@ def test_before_tool_call_clean_returns_allow() -> None:
     interceptor = CloneGuardInterceptor()
     mock_result = _make_detection_result("clean", 1.0, 0)
 
-    with patch(
-        "cloneguard.adapters.agt.get_detection_engine"
-    ) as mock_engine_fn:
+    with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
         mock_engine = MagicMock()
         mock_engine.scan.return_value = mock_result
         mock_engine_fn.return_value = mock_engine
@@ -141,9 +131,7 @@ def test_detected_never_maps_to_allow() -> None:
 
     for conf in [0.1, 0.5, 0.7, 0.9, 1.0]:
         mock_result = _make_detection_result("detected", conf, 2, "malicious")
-        with patch(
-            "cloneguard.adapters.agt.get_detection_engine"
-        ) as mock_engine_fn:
+        with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
             mock_engine = MagicMock()
             mock_engine.scan.return_value = mock_result
             mock_engine_fn.return_value = mock_engine
@@ -169,9 +157,7 @@ def test_after_tool_call_scans_output() -> None:
     interceptor = CloneGuardInterceptor()
     mock_result = _make_detection_result("detected", 0.95, 2, "injection in output")
 
-    with patch(
-        "cloneguard.adapters.agt.get_detection_engine"
-    ) as mock_engine_fn:
+    with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
         mock_engine = MagicMock()
         mock_engine.scan.return_value = mock_result
         mock_engine_fn.return_value = mock_engine
@@ -245,9 +231,7 @@ def test_before_tool_call_includes_agent_type_agt() -> None:
     interceptor = CloneGuardInterceptor()
     mock_result = _make_detection_result("clean", 1.0, 0)
 
-    with patch(
-        "cloneguard.adapters.agt.get_detection_engine"
-    ) as mock_engine_fn:
+    with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
         mock_engine = MagicMock()
         mock_engine.scan.return_value = mock_result
         mock_engine_fn.return_value = mock_engine
@@ -270,9 +254,7 @@ def test_before_tool_call_handles_engine_error_gracefully() -> None:
 
     interceptor = CloneGuardInterceptor()
 
-    with patch(
-        "cloneguard.adapters.agt.get_detection_engine"
-    ) as mock_engine_fn:
+    with patch("cloneguard.adapters.agt.get_detection_engine") as mock_engine_fn:
         mock_engine = MagicMock()
         mock_engine.scan.side_effect = RuntimeError("engine crashed")
         mock_engine_fn.return_value = mock_engine

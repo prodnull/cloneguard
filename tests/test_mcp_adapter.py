@@ -12,14 +12,10 @@ Threat model coverage:
 from __future__ import annotations
 
 import warnings
-from typing import Any
 from unittest.mock import MagicMock, patch
-
-import pytest
 
 from cloneguard.adapters import InputAdapter
 from cloneguard.detection.types import DetectionResult, ToolCallEvent
-
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -177,7 +173,7 @@ def test_scan_response_multiple_text_items() -> None:
         mock_engine.scan.return_value = mock_result
         mock_engine_fn.return_value = mock_engine
 
-        result = adapter.scan_response(response)
+        adapter.scan_response(response)
 
     # Verify the concatenated content was scanned
     call_args = mock_engine.scan.call_args[0][0]

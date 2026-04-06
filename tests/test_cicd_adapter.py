@@ -16,7 +16,6 @@ from cloneguard.adapters import InputAdapter
 from cloneguard.adapters.cicd import CICDAdapter
 from cloneguard.detection.types import DetectionResult, ToolCallEvent
 
-
 # ---------------------------------------------------------------------------
 # CICDAdapter.normalize() tests
 # ---------------------------------------------------------------------------
@@ -137,7 +136,13 @@ def test_cicd_adapter_agent_type() -> None:
 # action.yml structural tests
 # ---------------------------------------------------------------------------
 
-_ACTION_PATH = Path(__file__).resolve().parent.parent / ".github" / "actions" / "cloneguard-scan" / "action.yml"
+_ACTION_PATH = (
+    Path(__file__).resolve().parent.parent
+    / ".github"
+    / "actions"
+    / "cloneguard-scan"
+    / "action.yml"
+)
 
 
 def test_action_yml_is_valid_yaml() -> None:

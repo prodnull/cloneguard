@@ -388,9 +388,13 @@ def main() -> None:
             pass  # Enforcement failure must never break the hook pipeline
 
         if result.message:
-            print(result.message)
+            # Non-Claude agents use JSON stdout protocol; messages go to stderr
+            print(result.message, file=sys.stderr)
         _emit_audit_event(
-            data, result, event.event_type, policy_decision,
+            data,
+            result,
+            event.event_type,
+            policy_decision,
             agent_type=adapter.agent_type,
         )
 

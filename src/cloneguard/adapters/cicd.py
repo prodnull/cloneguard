@@ -69,9 +69,7 @@ class CICDAdapter:
             session_id=str(pr.get("number", "")),
         )
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Format a DetectionResult into CI/CD-compatible response.
 
         Exit code 0 means clean (not blocked). Any non-zero exit code

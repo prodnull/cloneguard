@@ -23,7 +23,6 @@ from cloneguard.adapters.gemini_cli import GeminiCLIAdapter
 from cloneguard.adapters.generic import GenericAdapter
 from cloneguard.detection.types import DetectionResult, ToolCallEvent
 
-
 # ---------------------------------------------------------------------------
 # Protocol conformance tests
 # ---------------------------------------------------------------------------
@@ -343,9 +342,7 @@ class TestGenericAdapter:
         assert event.content  # Non-empty content from JSON dump fallback
 
     def test_format_response(self) -> None:
-        result = DetectionResult(
-            verdict="detected", confidence=0.9, exit_code=2, message="threat"
-        )
+        result = DetectionResult(verdict="detected", confidence=0.9, exit_code=2, message="threat")
         adapter = GenericAdapter()
         response = adapter.format_response(result, {})
         assert response == {"exit_code": 2, "message": "threat"}
@@ -369,9 +366,7 @@ class TestDetectAgentType:
 
     def test_cursor_detection(self) -> None:
         assert (
-            detect_agent_type(
-                {"hook_event_name": "beforeShellExecution", "workspace_roots": []}
-            )
+            detect_agent_type({"hook_event_name": "beforeShellExecution", "workspace_roots": []})
             == "cursor"
         )
 

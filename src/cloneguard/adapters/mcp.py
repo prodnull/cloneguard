@@ -95,9 +95,7 @@ class MCPAdapter:
             raw_data=raw_event,
         )
 
-    def format_response(
-        self, result: DetectionResult, raw_event: dict[str, Any]
-    ) -> dict[str, Any]:
+    def format_response(self, result: DetectionResult, raw_event: dict[str, Any]) -> dict[str, Any]:
         """Format DetectionResult into MCP-compatible response.
 
         exit_code == 0 -> not blocked
