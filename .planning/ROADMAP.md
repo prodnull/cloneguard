@@ -67,11 +67,12 @@ Plans:
   3. A GitHub Actions workflow runs CloneGuard on PR events and uploads SARIF results to the repository Security tab
   4. OTel spans conforming to GenAI semantic conventions appear in any OTel-compatible collector when OTel emission is enabled
   5. Input adapters normalize tool call events from at least two additional agent platforms (Gemini CLI, Cursor) into the unified ToolCallEvent schema, with adapter-specific tests
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 03-01: TBD
-- [ ] 03-02: TBD
+- [ ] 03-01-PLAN.md -- InputAdapter Protocol, adapter registry, Claude Code/Gemini CLI/Cursor/Generic adapters, hooks.py delegation
+- [ ] 03-02-PLAN.md -- Microsoft AGT ToolCallInterceptor plugin and MCP middleware adapter refactor
+- [ ] 03-03-PLAN.md -- GitHub Actions composite action with SARIF upload and OTel span emitter
 
 ### Phase 4: Detection Excellence
 **Goal**: Three-signal fusion (pattern + semantic + sequence) is calibrated on production data across agent types, producing measurably better detection with controlled FPR
@@ -114,6 +115,6 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | - |
 | 2. Adaptive Enforcement | 0/5 | Planning complete | - |
-| 3. Framework Integration | 0/2 | Not started | - |
+| 3. Framework Integration | 0/3 | Planning complete | - |
 | 4. Detection Excellence | 0/2 | Not started | - |
 | 5. Enterprise Governance and Agent Expansion | 0/3 | Not started | - |
