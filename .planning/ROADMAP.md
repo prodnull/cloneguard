@@ -93,16 +93,15 @@ Plans:
 - [x] 04-05-PLAN.md -- Gap closure: Wire fusion into handler methods, agent-type profile selection, get_cls_embedding() API
 - [x] 04-06-PLAN.md -- Gap closure: Run calibration pipeline, fix FPR regression, re-run adversarial evaluation
 
-### Phase 5: Enterprise Governance and Agent Expansion
-**Goal**: Enterprise teams can express enforcement policy in OPA/Cedar, deploy CloneGuard at fleet scale, and detect attacks targeting browser, autonomous, financial, and CI/CD agent types
+### Phase 5: Enterprise Governance
+**Goal**: Enterprise teams can express enforcement policy in OPA/Cedar (evaluated in-process), deploy CloneGuard at fleet scale via MDM and Ansible, consume NDJSON audit events in Splunk/Sentinel/Chronicle via tested connectors, and attribute hook events to SPIFFE agent identities
 **Depends on**: Phase 4
-**Requirements**: GOVN-01, GOVN-02, GOVN-03, GOVN-04, GOVN-05, GOVN-06, AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05
+**Requirements**: GOVN-01, GOVN-02, GOVN-03, GOVN-04, GOVN-05, GOVN-06
 **Success Criteria** (what must be TRUE):
   1. Operators can write enforcement policy in OPA/Rego or Cedar and have it evaluated in-process (no external server) alongside YAML policy, producing identical PolicyDecision types
   2. Fleet deployment via MDM or Ansible playbooks provisions CloneGuard with centralized policy to N machines with a single configuration push
-  3. NDJSON audit events flow into Splunk HEC, Microsoft Sentinel, or Chronicle via documented integration guides without custom parsing
-  4. Agent-type-specific pattern libraries (browser, autonomous, financial, CI/CD) detect domain-specific attacks (DOM injection, goal hijacking, transaction manipulation, workflow injection) when the corresponding agent adapter is active
-  5. Additional sandbox adapters (gVisor, Firecracker, WASM, Docker) are available with auto-selection of the strongest available adapter on the host
+  3. NDJSON audit events flow into Splunk HEC, Microsoft Sentinel, and Chronicle via tested connectors with example configs (not just docs)
+  4. Hook events carry SPIFFE agent identity for zero-trust attribution
 **Plans**: TBD
 
 Plans:
@@ -110,15 +109,29 @@ Plans:
 - [ ] 05-02: TBD
 - [ ] 05-03: TBD
 
+### Phase 6: Agent Expansion
+**Goal**: CloneGuard detects domain-specific attacks targeting browser, autonomous, financial, and CI/CD agent types with dedicated pattern libraries, and provides additional sandbox adapters for container and WASM environments
+**Depends on**: Phase 5
+**Requirements**: AGNT-01, AGNT-02, AGNT-03, AGNT-04, AGNT-05
+**Success Criteria** (what must be TRUE):
+  1. Agent-type-specific pattern libraries (browser, autonomous, financial, CI/CD) detect domain-specific attacks (DOM injection, goal hijacking, transaction manipulation, workflow injection) when the corresponding agent adapter is active
+  2. Additional sandbox adapters (gVisor, Firecracker, WASM, Docker) are available with auto-selection of the strongest available adapter on the host
+**Plans**: TBD
+
+Plans:
+- [ ] 06-01: TBD
+- [ ] 06-02: TBD
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 4/4 | Complete | - |
 | 2. Adaptive Enforcement | 0/5 | Planning complete | - |
 | 3. Framework Integration | 0/3 | Planning complete | - |
-| 4. Detection Excellence | 4/6 | Gap closure planned | - |
-| 5. Enterprise Governance and Agent Expansion | 0/3 | Not started | - |
+| 4. Detection Excellence | 6/6 | Complete | 2026-04-06 |
+| 5. Enterprise Governance | 0/3 | Context gathered | - |
+| 6. Agent Expansion | 0/2 | Not started | - |
