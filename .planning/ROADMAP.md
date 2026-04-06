@@ -48,12 +48,14 @@ Plans:
   3. On macOS, a SUSPICIOUS verdict with enforcement enabled restricts the tool call subprocess via Seatbelt sandbox profiles
   4. With no enforcement configured (default), CloneGuard behaves identically to v0.5.0 detection-only mode (NoopAdapter, exit 0/2)
   5. Dry-run mode logs what constraints would apply without enforcing them, and is the default for all new installations
-**Plans**: TBD
+**Plans**: 5 plans
 
 Plans:
-- [ ] 02-01: TBD
-- [ ] 02-02: TBD
-- [ ] 02-03: TBD
+- [ ] 02-01-PLAN.md -- Enforcement types, verdict transition (SAFE/SUSPICIOUS/MALICIOUS), SandboxAdapter Protocol, NoopAdapter
+- [ ] 02-02-PLAN.md -- YAML policy engine with Pydantic validation, threshold gating, per-tool overrides, dry-run default
+- [ ] 02-03-PLAN.md -- OS-level sandbox adapters: LandlockAdapter (Linux) and SeatbeltAdapter (macOS)
+- [ ] 02-04-PLAN.md -- Package hallucination detection via npm/PyPI registry cross-reference
+- [ ] 02-05-PLAN.md -- Pipeline integration: wire enforcement into hooks.py, update audit events, end-to-end tests
 
 ### Phase 3: Framework Integration
 **Goal**: CloneGuard scans tool calls from any major agent platform (not just Claude Code) and emits observability signals that enterprise SOC teams can consume
@@ -110,8 +112,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 3/4 | Gap closure | - |
-| 2. Adaptive Enforcement | 0/3 | Not started | - |
+| 1. Foundation | 4/4 | Complete | - |
+| 2. Adaptive Enforcement | 0/5 | Planning complete | - |
 | 3. Framework Integration | 0/2 | Not started | - |
 | 4. Detection Excellence | 0/2 | Not started | - |
 | 5. Enterprise Governance and Agent Expansion | 0/3 | Not started | - |
