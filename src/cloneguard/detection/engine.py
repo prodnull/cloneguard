@@ -201,7 +201,7 @@ class DetectionEngine:
     Conforms to DetectionEngineProtocol (structural subtyping).
     """
 
-    def __init__(self) -> None:
+    def __init__(self, agent_type: str = "default") -> None:
         self._pattern_engine: PatternEngine | None = None
         self._mini_classifier: Any = None
         self._mini_attempted: bool = False
@@ -209,6 +209,7 @@ class DetectionEngine:
         self._registry_client: Any = None
         self._fusion_layer: Any = None
         self._melon_detector: Any = None
+        self._agent_type = agent_type
         self._init_fusion()
         self._init_melon()
 
@@ -241,7 +242,7 @@ class DetectionEngine:
         try:
             from cloneguard.detection.fusion import FusionLayer, load_weight_profile
 
-            profile = load_weight_profile()
+            profile = load_weight_profile(agent_type=self._agent_type)
             self._fusion_layer = FusionLayer(profile)
         except Exception:
             logger.debug("Fusion layer unavailable; falling back to waterfall behavior")
@@ -294,7 +295,7 @@ class DetectionEngine:
             )
 
         # Tier 1.5: semantic classification (always runs, not only when pattern clean)
-        tier15_mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD, engine)
+        tier15_mode = _detect_mode_for_tier15(source_path, content, mode, engine)
         t15_verdict, t15_reason = _classify_with_tier15(
             content, source_path, tier15_mode, self._get_mini_classifier()
         )
@@ -329,6 +330,119 @@ class DetectionEngine:
             pass  # Sequence monitor must never break detection
 
         return signals
+
+    def _fuse_signals_to_result(
+        self,
+        signals: list[SignalResult],
+        content: str,
+        source_path: str,
+        mode: ScanMode,
+    ) -> DetectionResult:
+        """Fuse collected signals into a DetectionResult via FusionLayer + MELON.
+
+        Encapsulates the fusion + MELON logic shared by scan() and all handler
+        methods. When fusion is unavailable, falls back to waterfall aggregation
+        from signals.
+
+        Returns a DetectionResult with verdict, confidence, signals, and exit_code.
+        """
+        if self._fusion_layer is not None:
+            from cloneguard.detection.fusion import FusionResult
+
+            fusion_result: FusionResult = self._fusion_layer.fuse(signals, mode)
+
+            # MELON post-fusion: selective re-execution for ambiguous zone
+            melon_verdict = fusion_result.verdict
+            melon_confidence = fusion_result.confidence
+            if self._melon_detector is not None and self._melon_detector.should_trigger(
+                fusion_result.confidence
+            ):
+                try:
+                    suspicious_spans: list[tuple[int, int]] | None = None
+                    for sig in signals:
+                        if sig.signal_type == "pattern" and sig.details.get("top_rule_id"):
+                            break
+
+                    melon_result = self._melon_detector.detect(
+                        content, self._get_mini_classifier(), suspicious_spans
+                    )
+                    if melon_result.verdict_upgraded:
+                        melon_verdict = "detected"
+                        melon_confidence = max(fusion_result.confidence, 0.7)
+                        logger.info(
+                            "MELON upgraded verdict: divergence=%.3f",
+                            melon_result.divergence_score,
+                        )
+                except Exception:
+                    logger.debug("MELON detection failed", exc_info=True)
+
+            # Extract pattern match details for message formatting
+            severity_str = ""
+            rule_id = ""
+            matched_text = ""
+            line_number = 0
+            message = ""
+
+            engine = self._get_pattern_engine()
+            pattern_result = engine.scan(content, source_path, mode=mode)
+            if pattern_result.matches:
+                top = pattern_result.matches[0]
+                severity_str = top.severity.value
+                rule_id = top.pattern_id
+                matched_text = top.matched_text
+                line_number = top.line_number
+                message = _format_matches(pattern_result.matches, source_path)
+
+            if not message:
+                for sig in fusion_result.signals:
+                    if sig.signal_type == "semantic" and sig.details.get("reason"):
+                        message = sig.details["reason"]
+                        break
+
+            exit_code = 2 if melon_verdict == "detected" else 0
+
+            return DetectionResult(
+                verdict=melon_verdict,
+                confidence=melon_confidence,
+                signals=list(fusion_result.signals),
+                exit_code=exit_code,
+                message=message,
+                severity=severity_str,
+                primary_rule_id=rule_id,
+                matched_text=matched_text,
+                source_path=source_path,
+                line_number=line_number,
+            )
+
+        # Fallback: aggregate from signals directly (fusion unavailable)
+        if not signals:
+            return DetectionResult(verdict="clean", confidence=1.0, exit_code=0)
+
+        # Find worst signal
+        worst_verdict = "clean"
+        worst_confidence = 0.0
+        worst_message = ""
+        for sig in signals:
+            if sig.verdict == "detected":
+                worst_verdict = "detected"
+                worst_confidence = max(worst_confidence, sig.confidence)
+                if sig.details.get("reason"):
+                    worst_message = sig.details["reason"]
+            elif sig.verdict == "suspicious" and worst_verdict != "detected":
+                worst_verdict = "suspicious"
+                worst_confidence = max(worst_confidence, sig.confidence)
+                if sig.details.get("reason"):
+                    worst_message = sig.details["reason"]
+
+        exit_code = 2 if worst_verdict == "detected" else 0
+        return DetectionResult(
+            verdict=worst_verdict,
+            confidence=worst_confidence if worst_verdict != "clean" else 1.0,
+            signals=signals,
+            exit_code=exit_code,
+            message=worst_message,
+            source_path=source_path,
+        )
 
     def _get_registry_client(self) -> Any:
         """Lazy-load PackageRegistryClient. Returns None if import fails."""
@@ -369,82 +483,16 @@ class DetectionEngine:
         # Collect all signals (no early return)
         signals = self._collect_signals(content, source_path, mode)
 
-        # Fuse signals if fusion layer is available
-        if self._fusion_layer is not None:
-            from cloneguard.detection.fusion import FusionResult
+        # Fuse signals via shared helper (fusion + MELON + fallback)
+        fused = self._fuse_signals_to_result(signals, content, source_path, mode)
+        if fused.verdict != "clean" or fused.exit_code != 0:
+            return fused
 
-            fusion_result: FusionResult = self._fusion_layer.fuse(signals, mode)
+        # If fusion returned clean but fusion layer was unavailable, try waterfall
+        if self._fusion_layer is None:
+            return self._scan_waterfall(content, source_path, mode, engine)
 
-            # MELON post-fusion: selective re-execution for ambiguous zone
-            melon_verdict = fusion_result.verdict
-            melon_confidence = fusion_result.confidence
-            if self._melon_detector is not None and self._melon_detector.should_trigger(
-                fusion_result.confidence
-            ):
-                try:
-                    # Extract suspicious spans from pattern signal if available
-                    suspicious_spans: list[tuple[int, int]] | None = None
-                    for sig in signals:
-                        if sig.signal_type == "pattern" and sig.details.get("top_rule_id"):
-                            # Pattern signal fired -- no byte-level spans available
-                            # from PatternEngine; MELON will use heuristic masking
-                            break
-
-                    melon_result = self._melon_detector.detect(
-                        content, self._get_mini_classifier(), suspicious_spans
-                    )
-                    if melon_result.verdict_upgraded:
-                        melon_verdict = "detected"
-                        melon_confidence = max(fusion_result.confidence, 0.7)
-                        logger.info(
-                            "MELON upgraded verdict: divergence=%.3f",
-                            melon_result.divergence_score,
-                        )
-                except Exception:
-                    logger.debug("MELON detection failed", exc_info=True)
-
-            # Extract pattern match details for message formatting
-            severity_str = ""
-            rule_id = ""
-            matched_text = ""
-            line_number = 0
-            message = ""
-
-            # Check if pattern signal fired for detailed output
-            pattern_result = engine.scan(content, source_path, mode=mode)
-            if pattern_result.matches:
-                top = pattern_result.matches[0]
-                severity_str = top.severity.value
-                rule_id = top.pattern_id
-                matched_text = top.matched_text
-                line_number = top.line_number
-                message = _format_matches(pattern_result.matches, source_path)
-
-            # If no pattern message, check semantic signals for message
-            if not message:
-                for sig in fusion_result.signals:
-                    if sig.signal_type == "semantic" and sig.details.get("reason"):
-                        message = sig.details["reason"]
-                        break
-
-            # Map verdict to exit code: "detected" -> 2, else -> 0
-            exit_code = 2 if melon_verdict == "detected" else 0
-
-            return DetectionResult(
-                verdict=melon_verdict,
-                confidence=melon_confidence,
-                signals=list(fusion_result.signals),
-                exit_code=exit_code,
-                message=message,
-                severity=severity_str,
-                primary_rule_id=rule_id,
-                matched_text=matched_text,
-                source_path=source_path,
-                line_number=line_number,
-            )
-
-        # Fallback: waterfall behavior (fusion unavailable)
-        return self._scan_waterfall(content, source_path, mode, engine)
+        return fused
 
     def _scan_waterfall(
         self,
@@ -530,18 +578,17 @@ class DetectionEngine:
         return DetectionResult(verdict="clean", confidence=1.0, exit_code=0)
 
     def scan_instructions_loaded(self, data: dict[str, Any]) -> DetectionResult:
-        """Handle InstructionsLoaded hook -- replicates hooks.py detection logic.
+        """Handle InstructionsLoaded hook -- uses fusion for each instruction.
 
-        Scans each instruction file with STRICT mode.
-        Blocks (exit 2) if any CRITICAL/HIGH detection.
-        Warns (exit 0 + message) if MEDIUM/LOW detection.
+        Scans each instruction file with STRICT mode via _collect_signals + fusion.
+        Blocks (exit 2) if any DETECTED result.
+        Warns (exit 0 + message) if SUSPICIOUS result.
         Trusts (exit 0) if clean or already approved.
         """
         instructions = data.get("instructions", [])
         if not instructions:
             return DetectionResult(verdict="clean", confidence=1.0, exit_code=0)
 
-        engine = self._get_pattern_engine()
         blocked_reasons: list[str] = []
         warnings: list[str] = []
         all_signals: list[SignalResult] = []
@@ -558,66 +605,23 @@ class DetectionEngine:
             if self._session_trust.get(path) == content_sha:
                 continue
 
-            result = engine.scan(content, path, mode=ScanMode.STRICT)
+            # Collect all signals and fuse
+            signals = self._collect_signals(content, path, ScanMode.STRICT)
+            fused = self._fuse_signals_to_result(signals, content, path, ScanMode.STRICT)
 
-            if result.verdict == Verdict.DETECTED:
-                reason = f"BLOCKED: Malicious patterns detected in {path}\n" + _format_matches(
-                    result.matches, path
-                )
+            if fused.exit_code == 2:
+                msg = fused.message or f"Detection triggered in {path}"
+                reason = f"BLOCKED: {msg}" if not msg.startswith("BLOCKED") else msg
                 blocked_reasons.append(reason)
-                all_signals.append(
-                    SignalResult(
-                        signal_type="pattern",
-                        verdict="detected",
-                        confidence=1.0,
-                        details={"path": path, "match_count": len(result.matches)},
-                    )
-                )
-            elif result.verdict == Verdict.SUSPICIOUS:
-                warning = f"WARNING: Suspicious patterns detected in {path}\n" + _format_matches(
-                    result.matches, path
-                )
+                all_signals.extend(fused.signals)
+            elif fused.verdict == "suspicious":
+                msg = fused.message or f"Suspicious content in {path}"
+                warning = f"WARNING: {msg}" if not msg.startswith("WARNING") else msg
                 warnings.append(warning)
                 self._session_trust[path] = content_sha
-                all_signals.append(
-                    SignalResult(
-                        signal_type="pattern",
-                        verdict="suspicious",
-                        confidence=0.5,
-                        details={"path": path},
-                    )
-                )
+                all_signals.extend(fused.signals)
             else:
-                # Tier 0 clean -- run Tier 1.5 semantic check
-                mode = _detect_mode_for_tier15(path, content, ScanMode.STRICT, engine)
-                t15_verdict, t15_reason = _classify_with_tier15(
-                    content, path, mode, self._get_mini_classifier()
-                )
-                if t15_verdict == "MALICIOUS":
-                    blocked_reasons.append(
-                        f"BLOCKED: Semantic classifier flagged {path} -- {t15_reason}"
-                    )
-                    all_signals.append(
-                        SignalResult(
-                            signal_type="semantic",
-                            verdict="detected",
-                            confidence=0.8,
-                            details={"path": path, "reason": t15_reason},
-                        )
-                    )
-                elif t15_verdict == "SUSPICIOUS":
-                    warnings.append(f"WARNING: Semantic classifier flagged {path} -- {t15_reason}")
-                    self._session_trust[path] = content_sha
-                    all_signals.append(
-                        SignalResult(
-                            signal_type="semantic",
-                            verdict="suspicious",
-                            confidence=0.5,
-                            details={"path": path, "reason": t15_reason},
-                        )
-                    )
-                else:
-                    self._session_trust[path] = content_sha
+                self._session_trust[path] = content_sha
 
         if blocked_reasons:
             return DetectionResult(
@@ -676,7 +680,6 @@ class DetectionEngine:
         tool_name = data.get("tool_name", "")
         tool_input = data.get("tool_input", {})
         engine = self._get_pattern_engine()
-        signals: list[SignalResult] = []
 
         # --- 1. Protected path check for Write/Edit tools ---
         if tool_name in ("Write", "Edit", "NotebookEdit"):
@@ -691,95 +694,36 @@ class DetectionEngine:
                     source_path=file_path,
                 )
 
-            # --- 2. Content-aware write scanning ---
+            # --- 2. Content-aware write scanning via fusion ---
             content = tool_input.get("content", "")
             if not content and tool_name == "Edit":
                 content = tool_input.get("new_text", "")
 
             if content and _is_sensitive_target(file_path):
-                result = engine.scan(content, file_path)
+                mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD, engine)
+                write_signals = self._collect_signals(content, file_path, mode)
+                fused = self._fuse_signals_to_result(write_signals, content, file_path, mode)
 
-                if result.verdict == Verdict.DETECTED:
-                    reason = (
-                        f"BLOCKED: Malicious content being written to {file_path}\n"
-                        + _format_matches(result.matches, file_path)
-                    )
+                if fused.exit_code == 2:
                     return DetectionResult(
-                        verdict="detected",
-                        confidence=1.0,
+                        verdict=fused.verdict,
+                        confidence=fused.confidence,
                         exit_code=2,
-                        message=reason,
+                        message=fused.message
+                        or f"BLOCKED: Malicious content being written to {file_path}",
                         source_path=file_path,
-                        signals=[
-                            SignalResult(
-                                signal_type="pattern",
-                                verdict="detected",
-                                confidence=1.0,
-                            )
-                        ],
+                        signals=fused.signals,
                     )
-                elif result.verdict == Verdict.SUSPICIOUS:
-                    warning = (
-                        f"WARNING: Suspicious content being written to {file_path}\n"
-                        + _format_matches(result.matches, file_path)
-                    )
-                    signals.append(
-                        SignalResult(
-                            signal_type="pattern",
-                            verdict="suspicious",
-                            confidence=0.5,
-                        )
-                    )
+                elif fused.verdict == "suspicious":
                     return DetectionResult(
                         verdict="suspicious",
-                        confidence=0.5,
+                        confidence=fused.confidence,
                         exit_code=0,
-                        message=warning,
+                        message=fused.message
+                        or f"WARNING: Suspicious content being written to {file_path}",
                         source_path=file_path,
-                        signals=signals,
+                        signals=fused.signals,
                     )
-                else:
-                    # Tier 0 clean -- Tier 1.5 semantic check on sensitive write content
-                    mode = _detect_mode_for_tier15(file_path, content, ScanMode.STANDARD, engine)
-                    t15_verdict, t15_reason = _classify_with_tier15(
-                        content, file_path, mode, self._get_mini_classifier()
-                    )
-                    if t15_verdict == "MALICIOUS":
-                        return DetectionResult(
-                            verdict="detected",
-                            confidence=0.8,
-                            exit_code=2,
-                            message=(
-                                f"BLOCKED: Semantic classifier flagged write to"
-                                f" {file_path} -- {t15_reason}"
-                            ),
-                            source_path=file_path,
-                            signals=[
-                                SignalResult(
-                                    signal_type="semantic",
-                                    verdict="detected",
-                                    confidence=0.8,
-                                )
-                            ],
-                        )
-                    elif t15_verdict == "SUSPICIOUS":
-                        return DetectionResult(
-                            verdict="suspicious",
-                            confidence=0.5,
-                            exit_code=0,
-                            message=(
-                                f"WARNING: Semantic classifier flagged write to"
-                                f" {file_path} -- {t15_reason}"
-                            ),
-                            source_path=file_path,
-                            signals=[
-                                SignalResult(
-                                    signal_type="semantic",
-                                    verdict="suspicious",
-                                    confidence=0.5,
-                                )
-                            ],
-                        )
 
         # --- 3. Block allowlist manipulation via Bash ---
         if tool_name == "Bash":
@@ -893,115 +837,53 @@ class DetectionEngine:
         source_path = tool_input.get("file_path", "<tool_output>")
 
         engine = self._get_pattern_engine()
-        result = engine.scan(content, source_path)
-        signals: list[SignalResult] = []
 
-        if result.verdict == Verdict.DETECTED:
-            max_sev = result.max_severity
+        # Collect all signals and fuse
+        signals = self._collect_signals(content, source_path, ScanMode.STANDARD)
+        fused = self._fuse_signals_to_result(signals, content, source_path, ScanMode.STANDARD)
+
+        if fused.verdict == "detected":
+            # Check severity for CRITICAL -> exit 2, non-CRITICAL -> exit 0 WARNING
+            pattern_result = engine.scan(content, source_path)
+            max_sev = pattern_result.max_severity
             if max_sev == Severity.CRITICAL:
                 reason = (
                     f"BLOCKED: Critical injection patterns in tool output from {source_path}\n"
-                    + _format_matches(result.matches, source_path)
-                )
-                signals.append(
-                    SignalResult(
-                        signal_type="pattern",
-                        verdict="detected",
-                        confidence=1.0,
-                        details={"severity": "critical"},
-                    )
+                    + (fused.message or "")
                 )
                 return DetectionResult(
                     verdict="detected",
-                    confidence=1.0,
+                    confidence=fused.confidence,
                     exit_code=2,
                     message=reason,
                     severity="critical",
                     source_path=source_path,
-                    signals=signals,
+                    signals=fused.signals,
                 )
             else:
                 warning = (
                     f"WARNING: Suspicious patterns in tool output from {source_path}\n"
-                    + _format_matches(result.matches, source_path)
-                )
-                signals.append(
-                    SignalResult(
-                        signal_type="pattern",
-                        verdict="detected",
-                        confidence=0.8,
-                        details={"severity": max_sev.value if max_sev else ""},
-                    )
+                    + (fused.message or "")
                 )
                 return DetectionResult(
                     verdict="detected",
-                    confidence=0.8,
+                    confidence=fused.confidence,
                     exit_code=0,
                     message=warning,
                     source_path=source_path,
-                    signals=signals,
+                    signals=fused.signals,
                 )
-        elif result.verdict == Verdict.SUSPICIOUS:
-            warning = (
-                f"WARNING: Low-confidence patterns in tool output from {source_path}\n"
-                + _format_matches(result.matches, source_path)
-            )
-            signals.append(
-                SignalResult(
-                    signal_type="pattern",
-                    verdict="suspicious",
-                    confidence=0.5,
-                )
+        elif fused.verdict == "suspicious":
+            warning = fused.message or (
+                f"WARNING: Suspicious content in tool output from {source_path}"
             )
             return DetectionResult(
                 verdict="suspicious",
-                confidence=0.5,
+                confidence=fused.confidence,
                 exit_code=0,
                 message=warning,
                 source_path=source_path,
-                signals=signals,
-            )
-
-        # Tier 0 clean -- run Tier 1.5 semantic check on tool output
-        mode = _detect_mode_for_tier15(source_path, content, ScanMode.STANDARD, engine)
-        t15_verdict, t15_reason = _classify_with_tier15(
-            content, source_path, mode, self._get_mini_classifier()
-        )
-        if t15_verdict == "MALICIOUS":
-            return DetectionResult(
-                verdict="suspicious",
-                confidence=0.8,
-                exit_code=0,
-                message=(
-                    f"WARNING: Semantic classifier flagged tool output from"
-                    f" {source_path} -- {t15_reason}"
-                ),
-                source_path=source_path,
-                signals=[
-                    SignalResult(
-                        signal_type="semantic",
-                        verdict="detected",
-                        confidence=0.8,
-                    )
-                ],
-            )
-        elif t15_verdict == "SUSPICIOUS":
-            return DetectionResult(
-                verdict="suspicious",
-                confidence=0.5,
-                exit_code=0,
-                message=(
-                    f"WARNING: Semantic classifier flagged tool output from"
-                    f" {source_path} -- {t15_reason}"
-                ),
-                source_path=source_path,
-                signals=[
-                    SignalResult(
-                        signal_type="semantic",
-                        verdict="suspicious",
-                        confidence=0.5,
-                    )
-                ],
+                signals=fused.signals,
             )
 
         return DetectionResult(verdict="clean", confidence=1.0, exit_code=0)
@@ -1014,12 +896,13 @@ class DetectionEngine:
 _detection_engine: DetectionEngine | None = None
 
 
-def get_detection_engine() -> DetectionEngine:
+def get_detection_engine(agent_type: str = "default") -> DetectionEngine:
     """Return the module-level singleton DetectionEngine.
 
-    Creates the engine on first call. Subsequent calls return the same instance.
+    Creates the engine on first call with the given agent_type.
+    Subsequent calls return the same instance (agent_type ignored after first call).
     """
     global _detection_engine  # noqa: PLW0603
     if _detection_engine is None:
-        _detection_engine = DetectionEngine()
+        _detection_engine = DetectionEngine(agent_type=agent_type)
     return _detection_engine

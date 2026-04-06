@@ -220,14 +220,14 @@ def _emit_audit_event(
 # ---------------------------------------------------------------------------
 
 
-def _get_bridged_engine() -> Any:
+def _get_bridged_engine(agent_type: str = "default") -> Any:
     """Get engine singleton with session trust bridged to hooks-level dict.
 
     Ensures the engine and hooks.py share the same _session_trust dict
     so tests that manipulate _session_trust at the hooks level see
     consistent state in the engine (T-04-01).
     """
-    engine = get_detection_engine()
+    engine = get_detection_engine(agent_type=agent_type)
     engine._session_trust = _session_trust
     return engine
 
@@ -246,7 +246,7 @@ def handle_instructions_loaded(data: dict[str, Any]) -> int:
     Trusts (exit 0, no output) if clean or already approved.
     Policy evaluation for audit trail completeness (no constraint spec -- no subprocess).
     """
-    engine = _get_bridged_engine()
+    engine = _get_bridged_engine(agent_type="claude-code")
     result = engine.scan_instructions_loaded(data)
 
     # Phase 2: Policy evaluation for audit trail (no subprocess to sandbox)
@@ -274,7 +274,7 @@ def handle_pre_tool_use(data: dict[str, Any]) -> int:
     Pipeline: DetectionEngine.scan() -> PolicyEngine.evaluate() -> enforcement
     Exit code unchanged: SAFE/SUSPICIOUS -> 0, MALICIOUS -> 2 (Pitfall 5)
     """
-    engine = _get_bridged_engine()
+    engine = _get_bridged_engine(agent_type="claude-code")
     result = engine.scan_pre_tool_use(data)
 
     # Phase 2: Policy evaluation
@@ -328,7 +328,7 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
     CLEAN -> exit 0, no output
     Policy evaluation for audit trail completeness (post-execution, no constraint spec).
     """
-    engine = _get_bridged_engine()
+    engine = _get_bridged_engine(agent_type="claude-code")
     result = engine.scan_post_tool_use(data)
 
     # Phase 2: Policy evaluation for audit trail (post-execution, no constraint spec)
@@ -381,7 +381,7 @@ def main() -> None:
     event = adapter.normalize(data)
 
     if event.event_type in ("InstructionsLoaded", "PreToolUse", "PostToolUse"):
-        engine = _get_bridged_engine()
+        engine = _get_bridged_engine(agent_type=adapter.agent_type)
         result = engine.scan(event)
 
         # Policy evaluation for audit trail
