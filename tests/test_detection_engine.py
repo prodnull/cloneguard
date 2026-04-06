@@ -22,7 +22,7 @@ class TestDetectionEngineCleanInput:
         # Mock Tier 1.5: fixture text "no injections" triggers MiniLM false positive
         # at 99.1%. This test validates Tier 0 pattern engine returns clean;
         # semantic classification is tested separately.
-        with patch.object(engine, '_get_mini_classifier', return_value=None):
+        with patch.object(engine, "_get_mini_classifier", return_value=None):
             event = ToolCallEvent(
                 event_type="PostToolUse",
                 tool_name="Read",

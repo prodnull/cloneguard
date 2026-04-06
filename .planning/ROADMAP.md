@@ -36,7 +36,7 @@ Plans:
 - [x] 01-01-PLAN.md -- Extract detection engine into cloneguard.detection package with typed Protocol interfaces
 - [x] 01-02-PLAN.md -- Create NDJSON audit layer and convert hooks.py/scanner.py to thin shims
 - [x] 01-03-PLAN.md -- Implement SARIF 2.1.0 emitter, fix packaging, add hook config integrity check
-- [ ] 01-04-PLAN.md -- Gap closure: Make hooks.py thin shims delegate to DetectionEngine, fix broken test
+- [x] 01-04-PLAN.md -- Gap closure: Make hooks.py thin shims delegate to DetectionEngine, fix broken test
 
 ### Phase 2: Adaptive Enforcement
 **Goal**: Operators can configure three-verdict outcomes with YAML policy and optionally constrain tool calls via OS-level sandbox adapters, with dry-run as the safe default

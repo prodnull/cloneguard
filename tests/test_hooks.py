@@ -757,9 +757,11 @@ class TestModeThreadingHooks:
         mock_engine = self._make_engine_mock(ScanMode.STANDARD)
 
         engine = get_detection_engine()
-        with patch.object(engine, '_pattern_engine', mock_engine), \
-             patch.object(engine, '_mini_classifier', mock_classifier), \
-             patch.object(engine, '_mini_attempted', True):
+        with (
+            patch.object(engine, "_pattern_engine", mock_engine),
+            patch.object(engine, "_mini_classifier", mock_classifier),
+            patch.object(engine, "_mini_attempted", True),
+        ):
             engine._session_trust.clear()
             _session_trust.clear()
             handle_instructions_loaded(data)
@@ -793,9 +795,11 @@ class TestModeThreadingHooks:
         mock_engine = self._make_engine_mock(ScanMode.STRICT)
 
         engine = get_detection_engine()
-        with patch.object(engine, '_pattern_engine', mock_engine), \
-             patch.object(engine, '_mini_classifier', mock_classifier), \
-             patch.object(engine, '_mini_attempted', True):
+        with (
+            patch.object(engine, "_pattern_engine", mock_engine),
+            patch.object(engine, "_mini_classifier", mock_classifier),
+            patch.object(engine, "_mini_attempted", True),
+        ):
             handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
@@ -826,9 +830,11 @@ class TestModeThreadingHooks:
         mock_engine = self._make_engine_mock(ScanMode.STANDARD)
 
         engine = get_detection_engine()
-        with patch.object(engine, '_pattern_engine', mock_engine), \
-             patch.object(engine, '_mini_classifier', mock_classifier), \
-             patch.object(engine, '_mini_attempted', True):
+        with (
+            patch.object(engine, "_pattern_engine", mock_engine),
+            patch.object(engine, "_mini_classifier", mock_classifier),
+            patch.object(engine, "_mini_attempted", True),
+        ):
             handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
@@ -859,9 +865,11 @@ class TestModeThreadingHooks:
         mock_engine = self._make_engine_mock(ScanMode.LENIENT)
 
         engine = get_detection_engine()
-        with patch.object(engine, '_pattern_engine', mock_engine), \
-             patch.object(engine, '_mini_classifier', mock_classifier), \
-             patch.object(engine, '_mini_attempted', True):
+        with (
+            patch.object(engine, "_pattern_engine", mock_engine),
+            patch.object(engine, "_mini_classifier", mock_classifier),
+            patch.object(engine, "_mini_attempted", True),
+        ):
             handle_post_tool_use(data)
 
         assert mock_classifier.classify.called
@@ -894,9 +902,11 @@ class TestModeThreadingHooks:
         mock_engine = self._make_engine_mock(ScanMode.STRICT)
 
         engine = get_detection_engine()
-        with patch.object(engine, '_pattern_engine', mock_engine), \
-             patch.object(engine, '_mini_classifier', mock_classifier), \
-             patch.object(engine, '_mini_attempted', True):
+        with (
+            patch.object(engine, "_pattern_engine", mock_engine),
+            patch.object(engine, "_mini_classifier", mock_classifier),
+            patch.object(engine, "_mini_attempted", True),
+        ):
             handle_pre_tool_use(data)
 
         assert mock_classifier.classify.called
