@@ -1,0 +1,15 @@
+{
+  "hooks": {
+{% for event in cloneguard_hook_events %}
+    "{{ event }}": [
+      {
+        "matcher": "",
+        "hooks": [
+          "cloneguard hook-check --event {{ event }}"
+        ]
+      }
+    ]{% if not loop.last %},{% endif %}
+
+{% endfor %}
+  }
+}

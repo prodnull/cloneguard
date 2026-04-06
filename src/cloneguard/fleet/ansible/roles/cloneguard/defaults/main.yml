@@ -1,0 +1,50 @@
+---
+# CloneGuard Ansible Role -- Default Variables
+# All values are overridable via host/group vars or extra-vars.
+
+# Version to install. Pin to a specific version in production.
+cloneguard_version: "latest"
+
+# Installation method: "uv" (preferred), "pipx", or "pip"
+cloneguard_install_method: "uv"
+
+# Optional extras to install (e.g., mini, opa, cedar, splunk, sentinel, chronicle, governance)
+cloneguard_extras:
+  - "mini"
+
+# Target user for CloneGuard config files
+cloneguard_user: "{{ ansible_user_id }}"
+
+# Dry-run mode -- MUST be true for initial rollout (safe default).
+# Set to false only after validating thresholds on your fleet.
+cloneguard_dry_run: true
+
+# Detection thresholds
+cloneguard_suspicious_floor: 0.3
+cloneguard_malicious_floor: 0.7
+
+# Sandbox configuration
+cloneguard_sandbox_preferred: "auto"
+cloneguard_sandbox_fallback: "noop"
+
+# Path to a custom policy.yaml file. If set, the file is copied verbatim
+# instead of rendering the policy.yaml.j2 template.
+cloneguard_policy_source: ""
+
+# Hook scope: "global" (per-user) or "project" (per-repo)
+cloneguard_hook_scope: "global"
+
+# Hook events to register
+cloneguard_hook_events:
+  - InstructionsLoaded
+  - PreToolUse
+  - PostToolUse
+
+# Policy backend: "yaml" (built-in), "opa" (Rego), or "cedar" (Cedar)
+cloneguard_policy_backend: "yaml"
+
+# Path to .rego file when backend is "opa"
+cloneguard_opa_policy_source: ""
+
+# Path to Cedar YAML wrapper when backend is "cedar"
+cloneguard_cedar_policy_source: ""

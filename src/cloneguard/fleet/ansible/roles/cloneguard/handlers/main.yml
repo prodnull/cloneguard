@@ -1,0 +1,7 @@
+---
+# CloneGuard Ansible Role -- Handlers
+
+- name: Verify CloneGuard config
+  ansible.builtin.command:
+    cmd: cloneguard --version
+  changed_when: false

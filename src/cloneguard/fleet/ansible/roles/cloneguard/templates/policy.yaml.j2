@@ -1,0 +1,22 @@
+# CloneGuard Policy Configuration
+# Managed by Ansible -- local edits will be overwritten on next playbook run.
+# To customize, update the Ansible role variables or use cloneguard_policy_source.
+
+version: "1"
+
+verdicts:
+  thresholds:
+    suspicious_floor: {{ cloneguard_suspicious_floor }}
+    malicious_floor: {{ cloneguard_malicious_floor }}
+  overrides: {}
+
+enforcement:
+  suspicious: {}
+  malicious:
+    action: block
+
+sandbox:
+  preferred: {{ cloneguard_sandbox_preferred }}
+  fallback: {{ cloneguard_sandbox_fallback }}
+
+dry_run: {{ cloneguard_dry_run | lower }}

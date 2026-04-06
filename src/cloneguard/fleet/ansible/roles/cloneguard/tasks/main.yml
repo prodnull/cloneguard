@@ -1,0 +1,85 @@
+---
+# CloneGuard Ansible Role -- Idempotent task list
+# Deploys CloneGuard with centralized policy to target machines.
+
+- name: Check if CloneGuard is already installed
+  ansible.builtin.command:
+    cmd: cloneguard --version
+  register: cloneguard_installed
+  changed_when: false
+  failed_when: false
+
+- name: Install CloneGuard via uv
+  ansible.builtin.command:
+    cmd: >-
+      uv tool install
+      {% if cloneguard_version != "latest" %}cloneguard=={{ cloneguard_version }}{% else %}cloneguard{% endif %}
+      {% if cloneguard_extras | length > 0 %}--with '{{ "cloneguard[" + cloneguard_extras | join(",") + "]" }}'{% endif %}
+  when:
+    - cloneguard_install_method == "uv"
+    - cloneguard_installed.rc != 0 or (cloneguard_version != "latest" and cloneguard_version not in (cloneguard_installed.stdout | default("")))
+  become: false
+
+- name: Install CloneGuard via pipx
+  ansible.builtin.command:
+    cmd: >-
+      pipx install
+      {% if cloneguard_version != "latest" %}cloneguard=={{ cloneguard_version }}{% else %}cloneguard{% endif %}
+      {% if cloneguard_extras | length > 0 %}--pip-args='[{{ cloneguard_extras | join(",") }}]'{% endif %}
+  when:
+    - cloneguard_install_method == "pipx"
+    - cloneguard_installed.rc != 0 or (cloneguard_version != "latest" and cloneguard_version not in (cloneguard_installed.stdout | default("")))
+  become: false
+
+- name: Install CloneGuard via pip
+  ansible.builtin.pip:
+    name: >-
+      {% if cloneguard_version != "latest" %}cloneguard=={{ cloneguard_version }}{% else %}cloneguard{% endif %}
+    state: present
+  when:
+    - cloneguard_install_method == "pip"
+    - cloneguard_installed.rc != 0 or (cloneguard_version != "latest" and cloneguard_version not in (cloneguard_installed.stdout | default("")))
+
+- name: Ensure ~/.cloneguard directory exists
+  ansible.builtin.file:
+    path: "~/.cloneguard"
+    state: directory
+    mode: "0700"
+  become: false
+
+- name: Deploy custom policy file
+  ansible.builtin.copy:
+    src: "{{ cloneguard_policy_source }}"
+    dest: "~/.cloneguard/policy.yaml"
+    mode: "0600"
+    backup: true
+  when: cloneguard_policy_source | length > 0
+  notify: Verify CloneGuard config
+  become: false
+
+- name: Deploy policy from template
+  ansible.builtin.template:
+    src: policy.yaml.j2
+    dest: "~/.cloneguard/policy.yaml"
+    mode: "0600"
+    backup: true
+  when: cloneguard_policy_source | length == 0
+  notify: Verify CloneGuard config
+  become: false
+
+- name: Ensure ~/.claude directory exists
+  ansible.builtin.file:
+    path: "~/.claude"
+    state: directory
+    mode: "0755"
+  when: cloneguard_hook_scope == "global"
+  become: false
+
+- name: Deploy hook settings (global)
+  ansible.builtin.template:
+    src: settings.json.j2
+    dest: "~/.claude/settings.json"
+    mode: "0644"
+    backup: true
+  when: cloneguard_hook_scope == "global"
+  become: false
