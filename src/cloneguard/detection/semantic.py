@@ -237,6 +237,38 @@ class MiniSemanticClassifier:
 
         return result
 
+    def get_cls_embedding(self, content: str) -> Any:
+        """Extract CLS embedding for the given content.
+
+        Returns a 384-dim numpy array from the ONNX model's CLS output,
+        or None if the model is not available or extraction fails.
+        Used by MELON for semantic divergence comparison.
+        """
+        if not self.available or self._session is None or self._tokenizer is None:
+            return None
+        try:
+            inputs = self._tokenizer(
+                content,
+                return_tensors="np",
+                truncation=True,
+                max_length=256,
+                padding="max_length",
+            )
+            outputs = self._session.run(
+                None,
+                {
+                    "input_ids": inputs["input_ids"],
+                    "attention_mask": inputs["attention_mask"],
+                },
+            )
+            # CLS embedding is at outputs[1][0] for dual-output ONNX models
+            if len(outputs) > 1:
+                return outputs[1][0]
+            return None
+        except Exception:
+            logger.debug("Failed to extract CLS embedding", exc_info=True)
+            return None
+
     def _classify_sliding_window(
         self, text: str, mode: ScanMode = ScanMode.STANDARD
     ) -> MiniClassification | None:

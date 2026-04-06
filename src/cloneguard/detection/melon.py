@@ -159,16 +159,20 @@ def cosine_similarity(a: Any, b: Any) -> float:
 
 
 def extract_cls_embedding(classifier: Any, content: str) -> Any:
-    """Extract CLS embedding from MiniSemanticClassifier's ONNX session.
+    """Extract CLS embedding via MiniSemanticClassifier's public API.
 
-    Accesses classifier._session and classifier._tokenizer directly --
-    MELON is tightly coupled to MiniSemanticClassifier internals.
+    Delegates to classifier.get_cls_embedding() when available,
+    falling back to direct attribute access for backward compatibility.
 
     Returns 384-dim numpy array, or None if extraction fails.
     """
     if not _HAS_NUMPY or classifier is None:
         return None
     try:
+        # Prefer public API (Phase 4 gap closure)
+        if hasattr(classifier, "get_cls_embedding"):
+            return classifier.get_cls_embedding(content)
+        # Fallback: direct attribute access (pre-Phase-4 classifiers)
         inputs = classifier._tokenizer(
             content,
             return_tensors="np",
@@ -183,7 +187,6 @@ def extract_cls_embedding(classifier: Any, content: str) -> Any:
                 "attention_mask": inputs["attention_mask"],
             },
         )
-        # CLS embedding is at outputs[1][0] for dual-output ONNX models
         if len(outputs) > 1:
             return outputs[1][0]
         return None
