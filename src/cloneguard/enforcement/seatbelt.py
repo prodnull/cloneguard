@@ -216,13 +216,41 @@ class SeatbeltAdapter:
             "network_allow": list(self._network_allow),
         }
 
-    # Deferred methods (D-05) -- default no-ops
-    def snapshot(self) -> Any:
-        """Capture pre-execution state. Deferred to Phase 4."""
-        return None
+    def snapshot(self) -> dict[str, bytes]:
+        """Capture file contents for writable paths before MELON execution.
 
-    def rollback(self, snapshot: Any) -> None:
-        """Revert to snapshot state. Deferred to Phase 4."""
+        Returns dict mapping absolute path -> file bytes for each writable
+        file that exists. Seatbelt restrictions are irrevocable; this captures
+        the file state to enable content rollback, not restriction rollback.
+        """
+        from pathlib import Path
+
+        captured: dict[str, bytes] = {}
+        for path_str in self._writable:
+            p = Path(path_str).resolve()
+            if p.is_file():
+                try:
+                    captured[str(p)] = p.read_bytes()
+                except OSError:
+                    logger.warning("snapshot: could not read %s", p)
+        return captured
+
+    def rollback(self, snapshot: dict[str, bytes]) -> None:  # type: ignore[override]
+        """Restore file contents to pre-execution state.
+
+        Writes back the byte content captured by snapshot(). Does not
+        undo Seatbelt restrictions (irrevocable by kernel design).
+        """
+        from pathlib import Path
+
+        if not snapshot:
+            return
+        for path_str, content in snapshot.items():
+            p = Path(path_str)
+            try:
+                p.write_bytes(content)
+            except OSError:
+                logger.warning("rollback: could not restore %s", p)
 
     def restrict_syscalls(self, allowed: list[str]) -> None:
         """Apply syscall filter. Deferred to Phase 5."""

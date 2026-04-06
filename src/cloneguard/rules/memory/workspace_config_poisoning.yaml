@@ -1,0 +1,26 @@
+category: workspaceConfigPoisoning
+description: "Patterns detecting workspace configuration file poisoning"
+patterns:
+  - id: WCP-001
+    regex: '(?i)(?:\.vscode|\.cursor|\.windsurf)/(?:settings|extensions|tasks|launch)\.json.{0,30}(?:write|modify|create|update)'
+    severity: high
+    description: "IDE workspace configuration file manipulation"
+    evidence: "Workspace config can auto-execute tasks, modify editor behavior"
+
+  - id: WCP-002
+    regex: '(?i)(?:\.devcontainer|\.github/codespaces)/(?:devcontainer|\.devcontainer)\.json.{0,30}(?:write|modify|create)'
+    severity: critical
+    description: "Dev container configuration poisoning"
+    evidence: "Dev containers auto-execute postCreateCommand on workspace open"
+
+  - id: WCP-003
+    regex: '(?i)(?:tasks|launch)\.json.{0,20}"(?:command|args|program)"\s*:\s*"[^"]*(?:curl|wget|nc|bash\s+-c|python\s+-c)'
+    severity: critical
+    description: "VS Code task/launch config with suspicious commands"
+    evidence: "Tasks.json commands execute on workspace open or task trigger"
+
+  - id: WCP-004
+    regex: '(?i)\.(?:cursorrules|windsurfrules|claude/settings\.local).{0,10}(?:write|create|modify|append)'
+    severity: critical
+    description: "Agent-specific rules file manipulation"
+    evidence: "Agent rules files define trusted instructions loaded at session start"

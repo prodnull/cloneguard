@@ -1,0 +1,31 @@
+{
+  "version": "1",
+  "generated": "2026-04-06",
+  "description": "Known-good MCP tool description fingerprints for RADE attack detection",
+  "tools": {
+    "mcp__filesystem__read_file": {
+      "description_hash": "",
+      "description_length_range": [100, 300],
+      "input_schema_hash": "",
+      "source": "github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "last_verified": "2026-04-06",
+      "notes": "Placeholder -- populate with actual hashes from live MCP servers"
+    },
+    "mcp__filesystem__write_file": {
+      "description_hash": "",
+      "description_length_range": [100, 300],
+      "input_schema_hash": "",
+      "source": "github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "last_verified": "2026-04-06",
+      "notes": "Placeholder -- populate with actual hashes from live MCP servers"
+    },
+    "mcp__filesystem__list_directory": {
+      "description_hash": "",
+      "description_length_range": [80, 250],
+      "input_schema_hash": "",
+      "source": "github.com/modelcontextprotocol/servers/tree/main/src/filesystem",
+      "last_verified": "2026-04-06",
+      "notes": "Placeholder -- populate with actual hashes from live MCP servers"
+    }
+  }
+}

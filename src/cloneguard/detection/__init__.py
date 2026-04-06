@@ -7,6 +7,11 @@ from cloneguard.detection.fusion import (  # noqa: F401
     WeightProfile,
     load_weight_profile,
 )
+from cloneguard.detection.melon import (  # noqa: F401
+    CircuitBreaker,
+    MELONDetector,
+    MELONResult,
+)
 from cloneguard.detection.types import (  # noqa: F401
     DetectionEngineProtocol,
     DetectionResult,

@@ -15,6 +15,7 @@ Covers:
 from __future__ import annotations
 
 import json
+from typing import Any
 from unittest import mock
 
 from cloneguard.enforcement.adapter import SandboxAdapter
@@ -218,6 +219,84 @@ class TestSeatbeltApplyRestrictions:
             mock_get_lib.return_value = mock_lib
             # Should not raise
             adapter.apply_restrictions()
+
+
+class TestSeatbeltSnapshotRollback:
+    """snapshot/rollback captures and restores file contents for writable paths."""
+
+    def test_snapshot_captures_writable_files(self, tmp_path: Any) -> None:
+        """Create temp files in writable paths, snapshot captures their bytes."""
+        from cloneguard.enforcement.seatbelt import SeatbeltAdapter
+
+        f = tmp_path / "data.txt"
+        f.write_bytes(b"original content")
+
+        adapter = SeatbeltAdapter()
+        adapter.restrict_filesystem(writable=[str(f)], readable=[])
+        snap = adapter.snapshot()
+
+        resolved = str(f.resolve())
+        assert resolved in snap
+        assert snap[resolved] == b"original content"
+
+    def test_rollback_restores_file_content(self, tmp_path: Any) -> None:
+        """Snapshot, modify file, rollback restores original content."""
+        from cloneguard.enforcement.seatbelt import SeatbeltAdapter
+
+        f = tmp_path / "data.txt"
+        f.write_bytes(b"original content")
+
+        adapter = SeatbeltAdapter()
+        adapter.restrict_filesystem(writable=[str(f)], readable=[])
+        snap = adapter.snapshot()
+
+        # Modify the file
+        f.write_bytes(b"modified content")
+        assert f.read_bytes() == b"modified content"
+
+        # Rollback restores original
+        adapter.rollback(snap)
+        assert f.read_bytes() == b"original content"
+
+    def test_snapshot_empty_when_no_writable_paths(self) -> None:
+        """No writable paths configured -> snapshot returns empty dict."""
+        from cloneguard.enforcement.seatbelt import SeatbeltAdapter
+
+        adapter = SeatbeltAdapter()
+        adapter.restrict_filesystem(writable=[], readable=[])
+        snap = adapter.snapshot()
+        assert snap == {}
+
+    def test_rollback_with_empty_dict_is_noop(self) -> None:
+        """rollback({}) does nothing and does not raise."""
+        from cloneguard.enforcement.seatbelt import SeatbeltAdapter
+
+        adapter = SeatbeltAdapter()
+        adapter.rollback({})  # Should not raise
+
+    def test_snapshot_skips_nonexistent_files(self, tmp_path: Any) -> None:
+        """Writable path that doesn't exist is skipped in snapshot."""
+        from cloneguard.enforcement.seatbelt import SeatbeltAdapter
+
+        adapter = SeatbeltAdapter()
+        adapter.restrict_filesystem(
+            writable=[str(tmp_path / "nonexistent.txt")],
+            readable=[],
+        )
+        snap = adapter.snapshot()
+        assert snap == {}
+
+    def test_snapshot_skips_directories(self, tmp_path: Any) -> None:
+        """Writable path that is a directory (not file) is skipped."""
+        from cloneguard.enforcement.seatbelt import SeatbeltAdapter
+
+        subdir = tmp_path / "subdir"
+        subdir.mkdir()
+
+        adapter = SeatbeltAdapter()
+        adapter.restrict_filesystem(writable=[str(subdir)], readable=[])
+        snap = adapter.snapshot()
+        assert snap == {}
 
 
 class TestSeatbeltSerializeConstraints:

@@ -196,6 +196,7 @@ class DetectionEngine:
     - Pattern matching via PatternEngine (Tier 0)
     - Semantic classification via MiniSemanticClassifier (Tier 1.5, lazy-loaded)
     - Sequence monitoring via ToolCallMonitor (behavioral, lazy-loaded)
+    - MELON selective re-execution (post-fusion, ambiguous zone only)
 
     Conforms to DetectionEngineProtocol (structural subtyping).
     """
@@ -207,7 +208,9 @@ class DetectionEngine:
         self._session_trust: dict[str, str] = {}
         self._registry_client: Any = None
         self._fusion_layer: Any = None
+        self._melon_detector: Any = None
         self._init_fusion()
+        self._init_melon()
 
     def _get_pattern_engine(self) -> PatternEngine:
         """Lazy-load PatternEngine singleton."""
@@ -243,6 +246,20 @@ class DetectionEngine:
         except Exception:
             logger.debug("Fusion layer unavailable; falling back to waterfall behavior")
             self._fusion_layer = None
+
+    def _init_melon(self) -> None:
+        """Initialize MELON detector with graceful degradation.
+
+        MELON fires post-fusion when confidence is in the ambiguous zone.
+        If the module fails to import, MELON is simply unavailable.
+        """
+        try:
+            from cloneguard.detection.melon import MELONDetector
+
+            self._melon_detector = MELONDetector()
+        except Exception:
+            logger.debug("MELON detector unavailable")
+            self._melon_detector = None
 
     def _collect_signals(
         self, content: str, source_path: str, mode: ScanMode
@@ -358,6 +375,35 @@ class DetectionEngine:
 
             fusion_result: FusionResult = self._fusion_layer.fuse(signals, mode)
 
+            # MELON post-fusion: selective re-execution for ambiguous zone
+            melon_verdict = fusion_result.verdict
+            melon_confidence = fusion_result.confidence
+            if (
+                self._melon_detector is not None
+                and self._melon_detector.should_trigger(fusion_result.confidence)
+            ):
+                try:
+                    # Extract suspicious spans from pattern signal if available
+                    suspicious_spans: list[tuple[int, int]] | None = None
+                    for sig in signals:
+                        if sig.signal_type == "pattern" and sig.details.get("top_rule_id"):
+                            # Pattern signal fired -- no byte-level spans available
+                            # from PatternEngine; MELON will use heuristic masking
+                            break
+
+                    melon_result = self._melon_detector.detect(
+                        content, self._get_mini_classifier(), suspicious_spans
+                    )
+                    if melon_result.verdict_upgraded:
+                        melon_verdict = "detected"
+                        melon_confidence = max(fusion_result.confidence, 0.7)
+                        logger.info(
+                            "MELON upgraded verdict: divergence=%.3f",
+                            melon_result.divergence_score,
+                        )
+                except Exception:
+                    logger.debug("MELON detection failed", exc_info=True)
+
             # Extract pattern match details for message formatting
             severity_str = ""
             rule_id = ""
@@ -383,11 +429,11 @@ class DetectionEngine:
                         break
 
             # Map verdict to exit code: "detected" -> 2, else -> 0
-            exit_code = 2 if fusion_result.verdict == "detected" else 0
+            exit_code = 2 if melon_verdict == "detected" else 0
 
             return DetectionResult(
-                verdict=fusion_result.verdict,
-                confidence=fusion_result.confidence,
+                verdict=melon_verdict,
+                confidence=melon_confidence,
                 signals=list(fusion_result.signals),
                 exit_code=exit_code,
                 message=message,
