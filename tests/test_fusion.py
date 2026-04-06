@@ -29,9 +29,11 @@ def test_fuse_single_pattern_signal_returns_weighted_confidence() -> None:
     from cloneguard.detection.patterns import ScanMode
 
     result = layer.fuse(signals, ScanMode.STANDARD)
-    # With only pattern signal, normalized weight=1.0, so confidence = 0.9 * 1.0
-    assert result.confidence == pytest.approx(0.9, abs=0.01)
-    assert result.verdict in ("detected", "suspicious")
+    # Direct-sum fusion: confidence = signal.confidence * base_weight (no normalization)
+    # With pattern_base=0.4: 0.9 * 0.4 = 0.36
+    assert result.confidence == pytest.approx(0.36, abs=0.01)
+    # Single pattern signal is below detected threshold (0.6) -- clean
+    assert result.verdict == "clean"
 
 
 # ---------------------------------------------------------------------------
@@ -197,11 +199,12 @@ def test_load_weight_profile_returns_default_when_not_found() -> None:
     from cloneguard.detection.fusion import load_weight_profile
 
     profile = load_weight_profile(agent_type="nonexistent-agent-xyz")
-    # Should return default values
-    assert profile.pattern_base == 0.4
-    assert profile.semantic_base == 0.4
-    assert profile.sequence_base == 0.2
+    # Falls back to default.yaml (calibrated profile) -- agent_type from YAML
     assert profile.agent_type == "default"
+    # Base weights must sum to 1.0 (within tolerance)
+    assert abs(profile.pattern_base + profile.semantic_base + profile.sequence_base - 1.0) < 0.01
+    # Thresholds must be valid
+    assert 0.0 < profile.suspicious_threshold < profile.detected_threshold <= 1.0
 
 
 # ---------------------------------------------------------------------------
@@ -210,17 +213,17 @@ def test_load_weight_profile_returns_default_when_not_found() -> None:
 def test_engine_collect_signals_no_early_return() -> None:
     """Engine._collect_signals should collect all signals, not early-return on pattern."""
     from cloneguard.detection.engine import DetectionEngine
-    from cloneguard.detection.patterns import ScanMode
+    from cloneguard.detection.patterns import ScanMode, Severity, Verdict
 
     engine = DetectionEngine()
 
-    # Mock pattern engine to return a DETECTED result
+    # Mock pattern engine to return a DETECTED result with real Severity enum
     mock_pe = MagicMock()
     mock_pe.scan.return_value = MagicMock(
-        verdict=MagicMock(value="detected"),
+        verdict=Verdict.DETECTED,
         matches=[
             MagicMock(
-                severity=MagicMock(value="critical"),
+                severity=Severity.CRITICAL,
                 pattern_id="TEST-001",
                 matched_text="test",
                 line_number=1,

@@ -126,6 +126,42 @@ def _is_sensitive_target(file_path: str) -> bool:
     return False
 
 
+def _pattern_confidence(matches: list[PatternMatch], verdict: Verdict) -> float:
+    """Compute graduated pattern signal confidence from match severity and count.
+
+    Maps severity to base confidence, then scales by match count (diminishing returns).
+    This produces differentiated confidence that lets the fusion layer separate
+    high-severity multi-match detections from low-severity single-match suspicions.
+
+    Severity mapping:
+      critical -> 1.0, high -> 0.85, medium -> 0.65, low -> 0.50
+    Multi-match bonus: min(1.0, base + 0.05 * (count - 1))
+    Verdict boost: "detected" adds 0.1 (clamped to 1.0)
+    """
+    if not matches:
+        return 0.5  # Non-clean with no matches (shouldn't happen, defensive)
+
+    severity_map = {
+        Severity.CRITICAL: 1.0,
+        Severity.HIGH: 0.85,
+        Severity.MEDIUM: 0.65,
+        Severity.LOW: 0.50,
+    }
+
+    # Use the highest-severity match as base
+    base = max(severity_map.get(m.severity, 0.5) for m in matches)
+
+    # Multi-match bonus (diminishing returns)
+    count_bonus = min(0.15, 0.05 * (len(matches) - 1))
+    confidence = base + count_bonus
+
+    # Verdict boost for "detected" (vs "suspicious")
+    if verdict == Verdict.DETECTED:
+        confidence += 0.1
+
+    return min(1.0, confidence)
+
+
 def _format_matches(matches: list[PatternMatch], source: str) -> str:
     """Format pattern matches into a human-readable warning string."""
     lines = []
@@ -277,7 +313,7 @@ class DetectionEngine:
         # Tier 0: pattern scan (always runs)
         result = engine.scan(content, source_path, mode=mode)
         if result.verdict != Verdict.CLEAN:
-            confidence = 1.0
+            confidence = _pattern_confidence(result.matches, result.verdict)
             details: dict[str, Any] = {
                 "match_count": len(result.matches),
                 "scan_time_ms": result.scan_time_ms,
@@ -609,12 +645,22 @@ class DetectionEngine:
             signals = self._collect_signals(content, path, ScanMode.STRICT)
             fused = self._fuse_signals_to_result(signals, content, path, ScanMode.STRICT)
 
-            if fused.exit_code == 2:
+            # Severity hierarchy: MEDIUM/LOW pattern matches warn, not block.
+            # Only CRITICAL/HIGH pattern severity can produce exit_code=2.
+            # This preserves backward compat (hooks.py contract).
+            severity_downgrade = False
+            if fused.exit_code == 2 and fused.severity in ("medium", "low", ""):
+                # Check if there's a CRITICAL/HIGH pattern signal
+                has_critical_high = fused.severity in ("critical", "high")
+                if not has_critical_high:
+                    severity_downgrade = True
+
+            if fused.exit_code == 2 and not severity_downgrade:
                 msg = fused.message or f"Detection triggered in {path}"
                 reason = f"BLOCKED: {msg}" if not msg.startswith("BLOCKED") else msg
                 blocked_reasons.append(reason)
                 all_signals.extend(fused.signals)
-            elif fused.verdict == "suspicious":
+            elif fused.verdict == "suspicious" or severity_downgrade:
                 msg = fused.message or f"Suspicious content in {path}"
                 warning = f"WARNING: {msg}" if not msg.startswith("WARNING") else msg
                 warnings.append(warning)

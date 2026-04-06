@@ -58,6 +58,8 @@ class WeightProfile:
         _DEFAULT_MODE_MULTIPLIERS
     )
     agent_type: str = "default"
+    detected_threshold: float = 0.6
+    suspicious_threshold: float = 0.4
 
     def get_multiplier(self, mode: str, signal: str) -> float:
         """Look up mode multiplier for a signal type. Returns 1.0 if not found."""
@@ -109,9 +111,12 @@ class FusionLayer:
         """Fuse collected signals into a single calibrated result.
 
         For each signal:
-          effective_weight = base_weight * mode_multiplier(mode, signal_type)
-        Weights are normalized to sum to 1.0, handling missing signals gracefully.
-        Verdict thresholds: detected >= 0.6 (if any signal is "detected"), suspicious >= 0.4.
+          contribution = signal.confidence * base_weight * mode_multiplier
+        Weighted confidence is the direct sum of contributions (NOT normalized).
+        This ensures single-signal hits are bounded by their base weight, requiring
+        corroboration from multiple signals for high confidence. A single pattern
+        hit at base_weight=0.4 produces confidence=0.4, while pattern+semantic
+        agreement produces confidence=0.72+.
         """
         if not signals:
             return FusionResult(confidence=0.0, verdict="clean", signals=())
@@ -125,33 +130,22 @@ class FusionLayer:
             "sequence": self._profile.sequence_base,
         }
 
-        # Compute effective weights for each present signal
-        effective_weights: list[float] = []
+        # Compute weighted confidence as direct sum (no normalization)
+        # Each signal's contribution is bounded by its base weight * mode multiplier
+        weighted_confidence = 0.0
         for sig in signals:
             base = base_weights.get(sig.signal_type, 0.2)
             mult = self._profile.get_multiplier(mode_str, sig.signal_type)
-            effective_weights.append(base * mult)
-
-        # Normalize so weights sum to 1.0
-        total_weight = sum(effective_weights)
-        if total_weight > 0:
-            normalized_weights = [w / total_weight for w in effective_weights]
-        else:
-            normalized_weights = [1.0 / len(signals)] * len(signals)
-
-        # Compute weighted confidence
-        weighted_confidence = sum(
-            sig.confidence * nw for sig, nw in zip(signals, normalized_weights)
-        )
+            weighted_confidence += sig.confidence * base * mult
 
         # Clamp to [0.0, 1.0]
         weighted_confidence = max(0.0, min(1.0, weighted_confidence))
 
-        # Determine verdict
+        # Determine verdict (thresholds from profile for calibration support)
         any_detected = any(s.verdict == "detected" for s in signals)
-        if any_detected and weighted_confidence >= 0.6:
+        if any_detected and weighted_confidence >= self._profile.detected_threshold:
             verdict = "detected"
-        elif weighted_confidence >= 0.4:
+        elif weighted_confidence >= self._profile.suspicious_threshold:
             verdict = "suspicious"
         else:
             verdict = "clean"
@@ -227,10 +221,17 @@ def _parse_weight_profile(data: dict[str, Any]) -> WeightProfile:
             signal_tuples = tuple((str(k), float(v)) for k, v in signal_dict.items())
             mode_multipliers.append((str(mode_name), signal_tuples))
 
+    # Verdict thresholds (calibration support)
+    thresholds = data.get("thresholds", {})
+    detected_threshold = float(thresholds.get("detected", 0.6))
+    suspicious_threshold = float(thresholds.get("suspicious", 0.4))
+
     return WeightProfile(
         pattern_base=float(weights.get("pattern_base", 0.4)),
         semantic_base=float(weights.get("semantic_base", 0.4)),
         sequence_base=float(weights.get("sequence_base", 0.2)),
         mode_multipliers=tuple(mode_multipliers) if mode_multipliers else _DEFAULT_MODE_MULTIPLIERS,
         agent_type=str(data.get("agent_type", "default")),
+        detected_threshold=detected_threshold,
+        suspicious_threshold=suspicious_threshold,
     )
