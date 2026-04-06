@@ -1,0 +1,329 @@
+"""Linux Landlock LSM sandbox adapter.
+
+Applies filesystem and network restrictions via Landlock LSM syscalls
+(Linux 5.13+). Uses ctypes for direct syscall invocation -- no external
+dependencies.
+
+Architecture: apply_restrictions() is called ONLY from within the
+cloneguard-sandbox-exec wrapper process. The hook handler process
+never calls it -- it only serializes constraints via serialize_constraints()
+for cross-process transport. Since apply_restrictions() applies Landlock
+to the CURRENT process (and exec preserves Landlock restrictions),
+the restrictions persist into the target command.
+
+Graceful degradation: if Landlock is unavailable (pre-5.13 kernel,
+container without CAP_SYS_ADMIN, or non-Linux), apply_restrictions()
+returns silently. Better to run unconfined than to crash the tool.
+
+Reference: https://docs.kernel.org/userspace-api/landlock.html
+"""
+
+from __future__ import annotations
+
+import ctypes
+import ctypes.util
+import logging
+import os
+from typing import Any
+
+logger = logging.getLogger(__name__)
+
+# Landlock syscall numbers (same on x86_64 and aarch64)
+_SYS_LANDLOCK_CREATE_RULESET = 444
+_SYS_LANDLOCK_ADD_RULE = 445
+_SYS_LANDLOCK_RESTRICT_SELF = 446
+
+# prctl constants
+_SYS_PRCTL = 157
+_PR_SET_NO_NEW_PRIVS = 38
+
+# Landlock rule type
+_LANDLOCK_RULE_PATH_BENEATH = 0x01
+
+# Filesystem access flags (Landlock ABI v1+)
+_LANDLOCK_ACCESS_FS_EXECUTE = 1 << 0
+_LANDLOCK_ACCESS_FS_WRITE_FILE = 1 << 1
+_LANDLOCK_ACCESS_FS_READ_FILE = 1 << 2
+_LANDLOCK_ACCESS_FS_READ_DIR = 1 << 3
+_LANDLOCK_ACCESS_FS_REMOVE_DIR = 1 << 4
+_LANDLOCK_ACCESS_FS_REMOVE_FILE = 1 << 5
+_LANDLOCK_ACCESS_FS_MAKE_CHAR = 1 << 6
+_LANDLOCK_ACCESS_FS_MAKE_DIR = 1 << 7
+_LANDLOCK_ACCESS_FS_MAKE_REG = 1 << 8
+_LANDLOCK_ACCESS_FS_MAKE_SOCK = 1 << 9
+_LANDLOCK_ACCESS_FS_MAKE_FIFO = 1 << 10
+_LANDLOCK_ACCESS_FS_MAKE_BLOCK = 1 << 11
+_LANDLOCK_ACCESS_FS_MAKE_SYM = 1 << 12
+
+# Composite access masks
+_ACCESS_READ = _LANDLOCK_ACCESS_FS_READ_FILE | _LANDLOCK_ACCESS_FS_READ_DIR
+_ACCESS_WRITE = (
+    _LANDLOCK_ACCESS_FS_READ_FILE
+    | _LANDLOCK_ACCESS_FS_WRITE_FILE
+    | _LANDLOCK_ACCESS_FS_READ_DIR
+    | _LANDLOCK_ACCESS_FS_EXECUTE
+    | _LANDLOCK_ACCESS_FS_MAKE_REG
+    | _LANDLOCK_ACCESS_FS_MAKE_DIR
+)
+
+# All filesystem access flags for the handled_access_fs bitmask
+_ALL_FS_ACCESS = (
+    _LANDLOCK_ACCESS_FS_EXECUTE
+    | _LANDLOCK_ACCESS_FS_WRITE_FILE
+    | _LANDLOCK_ACCESS_FS_READ_FILE
+    | _LANDLOCK_ACCESS_FS_READ_DIR
+    | _LANDLOCK_ACCESS_FS_REMOVE_DIR
+    | _LANDLOCK_ACCESS_FS_REMOVE_FILE
+    | _LANDLOCK_ACCESS_FS_MAKE_CHAR
+    | _LANDLOCK_ACCESS_FS_MAKE_DIR
+    | _LANDLOCK_ACCESS_FS_MAKE_REG
+    | _LANDLOCK_ACCESS_FS_MAKE_SOCK
+    | _LANDLOCK_ACCESS_FS_MAKE_FIFO
+    | _LANDLOCK_ACCESS_FS_MAKE_BLOCK
+    | _LANDLOCK_ACCESS_FS_MAKE_SYM
+)
+
+# Minimum always-allowed paths (T-02-13 / Pitfall 2 from research)
+_ALWAYS_WRITABLE = ("/tmp",)
+_ALWAYS_READABLE = (
+    "/tmp",
+    "/proc",
+    "/dev/null",
+    "/dev/urandom",
+    "/dev/zero",
+    "/usr/lib",
+    "/usr/local/lib",
+    "/lib",
+    "/lib64",
+    "/etc",
+)
+
+# ENOSYS errno value
+_ENOSYS = 38
+
+
+class _LandlockRulesetAttr(ctypes.Structure):
+    """struct landlock_ruleset_attr."""
+
+    _fields_ = [("handled_access_fs", ctypes.c_uint64)]
+
+
+class _LandlockPathBeneathAttr(ctypes.Structure):
+    """struct landlock_path_beneath_attr."""
+
+    _fields_ = [
+        ("allowed_access", ctypes.c_uint64),
+        ("parent_fd", ctypes.c_int32),
+    ]
+
+
+def _get_libc() -> Any | None:
+    """Load libc for syscall invocation. Returns None if unavailable."""
+    try:
+        lib_name = ctypes.util.find_library("c")
+        if lib_name is None:
+            return None
+        return ctypes.CDLL(lib_name, use_errno=True)
+    except OSError:
+        logger.debug("Failed to load libc", exc_info=True)
+        return None
+
+
+class LandlockAdapter:
+    """Linux Landlock LSM sandbox adapter.
+
+    Restricts filesystem and (optionally, v4+) network access via Landlock
+    syscalls. apply_restrictions() applies restrictions to the CURRENT
+    process -- called only from cloneguard-sandbox-exec, never from the
+    hook handler.
+    """
+
+    def __init__(self) -> None:
+        self._writable: list[str] = []
+        self._readable: list[str] = []
+        self._network_allow: list[str] = []
+        self._abi_version: int = 0
+        self._detect_abi_version()
+
+    @property
+    def name(self) -> str:
+        """Adapter name for audit events and logging."""
+        return "landlock"
+
+    @property
+    def abi_version(self) -> int:
+        """Detected Landlock ABI version (0 = not available)."""
+        return self._abi_version
+
+    def _detect_abi_version(self) -> None:
+        """Probe Landlock ABI version via create_ruleset(NULL, 0, flags=version).
+
+        ABI version detection: syscall(444, NULL, 0, LANDLOCK_CREATE_RULESET_VERSION)
+        Returns the ABI version number on success, -1 on failure.
+        """
+        try:
+            libc = _get_libc()
+            if libc is None:
+                return
+            # LANDLOCK_CREATE_RULESET_VERSION = 1 << 0
+            version = libc.syscall(_SYS_LANDLOCK_CREATE_RULESET, None, 0, 1)
+            if version > 0:
+                self._abi_version = version
+                logger.debug("Landlock ABI version: %d", version)
+            else:
+                errno = ctypes.get_errno()
+                if errno == _ENOSYS:
+                    logger.debug("Landlock not available (ENOSYS)")
+                else:
+                    logger.debug("Landlock ABI probe returned %d, errno=%d", version, errno)
+        except Exception:
+            logger.debug("Landlock ABI detection failed", exc_info=True)
+
+    def restrict_filesystem(
+        self,
+        writable: list[str],
+        readable: list[str],
+    ) -> None:
+        """Store filesystem restrictions for later application.
+
+        Always includes minimum always-allowed paths (T-02-13).
+        """
+        self._writable = list(set(list(writable) + list(_ALWAYS_WRITABLE)))
+        self._readable = list(set(list(readable) + list(_ALWAYS_READABLE)))
+
+    def restrict_network(
+        self,
+        allow: list[str],
+    ) -> None:
+        """Store network restrictions. Network enforcement requires Landlock v4+."""
+        self._network_allow = list(allow)
+
+    def apply_restrictions(self) -> None:
+        """Apply Landlock restrictions to the CURRENT process.
+
+        Called ONLY from cloneguard-sandbox-exec wrapper, never from hook handler.
+        On failure, returns silently (graceful degradation).
+
+        Steps:
+        1. prctl(PR_SET_NO_NEW_PRIVS) -- required before landlock_restrict_self
+        2. landlock_create_ruleset with handled_access_fs bitmask
+        3. landlock_add_rule for each readable and writable path
+        4. landlock_restrict_self -- finalize enforcement
+        5. Close ruleset fd
+        """
+        libc = _get_libc()
+        if libc is None:
+            logger.warning("Landlock: libc unavailable, running unrestricted")
+            return
+
+        try:
+            self._apply_with_libc(libc)
+        except Exception:
+            logger.warning(
+                "Landlock: apply_restrictions failed, running unrestricted",
+                exc_info=True,
+            )
+
+    def _apply_with_libc(self, libc: Any) -> None:
+        """Internal: apply restrictions using the provided libc handle."""
+        # Step 1: prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+        ret = libc.syscall(_SYS_PRCTL, _PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)
+        if ret == -1:
+            errno = ctypes.get_errno()
+            logger.warning("Landlock: prctl failed, errno=%d", errno)
+            return
+
+        # Step 2: landlock_create_ruleset
+        attr = _LandlockRulesetAttr(handled_access_fs=_ALL_FS_ACCESS)
+        ruleset_fd = libc.syscall(
+            _SYS_LANDLOCK_CREATE_RULESET,
+            ctypes.byref(attr),
+            ctypes.sizeof(attr),
+            0,
+        )
+        if ruleset_fd < 0:
+            errno = ctypes.get_errno()
+            if errno == _ENOSYS:
+                logger.debug("Landlock: not available (ENOSYS)")
+            else:
+                logger.warning("Landlock: create_ruleset failed, errno=%d", errno)
+            return
+
+        try:
+            # Step 3: Add rules for each path
+            for path in self._readable:
+                self._add_path_rule(libc, ruleset_fd, path, _ACCESS_READ)
+            for path in self._writable:
+                self._add_path_rule(libc, ruleset_fd, path, _ACCESS_WRITE)
+
+            # Step 4: landlock_restrict_self
+            ret = libc.syscall(_SYS_LANDLOCK_RESTRICT_SELF, ruleset_fd, 0)
+            if ret == -1:
+                errno = ctypes.get_errno()
+                logger.warning("Landlock: restrict_self failed, errno=%d", errno)
+        finally:
+            # Step 5: Close ruleset fd
+            os.close(ruleset_fd)
+
+    def _add_path_rule(
+        self,
+        libc: Any,
+        ruleset_fd: int,
+        path: str,
+        access_mask: int,
+    ) -> None:
+        """Add a Landlock path rule for a single path."""
+        # O_PATH (0x200000) is Linux-only; O_CLOEXEC (0x80000) is Linux-only
+        o_path = getattr(os, "O_PATH", 0x200000)
+        o_cloexec = getattr(os, "O_CLOEXEC", 0x80000)
+        try:
+            path_fd = os.open(path, o_path | o_cloexec)
+        except OSError:
+            logger.debug("Landlock: cannot open path %s, skipping", path)
+            return
+
+        try:
+            rule_attr = _LandlockPathBeneathAttr(
+                allowed_access=access_mask,
+                parent_fd=path_fd,
+            )
+            ret = libc.syscall(
+                _SYS_LANDLOCK_ADD_RULE,
+                ruleset_fd,
+                _LANDLOCK_RULE_PATH_BENEATH,
+                ctypes.byref(rule_attr),
+                0,
+            )
+            if ret == -1:
+                errno = ctypes.get_errno()
+                logger.debug("Landlock: add_rule failed for %s, errno=%d", path, errno)
+        finally:
+            os.close(path_fd)
+
+    def serialize_constraints(self) -> dict[str, Any]:
+        """Serialize constraints for cross-process transport.
+
+        Returns a JSON-serializable dict suitable for writing to a spec file
+        that cloneguard-sandbox-exec reads.
+        """
+        return {
+            "adapter": self.name,
+            "writable": list(self._writable),
+            "readable": list(self._readable),
+            "network_allow": list(self._network_allow),
+        }
+
+    # Deferred methods (D-05) -- default no-ops
+    def snapshot(self) -> Any:
+        """Capture pre-execution state. Deferred to Phase 4."""
+        return None
+
+    def rollback(self, snapshot: Any) -> None:
+        """Revert to snapshot state. Deferred to Phase 4."""
+
+    def restrict_syscalls(self, allowed: list[str]) -> None:
+        """Apply syscall filter. Deferred to Phase 5."""
+
+    def get_audit_log(self) -> list[dict[str, Any]]:
+        """Retrieve sandbox audit trail. Deferred to Phase 5."""
+        return []

@@ -99,16 +99,17 @@ class TestLandlockRestrictNetwork:
 
 
 class TestLandlockApplyRestrictions:
-    """apply_restrictions calls Landlock syscalls via ctypes in correct order."""
+    """apply_restrictions calls Landlock syscalls via ctypes in correct order.
 
-    def test_calls_prctl_first(self) -> None:
-        """apply_restrictions must call prctl(PR_SET_NO_NEW_PRIVS) first."""
-        from cloneguard.enforcement.landlock import LandlockAdapter
+    All tests mock _get_libc, os.open, and os.close since:
+    - We're testing syscall ordering, not real kernel behavior
+    - os.open(path, O_PATH) targets Linux paths that don't exist on macOS
+    - os.close(fd) with mock fds would fail
+    """
 
-        adapter = LandlockAdapter()
-        adapter.restrict_filesystem(writable=["/home/user"], readable=["/usr/lib"])
-
-        call_order: list[str] = []
+    @staticmethod
+    def _make_mock_env(call_order: list[str], add_rule_calls: list[Any] | None = None):  # type: ignore[no-untyped-def]
+        """Create mocked libc, os.open, os.close for apply_restrictions tests."""
 
         def mock_syscall(*args: Any) -> int:
             syscall_num = args[0]
@@ -118,16 +119,31 @@ class TestLandlockApplyRestrictions:
                 call_order.append("create_ruleset")
             elif syscall_num == 445:
                 call_order.append("add_rule")
+                if add_rule_calls is not None:
+                    add_rule_calls.append(args)
             elif syscall_num == 446:
                 call_order.append("restrict_self")
-            return 3  # fake fd
+            return 3  # fake fd for create_ruleset
 
-        with mock.patch(
-            "cloneguard.enforcement.landlock._get_libc"
-        ) as mock_get_libc:
-            mock_libc = mock.MagicMock()
-            mock_libc.syscall.side_effect = mock_syscall
-            mock_get_libc.return_value = mock_libc
+        mock_libc = mock.MagicMock()
+        mock_libc.syscall.side_effect = mock_syscall
+        return mock_libc
+
+    def test_calls_prctl_first(self) -> None:
+        """apply_restrictions must call prctl(PR_SET_NO_NEW_PRIVS) first."""
+        from cloneguard.enforcement.landlock import LandlockAdapter
+
+        adapter = LandlockAdapter()
+        adapter.restrict_filesystem(writable=["/home/user"], readable=["/usr/lib"])
+
+        call_order: list[str] = []
+        mock_libc = self._make_mock_env(call_order)
+
+        with (
+            mock.patch("cloneguard.enforcement.landlock._get_libc", return_value=mock_libc),
+            mock.patch("cloneguard.enforcement.landlock.os.open", return_value=10),
+            mock.patch("cloneguard.enforcement.landlock.os.close"),
+        ):
             adapter.apply_restrictions()
 
         assert len(call_order) > 0, "No syscalls were made"
@@ -141,25 +157,13 @@ class TestLandlockApplyRestrictions:
         adapter.restrict_filesystem(writable=["/home/user"], readable=["/usr/lib"])
 
         call_order: list[str] = []
+        mock_libc = self._make_mock_env(call_order)
 
-        def mock_syscall(*args: Any) -> int:
-            syscall_num = args[0]
-            if syscall_num == 157:
-                call_order.append("prctl")
-            elif syscall_num == 444:
-                call_order.append("create_ruleset")
-            elif syscall_num == 445:
-                call_order.append("add_rule")
-            elif syscall_num == 446:
-                call_order.append("restrict_self")
-            return 3
-
-        with mock.patch(
-            "cloneguard.enforcement.landlock._get_libc"
-        ) as mock_get_libc:
-            mock_libc = mock.MagicMock()
-            mock_libc.syscall.side_effect = mock_syscall
-            mock_get_libc.return_value = mock_libc
+        with (
+            mock.patch("cloneguard.enforcement.landlock._get_libc", return_value=mock_libc),
+            mock.patch("cloneguard.enforcement.landlock.os.open", return_value=10),
+            mock.patch("cloneguard.enforcement.landlock.os.close"),
+        ):
             adapter.apply_restrictions()
 
         assert "prctl" in call_order
@@ -178,20 +182,15 @@ class TestLandlockApplyRestrictions:
             readable=["/opt/data"],
         )
 
+        call_order: list[str] = []
         add_rule_calls: list[Any] = []
+        mock_libc = self._make_mock_env(call_order, add_rule_calls)
 
-        def mock_syscall(*args: Any) -> int:
-            syscall_num = args[0]
-            if syscall_num == 445:  # add_rule
-                add_rule_calls.append(args)
-            return 3
-
-        with mock.patch(
-            "cloneguard.enforcement.landlock._get_libc"
-        ) as mock_get_libc:
-            mock_libc = mock.MagicMock()
-            mock_libc.syscall.side_effect = mock_syscall
-            mock_get_libc.return_value = mock_libc
+        with (
+            mock.patch("cloneguard.enforcement.landlock._get_libc", return_value=mock_libc),
+            mock.patch("cloneguard.enforcement.landlock.os.open", return_value=10),
+            mock.patch("cloneguard.enforcement.landlock.os.close"),
+        ):
             adapter.apply_restrictions()
 
         # At least the user-provided paths + always-allowed paths
@@ -207,25 +206,13 @@ class TestLandlockApplyRestrictions:
         adapter.restrict_filesystem(writable=["/home/user"], readable=["/usr/lib"])
 
         call_order: list[str] = []
+        mock_libc = self._make_mock_env(call_order)
 
-        def mock_syscall(*args: Any) -> int:
-            syscall_num = args[0]
-            if syscall_num == 157:
-                call_order.append("prctl")
-            elif syscall_num == 444:
-                call_order.append("create_ruleset")
-            elif syscall_num == 445:
-                call_order.append("add_rule")
-            elif syscall_num == 446:
-                call_order.append("restrict_self")
-            return 3
-
-        with mock.patch(
-            "cloneguard.enforcement.landlock._get_libc"
-        ) as mock_get_libc:
-            mock_libc = mock.MagicMock()
-            mock_libc.syscall.side_effect = mock_syscall
-            mock_get_libc.return_value = mock_libc
+        with (
+            mock.patch("cloneguard.enforcement.landlock._get_libc", return_value=mock_libc),
+            mock.patch("cloneguard.enforcement.landlock.os.open", return_value=10),
+            mock.patch("cloneguard.enforcement.landlock.os.close"),
+        ):
             adapter.apply_restrictions()
 
         assert call_order[-1] == "restrict_self", (
@@ -240,16 +227,15 @@ class TestLandlockApplyRestrictions:
         adapter.restrict_filesystem(writable=["/home/user"], readable=[])
 
         def mock_syscall_enosys(*args: Any) -> int:
-            # Set errno to ENOSYS (38)
-            ctypes.set_errno(38)
+            ctypes.set_errno(38)  # ENOSYS
             return -1
 
+        mock_libc = mock.MagicMock()
+        mock_libc.syscall.side_effect = mock_syscall_enosys
+
         with mock.patch(
-            "cloneguard.enforcement.landlock._get_libc"
-        ) as mock_get_libc:
-            mock_libc = mock.MagicMock()
-            mock_libc.syscall.side_effect = mock_syscall_enosys
-            mock_get_libc.return_value = mock_libc
+            "cloneguard.enforcement.landlock._get_libc", return_value=mock_libc
+        ):
             # Should not raise
             adapter.apply_restrictions()
 

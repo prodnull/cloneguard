@@ -165,8 +165,8 @@ class TestSeatbeltPathEscaping:
         from cloneguard.enforcement.seatbelt import _escape_sbpl_path
 
         result = _escape_sbpl_path('/path/with"quotes')
-        assert '\\"' in result
-        assert '"quotes' not in result
+        # Unescaped double-quote should not appear; only escaped form
+        assert result == '/path/with\\"quotes'
 
     def test_escapes_backslashes(self) -> None:
         from cloneguard.enforcement.seatbelt import _escape_sbpl_path
