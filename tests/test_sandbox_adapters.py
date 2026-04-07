@@ -580,7 +580,7 @@ class TestAutoSelection:
     """Test adapter auto-selection by strength order (D-08)."""
 
     def test_registry_strength_order(self) -> None:
-        """_ADAPTER_REGISTRY is ordered: firecracker > gvisor > docker > wasm > landlock > seatbelt."""
+        """Registry ordered: firecracker > gvisor > docker > wasm > landlock > seatbelt."""
         from cloneguard.enforcement.adapter import _ADAPTER_REGISTRY
 
         names = [name for name, _, _ in _ADAPTER_REGISTRY]
@@ -595,9 +595,7 @@ class TestAutoSelection:
         adapter = adapter_mod.get_sandbox_adapter("auto")
         assert adapter.name == "noop"
 
-    def test_auto_select_picks_strongest_available(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_auto_select_picks_strongest_available(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Auto-selection picks the first probe that returns True."""
         from cloneguard.enforcement import adapter as adapter_mod
 
