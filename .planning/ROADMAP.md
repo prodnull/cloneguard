@@ -119,9 +119,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md -- PatternEngine subdirectory scanning, four agent-type seed pattern libraries, expansion pack config, threat catalog docs
-- [ ] 06-02-PLAN.md -- Docker, WASM, gVisor, and Firecracker sandbox adapters with SandboxAdapter Protocol conformance
-- [ ] 06-03-PLAN.md -- Adapter registry update with D-08 strength ordering, sandbox_exec dispatch, pyproject.toml extras, integration tests
+- [x] 06-01-PLAN.md -- PatternEngine subdirectory scanning, four agent-type seed pattern libraries, expansion pack config, threat catalog docs
+- [x] 06-02-PLAN.md -- Docker, WASM, gVisor, and Firecracker sandbox adapters with SandboxAdapter Protocol conformance
+- [x] 06-03-PLAN.md -- Adapter registry update with D-08 strength ordering, sandbox_exec dispatch, pyproject.toml extras, integration tests
 
 ## Progress
 
