@@ -94,9 +94,7 @@ class TestDockerAdapterProtocol:
         )
 
         with patch("cloneguard.enforcement.docker_adapter.subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="ok", stderr=""
-            )
+            mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
             adapter.execute_sandboxed(["python", "-c", "print('hi')"])
 
             call_args = mock_run.call_args
@@ -306,12 +304,8 @@ class TestGvisorAdapterProtocol:
             readable=["/src/code"],
         )
 
-        with patch(
-            "cloneguard.enforcement.gvisor_adapter.subprocess.run"
-        ) as mock_run:
-            mock_run.return_value = MagicMock(
-                returncode=0, stdout="ok", stderr=""
-            )
+        with patch("cloneguard.enforcement.gvisor_adapter.subprocess.run") as mock_run:
+            mock_run.return_value = MagicMock(returncode=0, stdout="ok", stderr="")
             adapter.execute_sandboxed(["python", "-c", "print('hi')"])
 
             call_args = mock_run.call_args
@@ -527,9 +521,7 @@ class TestProbes:
         monkeypatch.setattr(builtins, "__import__", mock_import)
         assert _probe_wasm() is False
 
-    def test_probe_gvisor_returns_false_on_non_linux(
-        self, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
+    def test_probe_gvisor_returns_false_on_non_linux(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """_probe_gvisor returns False on non-Linux (sys.platform != 'linux')."""
         monkeypatch.setattr("cloneguard.enforcement.gvisor_adapter.sys.platform", "darwin")
         assert _probe_gvisor() is False
@@ -549,18 +541,14 @@ class TestProbes:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """_probe_firecracker returns False on non-Linux."""
-        monkeypatch.setattr(
-            "cloneguard.enforcement.firecracker_adapter.sys.platform", "darwin"
-        )
+        monkeypatch.setattr("cloneguard.enforcement.firecracker_adapter.sys.platform", "darwin")
         assert _probe_firecracker() is False
 
     def test_probe_firecracker_returns_false_when_kvm_missing(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """_probe_firecracker returns False when /dev/kvm does not exist."""
-        monkeypatch.setattr(
-            "cloneguard.enforcement.firecracker_adapter.sys.platform", "linux"
-        )
+        monkeypatch.setattr("cloneguard.enforcement.firecracker_adapter.sys.platform", "linux")
         monkeypatch.setattr(
             "cloneguard.enforcement.firecracker_adapter.os.path.exists",
             lambda x: False,
@@ -571,9 +559,7 @@ class TestProbes:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """_probe_firecracker returns False when firecracker binary not found."""
-        monkeypatch.setattr(
-            "cloneguard.enforcement.firecracker_adapter.sys.platform", "linux"
-        )
+        monkeypatch.setattr("cloneguard.enforcement.firecracker_adapter.sys.platform", "linux")
         monkeypatch.setattr(
             "cloneguard.enforcement.firecracker_adapter.os.path.exists",
             lambda x: x == "/dev/kvm",

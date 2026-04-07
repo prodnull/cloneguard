@@ -162,9 +162,7 @@ class FirecrackerAdapter:
 
             # Configure network (deny by default)
             if not self._network_allow:
-                logger.debug(
-                    "Firecracker: no network interfaces configured (deny all)"
-                )
+                logger.debug("Firecracker: no network interfaces configured (deny all)")
 
             # Start the VM
             self._api_request(

@@ -993,4 +993,5 @@ class TestSubdirectoryLoading:
     def test_no_pattern_id_collision(self, engine: PatternEngine) -> None:
         """All loaded pattern IDs must be unique across root and subdirectories."""
         ids = [r["id"] for r in engine.rules]
-        assert len(ids) == len(set(ids)), f"Duplicate pattern IDs: {[x for x in ids if ids.count(x) > 1]}"
+        dupes = [x for x in ids if ids.count(x) > 1]
+        assert len(ids) == len(set(ids)), f"Duplicate pattern IDs: {dupes}"
