@@ -116,11 +116,12 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. Agent-type-specific pattern libraries (browser, autonomous, financial, CI/CD) detect domain-specific attacks (DOM injection, goal hijacking, transaction manipulation, workflow injection) when the corresponding agent adapter is active
   2. Additional sandbox adapters (gVisor, Firecracker, WASM, Docker) are available with auto-selection of the strongest available adapter on the host
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: TBD
-- [ ] 06-02: TBD
+- [ ] 06-01-PLAN.md -- PatternEngine subdirectory scanning, four agent-type seed pattern libraries, expansion pack config, threat catalog docs
+- [ ] 06-02-PLAN.md -- Docker, WASM, gVisor, and Firecracker sandbox adapters with SandboxAdapter Protocol conformance
+- [ ] 06-03-PLAN.md -- Adapter registry update with D-08 strength ordering, sandbox_exec dispatch, pyproject.toml extras, integration tests
 
 ## Progress
 
@@ -134,4 +135,4 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Framework Integration | 0/3 | Planning complete | - |
 | 4. Detection Excellence | 6/6 | Complete | 2026-04-06 |
 | 5. Enterprise Governance | 0/3 | Planning complete | - |
-| 6. Agent Expansion | 0/2 | Not started | - |
+| 6. Agent Expansion | 0/3 | Planning complete | - |
