@@ -116,6 +116,15 @@ class PatternEngine:
         for yaml_file in sorted(rules_dir.glob("*.yaml")):
             self._load_rule_file(yaml_file)
 
+        # Load subdirectory rules (D-04: per-agent-type pattern libraries)
+        for subdir in sorted(rules_dir.iterdir()):
+            if subdir.is_dir() and not subdir.name.startswith((".", "_")):
+                # Skip expansion/ subdirectories -- loaded only when enabled via policy
+                if subdir.name == "expansion":
+                    continue
+                for yaml_file in sorted(subdir.glob("*.yaml")):
+                    self._load_rule_file(yaml_file)
+
     def _load_rule_file(self, path: Path) -> None:
         """Load and compile patterns from a single YAML rule file."""
         with open(path) as f:
@@ -143,6 +152,19 @@ class PatternEngine:
             )
             self._compiled_rules.append(rule)
             self._raw_rules.append(rule.raw)
+
+    def load_expansion_packs(self, enabled_packs: list[str]) -> None:
+        """Load expansion pattern packs for specified agent types (D-10).
+
+        Expansion patterns live in rules/{agent_type}/expansion/*.yaml.
+        Only loaded when operator enables them in policy.yaml.
+        """
+        rules_dir = Path(__file__).parent / "rules"
+        for agent_type in enabled_packs:
+            expansion_dir = rules_dir / agent_type / "expansion"
+            if expansion_dir.is_dir():
+                for yaml_file in sorted(expansion_dir.glob("*.yaml")):
+                    self._load_rule_file(yaml_file)
 
     @property
     def rules(self) -> list[dict[str, Any]]:

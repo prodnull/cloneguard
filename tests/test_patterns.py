@@ -4,6 +4,7 @@ Written TDD-style: tests define the expected behavior of the pattern engine.
 """
 
 import time
+from pathlib import Path
 
 from cloneguard.patterns import (
     PatternEngine,
@@ -884,3 +885,112 @@ class TestNewAgentConfigFiles:
 
     def test_junie_guidelines_strict_mode(self, engine: PatternEngine) -> None:
         assert engine._detect_mode(".junie/guidelines.md") == ScanMode.STRICT
+
+
+# ---------------------------------------------------------------------------
+# Subdirectory Loading (Phase 6: Agent Expansion)
+# ---------------------------------------------------------------------------
+
+
+class TestSubdirectoryLoading:
+    """Tests for PatternEngine loading rules from subdirectories (D-04)."""
+
+    def test_loads_subdirectory_rules(self, tmp_path: Path) -> None:
+        """PatternEngine loads YAML files from subdirectories."""
+        subdir = tmp_path / "browser"
+        subdir.mkdir()
+        rule_file = subdir / "test_rule.yaml"
+        rule_file.write_text(
+            "category: testBrowser\n"
+            "patterns:\n"
+            "  - id: TST-001\n"
+            "    regex: 'test_pattern_here'\n"
+            "    severity: high\n"
+            "    description: Test pattern\n"
+        )
+        engine = PatternEngine(rules_dir=tmp_path)
+        ids = {r["id"] for r in engine.rules}
+        assert "TST-001" in ids
+
+    def test_skips_hidden_directories(self, tmp_path: Path) -> None:
+        """Directories starting with '.' or '_' are skipped."""
+        for name in [".internal", "_hidden"]:
+            d = tmp_path / name
+            d.mkdir()
+            (d / "rule.yaml").write_text(
+                "category: hidden\n"
+                "patterns:\n"
+                "  - id: HID-001\n"
+                "    regex: 'hidden'\n"
+                "    severity: low\n"
+                "    description: Should not load\n"
+            )
+        engine = PatternEngine(rules_dir=tmp_path)
+        ids = {r["id"] for r in engine.rules}
+        assert "HID-001" not in ids
+
+    def test_skips_expansion_by_default(self, tmp_path: Path) -> None:
+        """The 'expansion' directory is not loaded during init."""
+        exp = tmp_path / "expansion"
+        exp.mkdir()
+        (exp / "extra.yaml").write_text(
+            "category: expansion\n"
+            "patterns:\n"
+            "  - id: EXP-001\n"
+            "    regex: 'expand'\n"
+            "    severity: low\n"
+            "    description: Expansion pattern\n"
+        )
+        engine = PatternEngine(rules_dir=tmp_path)
+        ids = {r["id"] for r in engine.rules}
+        assert "EXP-001" not in ids
+
+    def test_load_expansion_packs(self, tmp_path: Path) -> None:
+        """Expansion packs load when explicitly requested."""
+        browser_exp = tmp_path / "browser" / "expansion"
+        browser_exp.mkdir(parents=True)
+        (browser_exp / "extra.yaml").write_text(
+            "category: browserExpansion\n"
+            "patterns:\n"
+            "  - id: BRWX-001\n"
+            "    regex: 'browser_expansion'\n"
+            "    severity: medium\n"
+            "    description: Browser expansion pattern\n"
+        )
+        engine = PatternEngine(rules_dir=tmp_path)
+        ids_before = {r["id"] for r in engine.rules}
+        assert "BRWX-001" not in ids_before
+
+        engine.load_expansion_packs(["browser"])
+        ids_after = {r["id"] for r in engine.rules}
+        assert "BRWX-001" in ids_after
+
+    def test_root_level_rules_still_load(self, tmp_path: Path) -> None:
+        """Root-level YAML files load alongside subdirectory rules."""
+        (tmp_path / "root_rule.yaml").write_text(
+            "category: rootCategory\n"
+            "patterns:\n"
+            "  - id: ROOT-001\n"
+            "    regex: 'root_pattern'\n"
+            "    severity: low\n"
+            "    description: Root level pattern\n"
+        )
+        subdir = tmp_path / "agent"
+        subdir.mkdir()
+        (subdir / "sub_rule.yaml").write_text(
+            "category: subCategory\n"
+            "patterns:\n"
+            "  - id: SUB-001\n"
+            "    regex: 'sub_pattern'\n"
+            "    severity: low\n"
+            "    description: Subdirectory pattern\n"
+        )
+        engine = PatternEngine(rules_dir=tmp_path)
+        ids = {r["id"] for r in engine.rules}
+        assert "ROOT-001" in ids
+        assert "SUB-001" in ids
+
+    def test_no_pattern_id_collision(self, engine: PatternEngine) -> None:
+        """All loaded pattern IDs must be unique across root and subdirectories."""
+        ids = [r["id"] for r in engine.rules]
+        assert len(ids) == len(set(ids)), f"Duplicate pattern IDs: {[x for x in ids if ids.count(x) > 1]}"

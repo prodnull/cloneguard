@@ -81,6 +81,13 @@ class SandboxConfig(BaseModel):
     fallback: str = "noop"
 
 
+class ExpansionPackConfig(BaseModel):
+    """Per-agent-type expansion pack enablement (D-10)."""
+
+    model_config = ConfigDict(frozen=True)
+    enabled: bool = False
+
+
 class PolicyConfig(BaseModel):
     """Validated policy configuration loaded from YAML.
 
@@ -95,6 +102,7 @@ class PolicyConfig(BaseModel):
     enforcement: EnforcementConfig = EnforcementConfig()
     sandbox: SandboxConfig = SandboxConfig()
     dry_run: bool = True  # D-13: default is dry-run enabled
+    expansion_packs: dict[str, ExpansionPackConfig] = {}
 
     @classmethod
     def from_yaml(cls, yaml_str: str) -> PolicyConfig:
