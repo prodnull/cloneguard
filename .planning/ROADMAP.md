@@ -105,9 +105,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 05-01-PLAN.md -- PolicyBackend Protocol with OPA/Rego and Cedar backends compiling to PolicyConfig IR
-- [ ] 05-02-PLAN.md -- SIEM connectors (Splunk HEC, Sentinel DCR, Chronicle UDM) and SPIFFE agent identity
-- [ ] 05-03-PLAN.md -- Fleet deployment tooling (Ansible role and MDM profiles for Jamf/Intune)
+- [x] 05-01-PLAN.md -- PolicyBackend Protocol with OPA/Rego and Cedar backends compiling to PolicyConfig IR
+- [x] 05-02-PLAN.md -- SIEM connectors (Splunk HEC, Sentinel DCR, Chronicle UDM) and SPIFFE agent identity
+- [x] 05-03-PLAN.md -- Fleet deployment tooling (Ansible role and MDM profiles for Jamf/Intune)
 
 ### Phase 6: Agent Expansion
 **Goal**: CloneGuard detects domain-specific attacks targeting browser, autonomous, financial, and CI/CD agent types with dedicated pattern libraries, and provides additional sandbox adapters for container and WASM environments
