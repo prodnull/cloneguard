@@ -27,6 +27,7 @@ import base64
 import json
 import logging
 import os
+import subprocess
 import sys
 import tempfile
 from typing import Any
@@ -99,6 +100,56 @@ def _load_constraints_from_policy(policy_b64: str) -> dict[str, Any] | None:
         return None
 
 
+# Adapters that use self-restriction + exec model (existing behavior)
+_SELF_RESTRICT_ADAPTERS = frozenset({"landlock", "seatbelt", "noop", "auto"})
+
+# Adapters that use container/VM/module execution model
+_EXTERNAL_EXEC_ADAPTERS = frozenset({"docker", "gvisor", "firecracker", "wasm"})
+
+
+def _execute_via_adapter(
+    adapter_name: str, constraints: dict[str, Any], target_cmd: list[str]
+) -> None:
+    """Execute target command via adapter-specific execution model.
+
+    For Docker/gVisor/Firecracker/WASM, the adapter creates a container/VM/module
+    and runs the command inside it, rather than self-restricting + exec.
+    """
+    adapter = get_sandbox_adapter(preferred=adapter_name)
+    writable = constraints.get("writable", [])
+    readable = constraints.get("readable", [])
+    executable_writable = constraints.get("executable_writable", [])
+    network_allow = constraints.get("network_allow", [])
+    syscall_allow = constraints.get("syscall_allow", [])
+
+    adapter.restrict_filesystem(
+        writable=writable,
+        readable=readable,
+        executable_writable=executable_writable,
+    )
+    adapter.restrict_network(allow=network_allow)
+    adapter.restrict_syscalls(allowed=syscall_allow)
+
+    # Dispatch to adapter's execute_sandboxed method
+    if hasattr(adapter, "execute_sandboxed"):
+        result = adapter.execute_sandboxed(target_cmd)
+        if isinstance(result, subprocess.CompletedProcess):
+            if result.stdout:
+                sys.stdout.write(result.stdout)
+            if result.stderr:
+                sys.stderr.write(result.stderr)
+            sys.exit(result.returncode)
+        elif isinstance(result, dict):
+            exit_code = result.get("exit_code", 1)
+            if "error" in result:
+                logger.error("Adapter execution error: %s", result["error"])
+            sys.exit(exit_code)
+    else:
+        # Fallback to self-restriction model
+        adapter.apply_restrictions()
+        os.execvp(target_cmd[0], target_cmd)
+
+
 def _apply_constraints(constraints: dict[str, Any]) -> None:
     """Select adapter and apply constraints to current process."""
     adapter_name = constraints.get("adapter", "auto")
@@ -139,8 +190,16 @@ def main() -> None:
     elif policy:
         constraints = _load_constraints_from_policy(policy)
 
-    # FIX 4: Create private tmpdir before applying constraints
     if constraints is not None:
+        adapter_name = constraints.get("adapter", "auto")
+
+        if adapter_name in _EXTERNAL_EXEC_ADAPTERS:
+            # Docker/gVisor/Firecracker/WASM: adapter handles execution
+            _execute_via_adapter(adapter_name, constraints, target_cmd)
+            return  # execute_via_adapter calls sys.exit
+
+        # Landlock/Seatbelt/Noop: self-restrict + exec (existing behavior)
+        # FIX 4: Create private tmpdir before applying constraints
         private_tmp = tempfile.mkdtemp(prefix="cg-sandbox-")
         os.environ["TMPDIR"] = private_tmp
         os.environ["TEMP"] = private_tmp

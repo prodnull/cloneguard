@@ -185,9 +185,58 @@ def _probe_seatbelt() -> bool:
         return False
 
 
+# Lazy probe wrappers for adapters with optional dependencies.
+# These avoid importing docker/wasmtime at adapter.py import time.
+
+
+def _probe_firecracker_lazy() -> bool:
+    """Lazy probe for Firecracker (avoid importing at module level)."""
+    try:
+        from cloneguard.enforcement.firecracker_adapter import _probe_firecracker as probe
+
+        return probe()
+    except ImportError:
+        return False
+
+
+def _probe_gvisor_lazy() -> bool:
+    """Lazy probe for gVisor."""
+    try:
+        from cloneguard.enforcement.gvisor_adapter import _probe_gvisor as probe
+
+        return probe()
+    except ImportError:
+        return False
+
+
+def _probe_docker_lazy() -> bool:
+    """Lazy probe for Docker."""
+    try:
+        from cloneguard.enforcement.docker_adapter import _probe_docker as probe
+
+        return probe()
+    except ImportError:
+        return False
+
+
+def _probe_wasm_lazy() -> bool:
+    """Lazy probe for WASM/Wasmtime."""
+    try:
+        from cloneguard.enforcement.wasm_adapter import _probe_wasm as probe
+
+        return probe()
+    except ImportError:
+        return False
+
+
 # Adapter registry: name -> (probe_fn, lazy_import_path)
-# Ordered by strength: strongest first
+# Ordered by isolation strength (D-08): strongest first
+# Firecracker > gVisor > Docker > WASM > Landlock > Seatbelt
 _ADAPTER_REGISTRY: list[tuple[str, Any, str]] = [
+    ("firecracker", _probe_firecracker_lazy, "cloneguard.enforcement.firecracker_adapter"),
+    ("gvisor", _probe_gvisor_lazy, "cloneguard.enforcement.gvisor_adapter"),
+    ("docker", _probe_docker_lazy, "cloneguard.enforcement.docker_adapter"),
+    ("wasm", _probe_wasm_lazy, "cloneguard.enforcement.wasm_adapter"),
     ("landlock", _probe_landlock, "cloneguard.enforcement.landlock"),
     ("seatbelt", _probe_seatbelt, "cloneguard.enforcement.seatbelt"),
 ]
