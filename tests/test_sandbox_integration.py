@@ -392,6 +392,124 @@ class TestProbeIntegration:
 
 
 # ---------------------------------------------------------------------------
+# Security Edge Cases — Gemini cross-examination findings
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.docker_integration
+class TestDockerFlagInjection:
+    """Verify target_cmd cannot inject Docker flags."""
+
+    @docker_available
+    def test_cmd_with_double_dash_cannot_inject_privileged(self) -> None:
+        """target_cmd starting with --privileged must not escalate."""
+        adapter = DockerAdapter()
+        adapter.restrict_filesystem(writable=[], readable=[])
+        # This should be treated as a command argument, not a Docker flag
+        result = adapter.execute_sandboxed(["echo", "--privileged", "not-a-flag"])
+        assert result.returncode == 0
+        assert "--privileged" in result.stdout
+
+    @docker_available
+    def test_cmd_cannot_inject_volume_mount(self) -> None:
+        """target_cmd cannot inject -v flag to mount host paths."""
+        adapter = DockerAdapter()
+        adapter.restrict_filesystem(writable=[], readable=[])
+        # "-v" in the command should be echoed, not interpreted
+        result = adapter.execute_sandboxed(["echo", "-v", "/etc/shadow:/steal:ro"])
+        assert result.returncode == 0
+        assert "/etc/shadow" in result.stdout
+
+    @docker_available
+    def test_cmd_cannot_inject_env(self) -> None:
+        """target_cmd cannot inject --env to extract host vars."""
+        adapter = DockerAdapter()
+        adapter.restrict_filesystem(writable=[], readable=[])
+        result = adapter.execute_sandboxed(["echo", "--env", "SECRET=leaked"])
+        assert result.returncode == 0
+        assert "--env" in result.stdout
+
+
+class TestDockerPathValidation:
+    """Verify volume mount paths are validated."""
+
+    def test_path_with_colon_in_volume_mount(self) -> None:
+        """Path containing colon could corrupt -v mount syntax."""
+        adapter = DockerAdapter()
+        # A path like "/tmp/foo:/etc/passwd" would break the -v flag
+        malicious_path = "/tmp/foo:/etc/passwd"
+        adapter.restrict_filesystem(writable=[malicious_path], readable=[])
+        constraints = adapter.serialize_constraints()
+        # The path should be stored as-is (validation at execute time)
+        assert malicious_path in constraints["writable"]
+
+    def test_relative_path_stored(self) -> None:
+        """Relative paths are stored; validation at execute time."""
+        adapter = DockerAdapter()
+        adapter.restrict_filesystem(writable=["../../etc/shadow"], readable=[])
+        constraints = adapter.serialize_constraints()
+        assert "../../etc/shadow" in constraints["writable"]
+
+    def test_subprocess_run_uses_list_not_shell(self) -> None:
+        """execute_sandboxed uses list args, not shell=True."""
+        import inspect
+
+        source = inspect.getsource(DockerAdapter.execute_sandboxed)
+        assert "shell=True" not in source
+        assert "subprocess.run(cmd" in source
+
+
+class TestDockerResourceLimits:
+    """Verify resource constraints are correctly applied."""
+
+    def test_memory_limit_in_command(self) -> None:
+        """--memory flag is present in generated command."""
+        adapter = DockerAdapter()
+        adapter.restrict_filesystem(writable=[], readable=[])
+        # Inspect the command that would be generated
+        import unittest.mock as mock
+
+        with mock.patch("cloneguard.enforcement.docker_adapter.subprocess.run") as m:
+            m.return_value = mock.MagicMock(returncode=0)
+            adapter.execute_sandboxed(["echo", "test"])
+            cmd = m.call_args[0][0]
+            assert "--memory" in cmd
+            assert "512m" in cmd
+            assert "--pids-limit" in cmd
+            assert "256" in cmd
+
+
+class TestWasmSecurityEdgeCases:
+    """Verify WASM adapter security boundaries."""
+
+    @wasm_available
+    def test_nonexistent_preopened_dir_handled(self) -> None:
+        """Preopening a nonexistent directory doesn't crash."""
+        adapter = WasmAdapter()
+        adapter.restrict_filesystem(writable=[], readable=["/nonexistent/path"])
+        # Should not crash during restrict_filesystem
+        constraints = adapter.serialize_constraints()
+        assert "/nonexistent/path" in constraints["readable"]
+
+    @wasm_available
+    def test_target_cmd_first_element_is_module_path(self) -> None:
+        """execute_sandboxed treats target_cmd[0] as module path."""
+        adapter = WasmAdapter()
+        result = adapter.execute_sandboxed(["/nonexistent/module.wasm", "--arg1"])
+        assert result["exit_code"] == 1
+        # Should fail because module doesn't exist, not crash
+        assert "error" in result
+
+    @wasm_available
+    def test_empty_target_cmd_handled(self) -> None:
+        """Empty target_cmd doesn't crash."""
+        adapter = WasmAdapter()
+        result = adapter.execute_sandboxed([])
+        # Should fail gracefully
+        assert result["exit_code"] == 1
+
+
+# ---------------------------------------------------------------------------
 # Pattern Library Integration Tests — Real pattern matching
 # ---------------------------------------------------------------------------
 
