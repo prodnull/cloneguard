@@ -1,0 +1,31 @@
+---
+# CloneGuard Ansible Role -- Galaxy Metadata
+
+galaxy_info:
+  role_name: cloneguard
+  author: prodnull
+  description: Deploy CloneGuard agentic defense layer with centralized policy
+  license: Apache-2.0
+  min_ansible_version: "2.14"
+  platforms:
+    - name: Ubuntu
+      versions:
+        - jammy    # 22.04
+        - noble    # 24.04
+    - name: Debian
+      versions:
+        - bookworm # 12
+    - name: EL
+      versions:
+        - "9"
+    - name: MacOSX
+      versions:
+        - "14"     # Sonoma
+        - "15"     # Sequoia
+  galaxy_tags:
+    - security
+    - ai
+    - agents
+    - cloneguard
+
+dependencies: []

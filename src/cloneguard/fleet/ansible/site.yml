@@ -1,0 +1,30 @@
+---
+# CloneGuard Fleet Deployment -- Example Site Playbook
+#
+# Usage:
+#   ansible-playbook -i inventory.ini site.yml
+#
+# Customize variables per group or host in your inventory or group_vars/.
+
+- name: Deploy CloneGuard to developer workstations
+  hosts: developer_workstations
+  roles:
+    - role: cloneguard
+      vars:
+        cloneguard_install_method: "uv"
+        cloneguard_extras:
+          - "mini"
+          - "opa"
+        cloneguard_hook_scope: "global"
+        cloneguard_dry_run: true
+
+- name: Deploy CloneGuard to CI runners
+  hosts: ci_runners
+  roles:
+    - role: cloneguard
+      vars:
+        cloneguard_install_method: "pip"
+        cloneguard_extras:
+          - "mini"
+        cloneguard_dry_run: false
+        cloneguard_sandbox_preferred: "landlock"
