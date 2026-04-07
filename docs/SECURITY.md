@@ -17,7 +17,7 @@ This document describes CloneGuard's threat model, defense architecture, known l
 
 CloneGuard does not guarantee protection against any attack class. It raises the cost, skill, and risk of discovery required for successful prompt injection by adding detection layers that an attacker must evade:
 
-- Known prompt injection patterns — 197 regex rules across 25 categories force attackers to avoid well-documented techniques
+- Known prompt injection patterns — 236 regex rules across 35 categories (including browser, autonomous, financial, CI/CD agent-type libraries) force attackers to avoid well-documented techniques
 - Semantic prompt injection — bundled ONNX classifier (Tier 1.5, CV F1=94.3% v4) forces attackers beyond synonym substitution and social engineering rewording
 - LLM classification (Tier 2, Ollama fallback) — adds a reasoning-capable detection layer for novel patterns
 - HTML comment injection — scanner reads what human reviewers skip, removing a free hiding spot
@@ -498,3 +498,75 @@ CloneGuard is designed to add negligible latency relative to LLM API calls (typi
 | Trust cache hit | ~0 ms | SHA-256 comparison only |
 
 **Comparative context:** A single LLM API call to Claude, GPT-4, or Gemini takes 2–30 seconds. CloneGuard's Tier 0+1.5 scan adds <1% overhead to a typical agent session.
+
+## Sandbox Adapter Security (Phase 6)
+
+### Adapter Hierarchy
+
+CloneGuard enforces tool call restrictions via OS-level sandbox
+adapters. Auto-selection picks the strongest available adapter:
+
+| Rank | Adapter | Isolation | Platform |
+|------|---------|-----------|----------|
+| 1 | Firecracker | Hardware VM (KVM) | Linux + /dev/kvm |
+| 2 | gVisor | Kernel syscall interception | Linux + runsc |
+| 3 | Docker | Container namespaces | Docker daemon |
+| 4 | WASM | Process-level (WASI) | wasmtime |
+| 5 | Landlock | OS-level (self-restrict) | Linux 5.13+ |
+| 6 | Seatbelt | OS-level (sandbox-exec) | macOS |
+| 7 | Noop | Detection-only | All |
+
+### Docker Adapter Enforcement
+
+Validated with real containers (Docker 29.3.0):
+
+- `--read-only` root filesystem blocks writes outside mounted volumes
+- `-v path:path:ro` volumes reject write operations
+- `-v path:path:rw` volumes allow writes, verified on host
+- `--network none` blocks DNS resolution and outbound TCP
+- `--cap-drop ALL` prevents chown and other privileged operations
+- `--security-opt no-new-privileges` sets NoNewPrivs=1
+- `--memory 512m --cpus 1.0 --pids-limit 256` resource limits
+- Container auto-removed via `--rm`
+- No Docker socket access inside container
+- No host filesystem escape possible
+
+### gVisor Adapter Enforcement
+
+Validated on EC2 c5.metal with runsc release-20260330.0:
+
+- `--runtime=runsc` intercepts all syscalls via Sentry
+- Read-only root, network isolation, capability dropping confirmed
+- Full adapter command (all flags combined) produces correct output
+- gVisor provides sandboxed /dev/kmsg (not host kernel messages)
+
+### Firecracker Adapter Enforcement
+
+Validated on EC2 c5.metal with Firecracker v1.15.0 + KVM:
+
+- API socket creation and REST endpoint connectivity verified
+- boot-source, machine-config, drives, actions endpoints respond
+- Firecracker requires real /dev/kvm hardware virtualization
+
+### WASM Adapter Enforcement
+
+Validated with wasmtime 43.0.0:
+
+- WASI preopened directories map to restrict_filesystem paths
+- Invalid/missing WASM modules rejected gracefully
+- Valid minimal WASM modules execute and return exit code 0
+- Empty target_cmd handled without crash
+
+### Security Edge Cases (Gemini Cross-Examination)
+
+Adversarial testing based on Gemini CLI findings:
+
+- **Flag injection**: `target_cmd` elements cannot inject `--privileged`,
+  `-v`, or `--env` because `subprocess.run` uses list (not shell)
+  and Docker treats post-image arguments as container commands
+- **Path traversal**: Volume mount paths with `../../` or colons stored
+  as-is; validation at execution time via Docker's own path handling
+- **Shell injection**: `subprocess.run(cmd, ...)` uses list, never
+  `shell=True` — semicolons and metacharacters are not interpreted
+- **WASM module safety**: Only CloneGuard-shipped modules loaded;
+  wasmtime WASI blocks `..` path traversal on preopened directories
