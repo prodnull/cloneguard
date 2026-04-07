@@ -506,7 +506,7 @@ def _probe_wasm() -> bool:
 - [ ] `tests/test_cicd_agent_patterns.py` -- AGNT-04 pattern detection coverage
 - [ ] `tests/test_sandbox_adapters.py` -- AGNT-05 adapter Protocol conformance + auto-selection
 - [ ] `tests/test_pattern_evidence.py` -- D-09 evidence standard enforcement
-- [ ] `tests/test_subdirectory_loading.py` -- D-04 PatternEngine subdirectory scanning
+- [ ] `tests/test_patterns.py::TestSubdirectoryLoading` -- D-04 PatternEngine subdirectory scanning (class within test_patterns.py, not a separate file)
 
 ## Security Domain
 
@@ -531,22 +531,25 @@ def _probe_wasm() -> bool:
 | gVisor runsc bypass via OCI spec manipulation | Elevation of Privilege | Pin Docker runtime config; don't pass user-controlled OCI specs |
 | WASM module loading from untrusted source | Tampering | Only load CloneGuard-shipped WASM modules; no user-provided modules |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **sandbox_exec.py extension for Docker/WASM execution model**
+1. **sandbox_exec.py extension for Docker/WASM execution model** (RESOLVED)
    - What we know: Current sandbox_exec applies restrictions to self then exec's target. Docker and WASM don't work this way.
    - What's unclear: Should sandbox_exec.py grow adapter-specific branches, or should each adapter implement an `execute_sandboxed(cmd)` method?
    - Recommendation: Add `execute_sandboxed(target_cmd: list[str]) -> None` to SandboxAdapter Protocol. Default implementation does the existing apply+exec pattern. Docker/WASM/gVisor/Firecracker override with their specific execution model. This is cleaner than if/else chains in sandbox_exec.py.
+   - **RESOLVED:** Plan 06-02 adds `execute_sandboxed(target_cmd: list[str])` to all four adapters with uniform signature. Plan 06-03 Task 1 extends sandbox_exec.py with `_execute_via_adapter()` dispatch that calls `adapter.execute_sandboxed(target_cmd)` for external-exec adapters while preserving self-restrict+exec for Landlock/Seatbelt.
 
-2. **Expansion pack delivery mechanism**
+2. **Expansion pack delivery mechanism** (RESOLVED)
    - What we know: D-10 says expansion patterns enabled via policy.yaml. D-04 says subdirectories under rules/.
    - What's unclear: Are expansion patterns shipped in the package but disabled by default, or distributed separately?
    - Recommendation: Ship in-package under `rules/{agent_type}/expansion/*.yaml`. Loaded only when policy.yaml enables them. Simpler distribution than separate packages.
+   - **RESOLVED:** Plan 06-01 Task 1 implements `load_expansion_packs(enabled_packs)` method on PatternEngine and adds `ExpansionPackConfig` to PolicyConfig. Expansion patterns ship under `rules/{agent_type}/expansion/` and are loaded only when enabled via policy.yaml.
 
-3. **CI/CD agent patterns vs existing cicd_poisoning.yaml**
+3. **CI/CD agent patterns vs existing cicd_poisoning.yaml** (RESOLVED)
    - What we know: D-02 says strictly additive, D-05 says existing rules stay at root.
    - What's unclear: How to avoid semantic overlap between root `cicd_poisoning.yaml` (CI-001 through CI-006) and new `rules/cicd/` patterns.
    - Recommendation: New CI/CD agent patterns (CIC-xxx) focus on CI/CD-specific agent autonomy attacks (e.g., agent self-modifying workflows, release signing bypass, ephemeral runner escape) distinct from the existing CI-001..006 which cover workflow file injection patterns. Cross-reference in threat catalog.
+   - **RESOLVED:** Plan 06-01 Task 2 creates CIC-001 through CIC-008 under `rules/cicd/` with distinct categories (`cicdAgentWorkflowInjection`, `cicdAgentReleasePoisoning`) that do not overlap with existing `cicdPoisoning` category (CI-001..CI-006). Threat catalog (`docs/threats/cicd.md`) explicitly documents the distinction.
 
 ## Sources
 
