@@ -29,9 +29,7 @@ class ChronicleConnector:
     """
 
     def __init__(self, config: dict[str, Any]) -> None:
-        self._customer_id_env = config.get(
-            "customer_id_env", "CLONEGUARD_CHRONICLE_CUSTOMER_ID"
-        )
+        self._customer_id_env = config.get("customer_id_env", "CLONEGUARD_CHRONICLE_CUSTOMER_ID")
         self._region = config.get("region", "us")
         self._log_type = config.get("log_type", "CLONEGUARD")
         self._batch_size = config.get("batch_size", 100)
@@ -115,9 +113,7 @@ class ChronicleConnector:
             payload = {
                 "customer_id": customer_id,
                 "log_type": self._log_type,
-                "entries": [
-                    {"log_text": str(udm_event)} for udm_event in udm_events
-                ],
+                "entries": [{"log_text": str(udm_event)} for udm_event in udm_events],
             }
 
             # Attempt to get Google auth token

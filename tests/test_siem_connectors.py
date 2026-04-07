@@ -8,7 +8,6 @@ read credentials from env vars only, and handle failures gracefully.
 from __future__ import annotations
 
 import datetime
-import json
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -310,8 +309,10 @@ class TestGetConnector:
 
         connector = get_connector(
             "splunk_hec",
-            {"endpoint": "https://splunk.example.com:8088/services/collector",
-             "token_env": "TEST_TOKEN"},
+            {
+                "endpoint": "https://splunk.example.com:8088/services/collector",
+                "token_env": "TEST_TOKEN",
+            },
         )
         assert connector.name == "splunk_hec"
 
@@ -345,7 +346,9 @@ class TestGetConnector:
 
         connector = get_connector(
             "splunk",
-            {"endpoint": "https://splunk.example.com:8088/services/collector",
-             "token_env": "TEST_TOKEN"},
+            {
+                "endpoint": "https://splunk.example.com:8088/services/collector",
+                "token_env": "TEST_TOKEN",
+            },
         )
         assert connector.name == "splunk_hec"

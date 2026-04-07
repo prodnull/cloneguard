@@ -72,6 +72,7 @@ dry_run: false
 # Task 1: PolicyBackend Protocol + YAMLPolicyBackend + get_policy_backend
 # ---------------------------------------------------------------------------
 
+
 class TestYAMLPolicyBackendName:
     def test_name_returns_yaml(self) -> None:
         from cloneguard.enforcement.backends.yaml_backend import YAMLPolicyBackend
@@ -260,6 +261,7 @@ INVALID_REGO_POLICY = "this is not valid rego syntax at all"
 # Task 2: OPA/Rego policy backend tests
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.skipif(not _has_regopy, reason="regopy not installed")
 class TestOPAPolicyBackendName:
     def test_name_returns_opa(self) -> None:
@@ -439,6 +441,7 @@ CEDAR_MISSING_FIELDS = "just a plain string, not yaml with cedar_policies"
 # ---------------------------------------------------------------------------
 # Task 3: Cedar policy backend tests
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.skipif(not _has_cedarpy, reason="cedarpy not installed")
 class TestCedarPolicyBackendName:

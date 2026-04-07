@@ -82,9 +82,7 @@ class SplunkHECConnector:
         try:
             session = requests.Session()
             # Concatenate transformed events (Splunk HEC format: no separator)
-            payload = "".join(
-                json.dumps(self.transform(event)) for event in events
-            )
+            payload = "".join(json.dumps(self.transform(event)) for event in events)
 
             response = session.post(
                 self._endpoint,

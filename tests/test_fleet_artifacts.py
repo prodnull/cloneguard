@@ -65,8 +65,14 @@ class TestAnsibleTasks:
             # task keyword (when, register, become, etc.)
             for key in task:
                 if key in (
-                    "name", "when", "register", "changed_when", "failed_when",
-                    "become", "notify", "vars",
+                    "name",
+                    "when",
+                    "register",
+                    "changed_when",
+                    "failed_when",
+                    "become",
+                    "notify",
+                    "vars",
                 ):
                     continue
                 # Module keys must be FQCN
@@ -174,16 +180,12 @@ class TestAnsibleMeta:
         assert "min_ansible_version" in content
 
     def test_meta_has_platforms(self) -> None:
-        parsed = yaml.safe_load(
-            (ANSIBLE_ROLE_DIR / "meta" / "main.yml").read_text()
-        )
+        parsed = yaml.safe_load((ANSIBLE_ROLE_DIR / "meta" / "main.yml").read_text())
         platforms = parsed["galaxy_info"]["platforms"]
         assert len(platforms) >= 3
 
     def test_meta_has_galaxy_tags(self) -> None:
-        parsed = yaml.safe_load(
-            (ANSIBLE_ROLE_DIR / "meta" / "main.yml").read_text()
-        )
+        parsed = yaml.safe_load((ANSIBLE_ROLE_DIR / "meta" / "main.yml").read_text())
         tags = parsed["galaxy_info"]["galaxy_tags"]
         assert "security" in tags
         assert "cloneguard" in tags
@@ -214,9 +216,7 @@ class TestAnsibleSitePlaybook:
         assert "role: cloneguard" in content
 
     def test_site_has_two_host_groups(self) -> None:
-        parsed = yaml.safe_load(
-            (FLEET_DIR / "ansible" / "site.yml").read_text()
-        )
+        parsed = yaml.safe_load((FLEET_DIR / "ansible" / "site.yml").read_text())
         assert isinstance(parsed, list), "site.yml should be a list of plays"
         assert len(parsed) >= 2
 

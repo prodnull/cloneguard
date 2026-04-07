@@ -78,13 +78,12 @@ class TestGetAgentIdentity:
         mock_client.__exit__ = MagicMock(return_value=False)
 
         with patch.dict("sys.modules", {"spiffe": MagicMock()}):
-            with patch("cloneguard.identity.spiffe.WorkloadApiClient", create=True) as mock_cls:
+            with patch("cloneguard.identity.spiffe.WorkloadApiClient", create=True):
                 # Patch the import inside the function
                 mock_wac = MagicMock()
                 mock_wac.return_value = mock_client
 
                 # We need to patch the actual import path
-                import importlib
 
                 # Create a mock spiffe module
                 mock_spiffe_module = MagicMock()
