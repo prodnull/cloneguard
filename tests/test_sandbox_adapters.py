@@ -13,6 +13,11 @@ import pytest
 
 from cloneguard.enforcement.adapter import SandboxAdapter
 from cloneguard.enforcement.docker_adapter import DockerAdapter, _probe_docker
+from cloneguard.enforcement.firecracker_adapter import (
+    FirecrackerAdapter,
+    _probe_firecracker,
+)
+from cloneguard.enforcement.gvisor_adapter import GvisorAdapter, _probe_gvisor
 from cloneguard.enforcement.wasm_adapter import WasmAdapter, _probe_wasm
 
 # ---------------------------------------------------------------------------
@@ -229,12 +234,249 @@ class TestWasmAdapterProtocol:
 
 
 # ---------------------------------------------------------------------------
-# Probe tests (Docker and WASM)
+# GvisorAdapter Protocol conformance
+# ---------------------------------------------------------------------------
+
+
+class TestGvisorAdapterProtocol:
+    """Verify GvisorAdapter satisfies SandboxAdapter Protocol."""
+
+    def test_isinstance_sandbox_adapter(self) -> None:
+        """GvisorAdapter is an instance of SandboxAdapter (runtime_checkable)."""
+        adapter = GvisorAdapter()
+        assert isinstance(adapter, SandboxAdapter)
+
+    def test_name_returns_gvisor(self) -> None:
+        """GvisorAdapter.name returns 'gvisor'."""
+        adapter = GvisorAdapter()
+        assert adapter.name == "gvisor"
+
+    def test_restrict_filesystem_stores_paths(self) -> None:
+        """restrict_filesystem stores writable/readable/executable_writable paths."""
+        adapter = GvisorAdapter()
+        adapter.restrict_filesystem(
+            writable=["/tmp/out"],
+            readable=["/src"],
+            executable_writable=["/tmp/exec"],
+        )
+        constraints = adapter.serialize_constraints()
+        assert constraints["writable"] == ["/tmp/out"]
+        assert constraints["readable"] == ["/src"]
+        assert constraints["executable_writable"] == ["/tmp/exec"]
+
+    def test_restrict_network_stores_allow_list(self) -> None:
+        """restrict_network stores allowed networks."""
+        adapter = GvisorAdapter()
+        adapter.restrict_network(allow=["10.0.0.0/8"])
+        constraints = adapter.serialize_constraints()
+        assert constraints["network_allow"] == ["10.0.0.0/8"]
+
+    def test_restrict_syscalls_stores_allowed(self) -> None:
+        """restrict_syscalls stores allowed syscalls (D-07)."""
+        adapter = GvisorAdapter()
+        adapter.restrict_syscalls(allowed=["read", "write", "mmap"])
+        constraints = adapter.serialize_constraints()
+        assert constraints["syscall_allow"] == ["read", "write", "mmap"]
+
+    def test_apply_restrictions_is_noop(self) -> None:
+        """apply_restrictions does not raise (no-op for gVisor)."""
+        adapter = GvisorAdapter()
+        adapter.restrict_filesystem(writable=["/tmp"], readable=["/src"])
+        adapter.apply_restrictions()  # Should not raise
+
+    def test_serialize_constraints_shape(self) -> None:
+        """serialize_constraints returns dict with adapter='gvisor' and all fields."""
+        adapter = GvisorAdapter()
+        adapter.restrict_filesystem(writable=["/w"], readable=["/r"])
+        adapter.restrict_network(allow=["443"])
+        adapter.restrict_syscalls(allowed=["read"])
+        constraints = adapter.serialize_constraints()
+        assert constraints["adapter"] == "gvisor"
+        assert "writable" in constraints
+        assert "readable" in constraints
+        assert "executable_writable" in constraints
+        assert "network_allow" in constraints
+        assert "syscall_allow" in constraints
+
+    def test_execute_sandboxed_builds_runsc_command(self) -> None:
+        """execute_sandboxed builds docker run --runtime=runsc command (mock subprocess)."""
+        adapter = GvisorAdapter()
+        adapter.restrict_filesystem(
+            writable=["/tmp/out"],
+            readable=["/src/code"],
+        )
+
+        with patch(
+            "cloneguard.enforcement.gvisor_adapter.subprocess.run"
+        ) as mock_run:
+            mock_run.return_value = MagicMock(
+                returncode=0, stdout="ok", stderr=""
+            )
+            adapter.execute_sandboxed(["python", "-c", "print('hi')"])
+
+            call_args = mock_run.call_args
+            cmd = call_args[0][0]
+
+            # Verify gVisor-specific runtime flag
+            assert "--runtime" in cmd
+            idx = cmd.index("--runtime")
+            assert cmd[idx + 1] == "runsc"
+
+            # Verify standard Docker security flags still present
+            assert "--cap-drop" in cmd
+            assert "--read-only" in cmd
+            assert "--network" in cmd
+
+    def test_snapshot_returns_none(self) -> None:
+        """snapshot returns None."""
+        adapter = GvisorAdapter()
+        assert adapter.snapshot() is None
+
+    def test_rollback_does_not_raise(self) -> None:
+        """rollback does not raise."""
+        adapter = GvisorAdapter()
+        adapter.rollback(None)  # Should not raise
+
+    def test_get_audit_log_returns_empty_list(self) -> None:
+        """get_audit_log returns empty list."""
+        adapter = GvisorAdapter()
+        assert adapter.get_audit_log() == []
+
+
+# ---------------------------------------------------------------------------
+# FirecrackerAdapter Protocol conformance
+# ---------------------------------------------------------------------------
+
+
+class TestFirecrackerAdapterProtocol:
+    """Verify FirecrackerAdapter satisfies SandboxAdapter Protocol."""
+
+    def test_isinstance_sandbox_adapter(self) -> None:
+        """FirecrackerAdapter is an instance of SandboxAdapter (runtime_checkable)."""
+        adapter = FirecrackerAdapter()
+        assert isinstance(adapter, SandboxAdapter)
+
+    def test_name_returns_firecracker(self) -> None:
+        """FirecrackerAdapter.name returns 'firecracker'."""
+        adapter = FirecrackerAdapter()
+        assert adapter.name == "firecracker"
+
+    def test_restrict_filesystem_stores_paths(self) -> None:
+        """restrict_filesystem stores writable/readable/executable_writable paths."""
+        adapter = FirecrackerAdapter()
+        adapter.restrict_filesystem(
+            writable=["/tmp/out"],
+            readable=["/src"],
+            executable_writable=["/tmp/exec"],
+        )
+        constraints = adapter.serialize_constraints()
+        assert constraints["writable"] == ["/tmp/out"]
+        assert constraints["readable"] == ["/src"]
+        assert constraints["executable_writable"] == ["/tmp/exec"]
+
+    def test_restrict_network_stores_allow_list(self) -> None:
+        """restrict_network stores allowed networks."""
+        adapter = FirecrackerAdapter()
+        adapter.restrict_network(allow=["10.0.0.0/8"])
+        constraints = adapter.serialize_constraints()
+        assert constraints["network_allow"] == ["10.0.0.0/8"]
+
+    def test_restrict_syscalls_stores_allowed(self) -> None:
+        """restrict_syscalls stores allowed syscalls (D-07)."""
+        adapter = FirecrackerAdapter()
+        adapter.restrict_syscalls(allowed=["read", "write", "ioctl"])
+        constraints = adapter.serialize_constraints()
+        assert constraints["syscall_allow"] == ["read", "write", "ioctl"]
+
+    def test_apply_restrictions_is_noop(self) -> None:
+        """apply_restrictions does not raise (no-op for Firecracker)."""
+        adapter = FirecrackerAdapter()
+        adapter.restrict_filesystem(writable=["/tmp"], readable=["/src"])
+        adapter.apply_restrictions()  # Should not raise
+
+    def test_serialize_constraints_shape(self) -> None:
+        """serialize_constraints returns dict with adapter='firecracker' and all fields."""
+        adapter = FirecrackerAdapter()
+        adapter.restrict_filesystem(writable=["/w"], readable=["/r"])
+        adapter.restrict_network(allow=[])
+        adapter.restrict_syscalls(allowed=["read"])
+        constraints = adapter.serialize_constraints()
+        assert constraints["adapter"] == "firecracker"
+        assert "writable" in constraints
+        assert "readable" in constraints
+        assert "executable_writable" in constraints
+        assert "network_allow" in constraints
+        assert "syscall_allow" in constraints
+
+    def test_execute_sandboxed_calls_api(self) -> None:
+        """execute_sandboxed sends REST API calls to Firecracker socket (mock)."""
+        adapter = FirecrackerAdapter(socket_path="/tmp/test.socket")
+
+        with patch(
+            "cloneguard.enforcement.firecracker_adapter._UnixHTTPConnection"
+        ) as mock_conn_cls:
+            mock_conn = MagicMock()
+            mock_response = MagicMock()
+            mock_response.read.return_value = b"{}"
+            mock_conn.getresponse.return_value = mock_response
+            mock_conn_cls.return_value = mock_conn
+
+            result = adapter.execute_sandboxed(["echo", "hello"])
+
+            assert result["exit_code"] == 0
+
+            # Verify API calls were made (boot-source, machine-config,
+            # drives/rootfs, actions)
+            calls = mock_conn.request.call_args_list
+            assert len(calls) == 4
+
+            # Boot source
+            assert calls[0][0][0] == "PUT"
+            assert calls[0][0][1] == "/boot-source"
+
+            # Machine config
+            assert calls[1][0][0] == "PUT"
+            assert calls[1][0][1] == "/machine-config"
+
+            # Root drive
+            assert calls[2][0][0] == "PUT"
+            assert calls[2][0][1] == "/drives/rootfs"
+
+            # Instance start
+            assert calls[3][0][0] == "PUT"
+            assert calls[3][0][1] == "/actions"
+
+    def test_execute_sandboxed_handles_failure(self) -> None:
+        """execute_sandboxed returns error dict on connection failure."""
+        adapter = FirecrackerAdapter(socket_path="/nonexistent.socket")
+
+        result = adapter.execute_sandboxed(["echo", "hello"])
+        assert result["exit_code"] == 1
+        assert "error" in result
+
+    def test_snapshot_returns_none(self) -> None:
+        """snapshot returns None."""
+        adapter = FirecrackerAdapter()
+        assert adapter.snapshot() is None
+
+    def test_rollback_does_not_raise(self) -> None:
+        """rollback does not raise."""
+        adapter = FirecrackerAdapter()
+        adapter.rollback(None)  # Should not raise
+
+    def test_get_audit_log_returns_empty_list(self) -> None:
+        """get_audit_log returns empty list."""
+        adapter = FirecrackerAdapter()
+        assert adapter.get_audit_log() == []
+
+
+# ---------------------------------------------------------------------------
+# Probe tests
 # ---------------------------------------------------------------------------
 
 
 class TestProbes:
-    """Test probe functions for Docker and WASM adapters."""
+    """Test probe functions for all adapters."""
 
     def test_probe_docker_returns_false_when_sdk_not_importable(
         self, monkeypatch: pytest.MonkeyPatch
@@ -261,7 +503,6 @@ class TestProbes:
         mock_docker.from_env.return_value = mock_client
 
         with patch.dict("sys.modules", {"docker": mock_docker}):
-            # Re-import to pick up patched module
             import importlib
 
             from cloneguard.enforcement import docker_adapter
@@ -285,3 +526,60 @@ class TestProbes:
 
         monkeypatch.setattr(builtins, "__import__", mock_import)
         assert _probe_wasm() is False
+
+    def test_probe_gvisor_returns_false_on_non_linux(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_probe_gvisor returns False on non-Linux (sys.platform != 'linux')."""
+        monkeypatch.setattr("cloneguard.enforcement.gvisor_adapter.sys.platform", "darwin")
+        assert _probe_gvisor() is False
+
+    def test_probe_gvisor_returns_false_when_runsc_not_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_probe_gvisor returns False when runsc binary not found."""
+        monkeypatch.setattr("cloneguard.enforcement.gvisor_adapter.sys.platform", "linux")
+        monkeypatch.setattr(
+            "cloneguard.enforcement.gvisor_adapter.shutil.which",
+            lambda x: None,
+        )
+        assert _probe_gvisor() is False
+
+    def test_probe_firecracker_returns_false_on_non_linux(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_probe_firecracker returns False on non-Linux."""
+        monkeypatch.setattr(
+            "cloneguard.enforcement.firecracker_adapter.sys.platform", "darwin"
+        )
+        assert _probe_firecracker() is False
+
+    def test_probe_firecracker_returns_false_when_kvm_missing(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_probe_firecracker returns False when /dev/kvm does not exist."""
+        monkeypatch.setattr(
+            "cloneguard.enforcement.firecracker_adapter.sys.platform", "linux"
+        )
+        monkeypatch.setattr(
+            "cloneguard.enforcement.firecracker_adapter.os.path.exists",
+            lambda x: False,
+        )
+        assert _probe_firecracker() is False
+
+    def test_probe_firecracker_returns_false_when_binary_not_found(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """_probe_firecracker returns False when firecracker binary not found."""
+        monkeypatch.setattr(
+            "cloneguard.enforcement.firecracker_adapter.sys.platform", "linux"
+        )
+        monkeypatch.setattr(
+            "cloneguard.enforcement.firecracker_adapter.os.path.exists",
+            lambda x: x == "/dev/kvm",
+        )
+        monkeypatch.setattr(
+            "cloneguard.enforcement.firecracker_adapter.shutil.which",
+            lambda x: None,
+        )
+        assert _probe_firecracker() is False
