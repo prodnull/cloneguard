@@ -569,3 +569,78 @@ class TestProbes:
             lambda x: None,
         )
         assert _probe_firecracker() is False
+
+
+# ---------------------------------------------------------------------------
+# Auto-selection tests (D-08 strength order)
+# ---------------------------------------------------------------------------
+
+
+class TestAutoSelection:
+    """Test adapter auto-selection by strength order (D-08)."""
+
+    def test_registry_strength_order(self) -> None:
+        """_ADAPTER_REGISTRY is ordered: firecracker > gvisor > docker > wasm > landlock > seatbelt."""
+        from cloneguard.enforcement.adapter import _ADAPTER_REGISTRY
+
+        names = [name for name, _, _ in _ADAPTER_REGISTRY]
+        assert names == ["firecracker", "gvisor", "docker", "wasm", "landlock", "seatbelt"]
+
+    def test_auto_select_falls_through_to_noop(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """When all probes return False, get_sandbox_adapter returns NoopAdapter."""
+        from cloneguard.enforcement import adapter as adapter_mod
+
+        patched = [(name, lambda: False, path) for name, _, path in adapter_mod._ADAPTER_REGISTRY]
+        monkeypatch.setattr(adapter_mod, "_ADAPTER_REGISTRY", patched)
+        adapter = adapter_mod.get_sandbox_adapter("auto")
+        assert adapter.name == "noop"
+
+    def test_auto_select_picks_strongest_available(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Auto-selection picks the first probe that returns True."""
+        from cloneguard.enforcement import adapter as adapter_mod
+
+        def make_probe(target_name: str):
+            def probe() -> bool:
+                return target_name == "docker"
+
+            return probe
+
+        patched = [
+            (name, make_probe(name), path) for name, _, path in adapter_mod._ADAPTER_REGISTRY
+        ]
+        monkeypatch.setattr(adapter_mod, "_ADAPTER_REGISTRY", patched)
+        mock_adapter = MagicMock()
+        mock_adapter.name = "docker"
+        monkeypatch.setattr(adapter_mod, "_load_adapter", lambda n, p: mock_adapter)
+        result = adapter_mod.get_sandbox_adapter("auto")
+        assert result.name == "docker"
+
+    def test_preferred_override(self) -> None:
+        """Operator can request specific adapter via preferred parameter."""
+        from cloneguard.enforcement.adapter import get_sandbox_adapter
+
+        adapter = get_sandbox_adapter("noop")
+        assert adapter.name == "noop"
+
+
+# ---------------------------------------------------------------------------
+# Sandbox exec dispatch tests
+# ---------------------------------------------------------------------------
+
+
+class TestSandboxExecDispatch:
+    """Test sandbox_exec.py dispatch to adapter-specific execution models."""
+
+    def test_external_exec_adapters_set(self) -> None:
+        """_EXTERNAL_EXEC_ADAPTERS contains docker, gvisor, firecracker, wasm."""
+        from cloneguard.enforcement.sandbox_exec import _EXTERNAL_EXEC_ADAPTERS
+
+        assert _EXTERNAL_EXEC_ADAPTERS == frozenset({"docker", "gvisor", "firecracker", "wasm"})
+
+    def test_self_restrict_adapters_set(self) -> None:
+        """_SELF_RESTRICT_ADAPTERS contains landlock, seatbelt, noop, auto."""
+        from cloneguard.enforcement.sandbox_exec import _SELF_RESTRICT_ADAPTERS
+
+        assert _SELF_RESTRICT_ADAPTERS == frozenset({"landlock", "seatbelt", "noop", "auto"})

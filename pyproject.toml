@@ -42,10 +42,14 @@ governance = [
     "regopy>=1.3", "cedarpy>=4.8", "spiffe>=0.2.6",
     "requests>=2.31", "azure-monitor-ingestion>=1.1", "azure-identity>=1.15",
 ]
+docker = ["docker>=7.1"]
+wasm = ["wasmtime>=43.0"]
+sandbox = ["docker>=7.1", "wasmtime>=43.0"]
 all = [
     "onnxruntime>=1.17", "transformers>=4.36", "numpy>=1.26", "ollama>=0.4",
     "regopy>=1.3", "cedarpy>=4.8", "spiffe>=0.2.6",
     "requests>=2.31", "azure-monitor-ingestion>=1.1", "azure-identity>=1.15",
+    "docker>=7.1", "wasmtime>=43.0",
 ]
 
 [project.scripts]

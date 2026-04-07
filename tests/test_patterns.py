@@ -995,3 +995,36 @@ class TestSubdirectoryLoading:
         ids = [r["id"] for r in engine.rules]
         dupes = [x for x in ids if ids.count(x) > 1]
         assert len(ids) == len(set(ids)), f"Duplicate pattern IDs: {dupes}"
+
+
+# ---------------------------------------------------------------------------
+# Agent-Type Pattern Loading (Phase 6: Plan 03)
+# ---------------------------------------------------------------------------
+
+
+class TestAgentTypePatternLoading:
+    """Verify agent-type subdirectory patterns load alongside root patterns."""
+
+    def test_agent_type_categories_loaded(self, engine: PatternEngine) -> None:
+        """Agent-type subdirectory patterns are loaded by PatternEngine."""
+        categories = {r["category"] for r in engine.rules}
+        agent_categories = {
+            "browserDomInjection",
+            "browserUrlRedirect",
+            "autonomousGoalHijacking",
+            "autonomousDelegationAbuse",
+            "financialTransactionManipulation",
+            "financialApprovalBypass",
+            "cicdAgentWorkflowInjection",
+            "cicdAgentReleasePoisoning",
+        }
+        assert agent_categories.issubset(categories), (
+            f"Missing agent-type categories: {agent_categories - categories}"
+        )
+
+    def test_no_pattern_id_collisions(self, engine: PatternEngine) -> None:
+        """No two patterns share the same ID across all rule files."""
+        ids = [r["id"] for r in engine.rules]
+        assert len(ids) == len(set(ids)), (
+            f"Duplicate pattern IDs: {[pid for pid in ids if ids.count(pid) > 1]}"
+        )
