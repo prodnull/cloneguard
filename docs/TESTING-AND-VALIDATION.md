@@ -18,11 +18,11 @@ Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stor
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 1,321 tests (Tier 0 + Tier 1.5, no external deps)
-pytest --co -q | tail -1    # verify count: "1,321 tests collected"
+pytest                      # 1,662+ tests (Tier 0 + Tier 1.5 + integration)
+pytest --co -q | tail -1    # verify count
 ```
 
-Expected: all pass in < 30 seconds. Tests requiring Ollama or Docker auto-skip via markers in `tests/conftest.py`.
+Expected: all pass in < 90 seconds. Tests requiring Ollama, Docker, or wasmtime auto-skip via markers.
 
 ### Run Each Tier Independently
 
@@ -37,8 +37,55 @@ pytest tests/test_mini_semantic.py
 pytest -m ollama
 
 # Docker integration (requires Docker daemon)
-pytest -m docker
+pytest -m docker_integration
+
+# WASM integration (requires: uv pip install wasmtime)
+pytest -m wasm_integration
+
+# Sandbox adapter unit tests (no external deps)
+pytest tests/test_sandbox_adapters.py
+
+# Sandbox adapter integration tests (Docker + WASM)
+pytest tests/test_sandbox_integration.py
+
+# Agent-type pattern detection tests
+pytest -m pattern_integration
 ```
+
+### Agent-Type Pattern Libraries (Phase 6)
+
+Four agent-type-specific pattern libraries with evidence-backed patterns:
+
+```bash
+# Run per-pattern detection tests
+pytest tests/test_sandbox_integration.py -k "TestPatternLibraryIntegration" -v
+
+# Run per-agent-type unit tests
+pytest tests/test_browser_patterns.py       # BRW-001..008
+pytest tests/test_autonomous_patterns.py    # AUT-001..008
+pytest tests/test_financial_patterns.py     # FIN-001..008
+pytest tests/test_cicd_agent_patterns.py    # CIC-001..008
+```
+
+Evidence standard: every seed pattern cites a CVE, published
+incident, research paper, or OWASP/MITRE taxonomy entry.
+See `docs/threats/*.md` for per-agent-type threat catalogs.
+
+### Sandbox Adapter Integration (Phase 6)
+
+Real enforcement tests using Docker 29.x and wasmtime 43.0:
+
+| Category | Tests | What is verified |
+|----------|-------|-----------------|
+| Docker filesystem | 4 | Read-only root, tmpfs /tmp, ro/rw volumes |
+| Docker network | 2 | DNS blocked, outbound TCP blocked |
+| Docker capabilities | 3 | CAP drop, NoNewPrivs, memory limits |
+| Docker security | 3 | No host escape, no socket, no localhost |
+| WASM execution | 6 | Probe, engine, invalid/valid modules |
+| Pattern detection | 16 | BRW/AUT/FIN/CIC + false positives |
+
+gVisor and Firecracker adapters are Linux-only (require runsc/KVM).
+Probes correctly return `False` on macOS.
 
 ### Reproduce Cross-Validation Metrics
 
