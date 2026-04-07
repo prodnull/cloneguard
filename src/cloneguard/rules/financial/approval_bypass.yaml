@@ -1,0 +1,30 @@
+category: financialApprovalBypass
+description: "Patterns detecting approval workflow bypass and authorization fraud in financial agents"
+patterns:
+  - id: FIN-005
+    regex: '(?i)(?:(?:raise|increase|remove|disable|set)\s+(?:the\s+)?(?:approval|authorization)\s+(?:threshold|limit)\s+(?:to|above)\s+|(?:no\s+)?(?:approval|authorization)\s+(?:required|needed)\s+(?:for|below|under))'
+    severity: high
+    description: "Approval threshold override — raising or removing transaction approval limits"
+    evidence: "CVE-2025-12420 ServiceNow BodySnatcher; OWASP ASI03"
+    false_positive_hint: "Approval threshold configuration docs may trigger — check for unauthorized modification"
+
+  - id: FIN-006
+    regex: '(?i)(?:(?:this\s+(?:transaction|transfer|payment)\s+(?:has\s+been|was|is)\s+)?(?:pre-?approved|authorized|verified|validated)\s+by\s+(?:the\s+)?(?:manager|supervisor|compliance|risk|senior|head))'
+    severity: high
+    description: "Fraudulent transaction authorization framing — false claim of management approval"
+    evidence: "OWASP ASI09 trust exploitation"
+    false_positive_hint: "Legitimate approval workflows reference authorizers — check for injected false claims"
+
+  - id: FIN-007
+    regex: '(?i)(?:(?:disable|bypass|skip|ignore|override|turn\s+off)\s+(?:the\s+)?(?:rate|velocity|frequency|speed)\s+(?:limit|check|control|restriction|throttl))'
+    severity: high
+    description: "Rate limit or velocity check bypass — disabling transaction frequency controls"
+    evidence: "F5 agentic AI banking threats"
+    false_positive_hint: "Performance tuning docs may reference rate limiting — check for bypass directives"
+
+  - id: FIN-008
+    regex: '(?i)(?:(?:substitute|swap|replace|switch|change)\s+(?:the\s+)?(?:currency|account\s*(?:id|number)?|routing\s*number|sort\s*code|iban|swift)\s+(?:to|with|for)\s+)'
+    severity: high
+    description: "Currency or account ID substitution — swapping financial identifiers"
+    evidence: "General financial fraud patterns; OWASP ASI01"
+    false_positive_hint: "Currency conversion features may trigger — check for unauthorized substitution context"

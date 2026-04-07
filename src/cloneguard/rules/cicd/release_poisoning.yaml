@@ -1,0 +1,30 @@
+category: cicdAgentReleasePoisoning
+description: "Patterns detecting release artifact poisoning and runner escape attacks by CI/CD agents"
+patterns:
+  - id: CIC-005
+    regex: '(?i)(?:(?:modify|replace|inject|patch|tamper)\s+(?:(?:the|with|into|payload)\s+)*(?:(?:the)\s+)?(?:release|build|artifact|binary|package|dist|output)(?:\s+(?:release|build|artifact|binary|package|dist|output))?\s+(?:before|during|after)\s+(?:publish|release|deploy|upload|sign))'
+    severity: critical
+    description: "Release artifact poisoning — modifying build output during publish pipeline"
+    evidence: "reviewdog/action-setup cascade attack; OWASP ASI04"
+    false_positive_hint: "Build pipeline docs may describe artifact processing — check for tampering intent"
+
+  - id: CIC-006
+    regex: '(?i)(?:(?:escape|break\s*out|access|reach)\s+(?:from\s+)?(?:the\s+)?(?:runner|container|sandbox|worker)\s+(?:to\s+)?(?:the\s+)?(?:host|parent|underlying|bare\s*metal))'
+    severity: critical
+    description: "Runner escape to host — breaking out of CI/CD execution environment"
+    evidence: "MITRE ATLAS AML.T0096 Escape to Host"
+    false_positive_hint: "Container security docs may reference escape techniques — check for actionable escape attempts"
+
+  - id: CIC-007
+    regex: '(?i)(?:(?:dump|print|echo|cat|display|output)\s+(?:all\s+)?(?:the\s+)?(?:secrets?|credentials?|tokens?|keys?|passwords?|env(?:ironment)?)\s+(?:to\s+)?(?:the\s+)?(?:log|output|console|stdout))'
+    severity: critical
+    description: "Secret exfiltration via log dump in CI context"
+    evidence: "CVE-2025-30066 memory dump technique"
+    false_positive_hint: "Debugging guides may reference env dumping — check for secret exposure in CI logs"
+
+  - id: CIC-008
+    regex: '(?i)(?:(?:request|create|generate|issue)\s+(?:a\s+)?(?:new\s+)?(?:token|key|credential)\s+with\s+(?:admin|write|elevated|full|broad|all)\s+(?:permissions?|access|scope|privileges?))'
+    severity: high
+    description: "CI token scope escalation — requesting elevated permissions"
+    evidence: "OWASP ASI03; CI/CD supply chain research"
+    false_positive_hint: "PAT creation docs may describe scope options — check for unauthorized escalation"

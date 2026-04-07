@@ -107,6 +107,7 @@ class PatternEngine:
         if rules_dir is None:
             rules_dir = Path(__file__).parent / "rules"
 
+        self._rules_dir = rules_dir
         self._compiled_rules: list[_CompiledRule] = []
         self._raw_rules: list[dict[str, Any]] = []
 
@@ -159,7 +160,7 @@ class PatternEngine:
         Expansion patterns live in rules/{agent_type}/expansion/*.yaml.
         Only loaded when operator enables them in policy.yaml.
         """
-        rules_dir = Path(__file__).parent / "rules"
+        rules_dir = self._rules_dir
         for agent_type in enabled_packs:
             expansion_dir = rules_dir / agent_type / "expansion"
             if expansion_dir.is_dir():

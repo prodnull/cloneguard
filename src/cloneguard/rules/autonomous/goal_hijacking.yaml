@@ -1,0 +1,30 @@
+category: autonomousGoalHijacking
+description: "Patterns detecting goal hijacking and objective manipulation in autonomous agents"
+patterns:
+  - id: AUT-001
+    regex: '(?i)(?:your\s+(?:new|real|actual|true|primary)\s+(?:goal|objective|task|mission|purpose)\s+is|(?:ignore|forget|discard|override)\s+(?:your\s+)?(?:original|previous|prior|current)\s+(?:goal|objective|task|instruction))'
+    severity: critical
+    description: "Goal hijacking via injected objectives — replaces agent's intended task"
+    evidence: "EchoLeak incident; OWASP ASI01"
+    false_positive_hint: "Rarely appears in legitimate agent configuration — strong signal of goal injection"
+
+  - id: AUT-002
+    regex: '(?i)(?:(?:maximize|optimize|prioritize)\s+(?:your\s+)?(?:reward|score|performance|efficiency)\s+by|modify\s+(?:your\s+)?(?:reward|objective|utility)\s+function)'
+    severity: high
+    description: "Reward or objective function manipulation"
+    evidence: "OWASP ASI10 rogue agents"
+    false_positive_hint: "ML documentation may discuss reward optimization — check for imperative directive framing"
+
+  - id: AUT-003
+    regex: '(?i)(?:(?:if|when)\s+(?:this\s+)?(?:fails?|errors?|crashes?)\s*,?\s*(?:also|then)\s+(?:fail|crash|stop|halt|shutdown|kill)\s+(?:all|every|other|remaining))'
+    severity: high
+    description: "Cascading failure trigger — intentional error propagation across agents"
+    evidence: "OWASP ASI08 cascade patterns"
+    false_positive_hint: "Error handling docs may reference cascade patterns — check for malicious intent"
+
+  - id: AUT-004
+    regex: '(?i)(?:(?:i\s+am|this\s+is|acting\s+as|speaking\s+as|role\s*:\s*)\s*(?:the\s+)?(?:admin|supervisor|orchestrator|coordinator|manager|system)\s+agent)'
+    severity: high
+    description: "Agent identity spoofing — claiming elevated agent role"
+    evidence: "OWASP ASI03 impersonation"
+    false_positive_hint: "Multi-agent architecture docs may reference agent roles — check for spoofing context"

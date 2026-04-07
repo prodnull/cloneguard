@@ -1,0 +1,30 @@
+category: financialTransactionManipulation
+description: "Patterns detecting transaction manipulation attacks targeting financial agents"
+patterns:
+  - id: FIN-001
+    regex: '(?i)(?:(?:approve|authorize|process|execute|confirm)\s+(?:(?:all|the)\s+)?(?:(?:pending|wire|outbound)\s+)?(?:wire|transfer|payment|transaction)s?\b.{0,60}(?:override|bypass|skip|ignore)\s+(?:approval|verification|limit|threshold))'
+    severity: critical
+    description: "Transaction approval bypass — processing financial transactions while bypassing controls"
+    evidence: "2024 $2.3M wire transfer incident; OWASP ASI01, ASI09"
+    false_positive_hint: "Financial compliance docs may reference approval workflows — check for bypass directives"
+
+  - id: FIN-002
+    regex: '(?i)(?:(?:change|modify|update|replace|alter)\s+(?:the\s+)?(?:recipient|beneficiary|payee|destination|account)\s+(?:to|with|as)\s+|(?:change|modify|update|alter)\s+(?:the\s+)?(?:amount|sum|value|total)\s+(?:to|from))'
+    severity: critical
+    description: "Amount or recipient manipulation — altering transaction parameters"
+    evidence: "F5 financial agent threat research; OWASP ASI01"
+    false_positive_hint: "Legitimate payment update UIs may trigger — check for injected modification context"
+
+  - id: FIN-003
+    regex: '(?i)(?:(?:disable|suppress|delete|remove|clear|hide|omit)\s+(?:the\s+)?(?:audit|transaction|activity)\s+(?:log|trail|record|history|entry|entries))'
+    severity: critical
+    description: "Audit trail suppression — removing evidence of financial operations"
+    evidence: "SOX/PCI compliance requirements; OWASP ASI01"
+    false_positive_hint: "Log rotation docs may reference clearing old logs — check for suppression of active audit trails"
+
+  - id: FIN-004
+    regex: '(?i)(?:(?:export|extract|dump|download|copy)\s+(?:all\s+)?(?:the\s+)?(?:reconciliation|transaction|account|balance|ledger)\s+(?:data|records?|report|details?)\s+(?:to|into|via)\s+(?:email|http|ftp|url|webhook|api|external))'
+    severity: critical
+    description: "Reconciliation data exfiltration — extracting financial records to external destination"
+    evidence: "Reconciliation agent regex incident; OWASP ASI02"
+    false_positive_hint: "Legitimate export features use authorized channels — flag external/untrusted destinations"

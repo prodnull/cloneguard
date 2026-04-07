@@ -1,0 +1,30 @@
+category: cicdAgentWorkflowInjection
+description: "Patterns detecting workflow injection attacks by CI/CD automation agents (distinct from existing CI-001..CI-006 which target workflow file content)"
+patterns:
+  - id: CIC-001
+    regex: '(?i)(?:(?:modify|edit|update|change|write\s+to)\s+(?:the\s+)?(?:workflow|pipeline|ci|cd)\s+(?:file|config|yaml|yml|definition)\s+(?:to\s+)?(?:add|inject|insert|include))'
+    severity: critical
+    description: "Agent self-modifying workflow files — adding steps or actions to CI/CD definitions"
+    evidence: "CVE-2025-30066 tj-actions; OWASP ASI04"
+    false_positive_hint: "CI/CD setup docs may describe workflow modification — check for automated/injected modifications"
+
+  - id: CIC-002
+    regex: '(?i)(?:(?:download|fetch|pull|clone|install)\s+(?:and\s+)?(?:run|execute|use)\s+(?:action|step|plugin|script)\s+(?:from)\s+(?:http|git|npm|pip|curl|wget))'
+    severity: high
+    description: "Dynamic action or step download from untrusted source"
+    evidence: "OWASP ASI04 supply chain"
+    false_positive_hint: "Package installation docs may trigger — check for untrusted download-and-execute patterns"
+
+  - id: CIC-003
+    regex: '(?i)(?:(?:set|export|echo|write)\s+.{0,60}(?:>>?\s*\$GITHUB_ENV|>>?\s*\$GITHUB_OUTPUT|>>?\s*\$GITHUB_PATH|::set-env\s+name=|::set-output\s+name=))'
+    severity: critical
+    description: "Pipeline variable injection via agent-controlled input"
+    evidence: "CVE-2025-53104 gluestack-ui"
+    false_positive_hint: "GitHub Actions scripts legitimately set env vars — check for agent-driven injection"
+
+  - id: CIC-004
+    regex: '(?i)(?:uses\s*:\s*\S+@(?:v\d+|main|master|latest|stable|dev)\b(?!\s*#\s*pin))'
+    severity: medium
+    description: "Mutable tag pinning — GitHub Action referenced by tag instead of SHA"
+    evidence: "CVE-2025-30066 tag modification vector; OWASP ASI04"
+    false_positive_hint: "Many workflows use version tags — SHA pinning is the security best practice"

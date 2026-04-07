@@ -1,0 +1,30 @@
+category: browserDomInjection
+description: "Patterns detecting DOM-based injection attacks targeting browser automation agents"
+patterns:
+  - id: BRW-001
+    regex: '(?i)(?:font-size\s*:\s*0|opacity\s*:\s*0(?:[.;}"''\s]|$)|visibility\s*:\s*hidden|display\s*:\s*none|position\s*:\s*absolute\s*;\s*(?:left|top)\s*:\s*-\d{3,})'
+    severity: high
+    description: "CSS text concealment — invisible content injection via styling"
+    evidence: "Unit42 web-based indirect prompt injection research; OWASP ASI01"
+    false_positive_hint: "Legitimate CSS may use display:none for UI toggles — check context for injected instructions"
+
+  - id: BRW-002
+    regex: '(?i)(?:eval|Function|setTimeout|setInterval)\s*\(\s*(?:atob|btoa|Buffer\.from)\s*\('
+    severity: high
+    description: "Base64-encoded runtime assembly in DOM context"
+    evidence: "Unit42 obfuscation techniques catalog; OWASP ASI01, ASI05"
+    false_positive_hint: "Rare in legitimate code — base64 decode piped directly to eval is a strong signal"
+
+  - id: BRW-003
+    regex: '(?i)<!\[CDATA\[.*?(?:eval|script|function|onclick|onerror|onload)'
+    severity: high
+    description: "SVG/XML CDATA payload embedding with executable content"
+    evidence: "Unit42 HTML attribute cloaking; OWASP ASI01"
+    false_positive_hint: "CDATA blocks with script keywords are rare in legitimate SVG"
+
+  - id: BRW-004
+    regex: '(?i)data-(?:instruction|prompt|system|command|action)\s*=\s*["''][^"'']{10,}'
+    severity: medium
+    description: "HTML data attribute instruction cloaking — injected directives in DOM attributes"
+    evidence: "Unit42 documented technique; OWASP ASI01"
+    false_positive_hint: "Custom data-* attributes are common — flag only when attribute name implies agent directives"

@@ -1,0 +1,30 @@
+category: autonomousDelegationAbuse
+description: "Patterns detecting delegation chain abuse and cross-agent injection in autonomous agents"
+patterns:
+  - id: AUT-005
+    regex: '(?i)(?:delegate|forward|pass|relay|send)\s+(?:this\s+)?(?:task|request|command|instruction)\s+to\s+(?:the\s+)?(?:other|next|downstream|subordinate|child)\s+agent'
+    severity: high
+    description: "Delegation chain abuse — confused deputy attack via agent forwarding"
+    evidence: "OWASP ASI03 confused deputy"
+    false_positive_hint: "Multi-agent architecture docs may describe delegation patterns — check for injected directives"
+
+  - id: AUT-006
+    regex: '(?i)(?:tell|instruct|command|order|direct)\s+(?:the\s+)?(?:other|next|target|receiving)\s+agent\s+to\s+(?:ignore|override|bypass|skip|disable)'
+    severity: critical
+    description: "Cross-agent instruction injection — directing other agents to bypass controls"
+    evidence: "OWASP ASI07; SesameOp case study; MITRE ATLAS AML.T0096"
+    false_positive_hint: "Very strong signal — legitimate agent communication never includes bypass directives"
+
+  - id: AUT-007
+    regex: '(?i)(?:(?:write|store|save|persist|inject)\s+(?:this\s+)?(?:instruction|directive|command|rule)\s+(?:to|in|into)\s+(?:the\s+)?(?:shared|global|persistent|common)\s+(?:memory|store|state|context|knowledge))'
+    severity: high
+    description: "Persistent instruction injection via shared memory store"
+    evidence: "Existing MP-001/002 scope extended; OWASP ASI06"
+    false_positive_hint: "Shared state writes are legitimate — flag when writing instructions/directives specifically"
+
+  - id: AUT-008
+    regex: '(?i)(?:(?:chain|pipe|compose|combine)\s+(?:the\s+)?(?:output|result)\s+(?:of|from)\s+(?:tool|function|api)\s+.{0,30}(?:into|to|with)\s+(?:tool|function|api)\s+.{0,30}(?:without|skip|bypass)\s+(?:validation|check|verify))'
+    severity: high
+    description: "Tool chain abuse — unsafe composition bypassing validation between steps"
+    evidence: "OWASP ASI02 tool misuse"
+    false_positive_hint: "Legitimate pipelines include validation steps — bypassing validation is the signal"

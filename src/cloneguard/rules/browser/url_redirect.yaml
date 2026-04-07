@@ -1,0 +1,30 @@
+category: browserUrlRedirect
+description: "Patterns detecting URL-based redirect and interaction attacks targeting browser agents"
+patterns:
+  - id: BRW-005
+    regex: '(?i)(?:navigate|goto|open|visit|redirect|browse)\s+(?:to\s+)?(?:https?://\S+).{0,60}(?:instruction|command|system|ignore|override)'
+    severity: high
+    description: "URL redirect to attacker-controlled page with instruction framing"
+    evidence: "Brave Comet vulnerability; Fellou browser vulnerability; OWASP ASI02"
+    false_positive_hint: "Legitimate navigation instructions rarely combine URLs with system/instruction keywords"
+
+  - id: BRW-006
+    regex: '(?i)(?:screenshot|capture|render|image).{0,40}(?:instruction|system\s*prompt|ignore\s*previous|you\s*are\s*now)'
+    severity: medium
+    description: "Screenshot OCR poisoning — instructions rendered in captured images"
+    evidence: "Brave unseeable injection research"
+    false_positive_hint: "Screenshot + instruction keywords together are suspicious in agent context"
+
+  - id: BRW-007
+    regex: '(?i)(?:on(?:click|error|load|mouseover|focus|blur|submit|change|input))\s*=\s*["''](?:(?!return\s).)*(?:fetch|XMLHttpRequest|eval|Function|document\.cookie|localStorage)'
+    severity: high
+    description: "JavaScript event handler injection targeting agent DOM interaction"
+    evidence: "OWASP XSS prevention; OWASP ASI05"
+    false_positive_hint: "Event handlers with network requests or eval are rarely legitimate"
+
+  - id: BRW-008
+    regex: '(?i)<iframe[^>]*(?:width\s*=\s*["'']?0|height\s*=\s*["'']?0|style\s*=\s*["''][^"'']*(?:display\s*:\s*none|opacity\s*:\s*0|visibility\s*:\s*hidden))'
+    severity: high
+    description: "Invisible iframe injection for covert content loading"
+    evidence: "Unit42 indirect prompt injection techniques; OWASP ASI01"
+    false_positive_hint: "Zero-dimension or hidden iframes are a classic attack vector"
