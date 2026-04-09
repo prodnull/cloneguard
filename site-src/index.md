@@ -29,11 +29,12 @@ operations via OS-level sandboxing, and emits structured audit logs.
 
     [:octicons-arrow-right-24: Enforcement](architecture/enforcement.md)
 
-- :material-connection: **Multi-Agent Support**
+- :material-connection: **Works With Any Agent**
 
-    Works with Claude Code, Gemini CLI, Cursor, GitHub Actions, and MCP.
+    Built for Claude Code. Standalone scan works with any agent.
+    Hook protocol compatible with Gemini CLI, Cursor, and Windsurf.
 
-    [:octicons-arrow-right-24: Platforms](getting-started/gemini-cli.md)
+    [:octicons-arrow-right-24: Getting started](getting-started/claude-code.md)
 
 </div>
 

@@ -1,11 +1,13 @@
 # Gemini CLI Setup
 
-CloneGuard works with Gemini CLI v0.30.1+ via its hook system.
+!!! warning "Untested"
+    Hook-level integration with Gemini CLI has not been verified. The
+    instructions below are based on protocol compatibility, not testing.
+    Standalone scanning (`cloneguard scan`) works regardless.
 
-## Prerequisites
-
-- Python 3.11+
-- Gemini CLI installed and working
+Gemini CLI uses the same JSON stdin/stdout hook protocol and exit-code
+semantics as Claude Code. CloneGuard's hooks are expected to work but
+require manual configuration.
 
 ## Install
 
@@ -15,31 +17,33 @@ pip install "cloneguard[mini]"
 
 ## Configure Hooks
 
-Gemini CLI supports migrating Claude Code hook configurations:
+CloneGuard does not have a `cloneguard init` command for Gemini CLI yet.
+You need to manually configure hooks in Gemini CLI's settings to point
+at `cloneguard hook-check --event <EventName>` for the relevant events.
 
-```bash
-gemini hooks migrate --from-claude
+The hook command format is the same as Claude Code:
+
+```
+cloneguard hook-check --event PreToolUse
+cloneguard hook-check --event PostToolUse
 ```
 
-Or configure manually. Gemini CLI supports 11 hook events with the same
-JSON stdin/stdout protocol and exit-code semantics as Claude Code.
+Gemini CLI reads JSON from stdin and expects exit code 0 (allow) or 2
+(block).
 
-## Verify
+## Standalone Scan (verified)
+
+Layer 0 standalone scanning works with any agent:
 
 ```bash
-gemini
+cloneguard scan /path/to/repo
 ```
 
-CloneGuard scans tool calls transparently via Gemini's hook pipeline.
+Run this before opening a repo with Gemini CLI for pre-execution
+protection.
 
-## Differences from Claude Code
+## Help Us Test
 
-- Gemini CLI exposes more hook events (11 vs 3), but CloneGuard uses the same
-  core set: pre-tool, post-tool, and instructions-loaded
-- Event names use the same convention
-- Exit code 0 = allow, exit code 2 = block
-
-## Next Steps
-
-- [Policy engine configuration](../guides/policy-engine.md)
-- [Architecture overview](../architecture/overview.md)
+If you use Gemini CLI with CloneGuard hooks, we want to hear about it.
+[Open an issue](https://github.com/prodnull/cloneguard/issues) with
+your experience.

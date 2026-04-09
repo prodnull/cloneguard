@@ -21,8 +21,8 @@ suspicious tool calls, and emits structured audit logs -- before the agent
 executes. The agent cannot disable it because CloneGuard runs at the hook layer,
 outside the agent's control.
 
-Works with Claude Code, Gemini CLI, and Cursor. Active development (v0.6.0) --
-feedback and contributions welcome.
+Built for Claude Code. Standalone scanning works with any agent.
+Active development (v0.6.0) -- feedback and contributions welcome.
 
 ## See It In Action
 
@@ -100,18 +100,21 @@ per-severity via YAML policy.
 False positive rates validated against 208,127 real coding-agent sessions from
 published SWE-bench datasets (SEQ-001 FPR: 0.0024%).
 
-## Also Works With
+## Platform Support
 
-| Platform | Status |
-|----------|--------|
-| **Claude Code** | Full runtime hook support (Layers 0-3) |
-| **Gemini CLI** | Hook-compatible, `gemini hooks migrate --from-claude` |
-| **Cursor** | Hook-compatible, `failClosed` support |
-| **Windsurf** | Hook-compatible |
-| **VS Code Copilot** | Hook-compatible (preview, v1.109+) |
-| **GitHub Actions** | SARIF upload to Security tab via `cloneguard scan --sarif` |
-| **MCP** | Gateway middleware adapter |
-| **Any agent** | Layer 0 standalone scan: `cloneguard scan /path/to/repo` |
+| Platform | Hook Integration | Standalone Scan | Status |
+|----------|:---:|:---:|--------|
+| **Claude Code** | Yes | Yes | Tested, `cloneguard init` configures hooks |
+| **Gemini CLI** | Untested | Yes | Same hook protocol, manual config required |
+| **Cursor** | Untested | Yes | Same hook protocol, manual config required |
+| **Windsurf** | Untested | Yes | Same hook protocol, manual config required |
+| **GitHub Actions** | -- | Yes | `cloneguard scan --sarif` for Security tab |
+| **Any agent** | -- | Yes | `cloneguard scan /path/to/repo` |
+
+Hook-level integration (Layers 1-3) is only verified with Claude Code.
+Gemini CLI, Cursor, and Windsurf use the same JSON stdin/stdout protocol
+and exit-code semantics, so hooks are expected to work with manual
+configuration. We haven't tested this yet and welcome feedback.
 
 ## Enforcement
 
