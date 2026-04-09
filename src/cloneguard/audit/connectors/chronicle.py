@@ -124,7 +124,7 @@ class ChronicleConnector:
 
                 credentials, _ = google.auth.default()
                 auth_req = google.auth.transport.requests.Request()
-                credentials.refresh(auth_req)  # type: ignore[no-untyped-call]
+                credentials.refresh(auth_req)
                 headers["Authorization"] = f"Bearer {credentials.token}"
             except Exception:
                 logger.debug("Google auth unavailable, sending without auth")

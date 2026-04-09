@@ -22,7 +22,7 @@ try:
     from azure.monitor.ingestion import LogsIngestionClient
 except ImportError:
     DefaultAzureCredential = None  # type: ignore[assignment, misc]
-    LogsIngestionClient = None
+    LogsIngestionClient = None  # type: ignore[assignment, misc]
 
 
 class SentinelConnector:
@@ -98,7 +98,7 @@ class SentinelConnector:
             credential = DefaultAzureCredential()
             client = LogsIngestionClient(endpoint=endpoint, credential=credential)
             logs = [self.transform(e) for e in events]
-            client.upload(rule_id, self._stream_name, logs)
+            client.upload(rule_id, self._stream_name, logs)  # type: ignore[arg-type]
             return True
         except Exception:
             logger.debug("Sentinel DCR send failed", exc_info=True)
