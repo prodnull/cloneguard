@@ -459,17 +459,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -492,10 +481,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cursorrules-protection" class="md-nav__link">
+  <a href="#cursorrules-protection-verified" class="md-nav__link">
     <span class="md-ellipsis">
       
-        .cursorrules Protection
+        .cursorrules Protection (verified)
       
     </span>
   </a>
@@ -503,10 +492,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#help-us-test" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Help Us Test
       
     </span>
   </a>
@@ -1129,17 +1118,6 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#prerequisites" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Prerequisites
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
   <a href="#install" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -1162,10 +1140,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#cursorrules-protection" class="md-nav__link">
+  <a href="#cursorrules-protection-verified" class="md-nav__link">
     <span class="md-ellipsis">
       
-        .cursorrules Protection
+        .cursorrules Protection (verified)
       
     </span>
   </a>
@@ -1173,10 +1151,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#help-us-test" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Help Us Test
       
     </span>
   </a>
@@ -1204,33 +1182,37 @@
 
 
 <h1 id="cursor-setup">Cursor Setup<a class="headerlink" href="#cursor-setup" title="Permanent link">&para;</a></h1>
-<p>CloneGuard works with Cursor v2.6.13+ via its hook system.</p>
-<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Python 3.11+</li>
-<li>Cursor installed and working</li>
-</ul>
+<div class="admonition warning">
+<p class="admonition-title">Untested</p>
+<p>Hook-level integration with Cursor has not been verified. The
+instructions below are based on protocol compatibility, not testing.
+Standalone scanning (<code>cloneguard scan</code>) works regardless.</p>
+</div>
+<p>Cursor uses the same JSON stdin/stdout hook protocol and exit-code
+semantics as Claude Code. CloneGuard's hooks are expected to work but
+require manual configuration.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cloneguard[mini]&quot;</span>
 </code></pre></div>
 <h2 id="configure-hooks">Configure Hooks<a class="headerlink" href="#configure-hooks" title="Permanent link">&para;</a></h2>
-<p>Cursor supports 19+ hook events with <code>failClosed</code> and <code>prompt</code>-type hooks.
-Configure CloneGuard in Cursor's hook settings to run on pre-tool and post-tool
-events.</p>
-<p>Cursor uses the same JSON stdin/stdout protocol and exit-code semantics:
-exit 0 = allow, exit 2 = block.</p>
-<h2 id="cursorrules-protection">.cursorrules Protection<a class="headerlink" href="#cursorrules-protection" title="Permanent link">&para;</a></h2>
-<p>Cursor loads <code>.cursorrules</code> files from repositories automatically. This is a
-known attack vector -- malicious repos can include <code>.cursorrules</code> with prompt
-injection payloads.</p>
-<p>CloneGuard's Layer 0 pre-scan catches these before Cursor processes them. The
-<code>RH-003</code> (reasoning hijack) and <code>IO-*</code> (instruction override) pattern families
-cover the most common <code>.cursorrules</code> attack patterns.</p>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="../../guides/policy-engine/">Policy engine configuration</a></li>
-<li><a href="../../architecture/overview/">Architecture overview</a></li>
-</ul>
+<p>CloneGuard does not have a <code>cloneguard init</code> command for Cursor yet.
+You need to manually configure hooks in Cursor's settings to point
+at <code>cloneguard hook-check --event &lt;EventName&gt;</code>.</p>
+<p>Cursor uses exit code 0 (allow) or 2 (block).</p>
+<h2 id="cursorrules-protection-verified">.cursorrules Protection (verified)<a class="headerlink" href="#cursorrules-protection-verified" title="Permanent link">&para;</a></h2>
+<p>Cursor loads <code>.cursorrules</code> files from repositories automatically. This
+is a known attack vector -- malicious repos can include <code>.cursorrules</code>
+with prompt injection payloads.</p>
+<p>CloneGuard's Layer 0 pre-scan catches these before Cursor processes
+them. The <code>RH-003</code> (reasoning hijack) and <code>IO-*</code> (instruction override)
+pattern families cover the most common <code>.cursorrules</code> attack patterns.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cloneguard<span class="w"> </span>scan<span class="w"> </span>/path/to/repo
+</code></pre></div>
+<p>This works today regardless of hook integration.</p>
+<h2 id="help-us-test">Help Us Test<a class="headerlink" href="#help-us-test" title="Permanent link">&para;</a></h2>
+<p>If you use Cursor with CloneGuard hooks, we want to hear about it.
+<a href="https://github.com/prodnull/cloneguard/issues">Open an issue</a> with
+your experience.</p>
 
 
 
