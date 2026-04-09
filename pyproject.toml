@@ -79,7 +79,10 @@ strict = true
 warn_return_any = true
 
 [[tool.mypy.overrides]]
-module = ["sklearn.*", "scipy.*", "regopy.*", "cedarpy.*", "spiffe.*", "azure.*", "google.*"]
+module = [
+    "sklearn.*", "scipy.*", "regopy.*", "cedarpy.*", "spiffe.*",
+    "azure.*", "google.*", "docker.*", "requests.*", "wasmtime.*",
+]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

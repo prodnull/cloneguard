@@ -21,8 +21,8 @@ try:
     from azure.identity import DefaultAzureCredential
     from azure.monitor.ingestion import LogsIngestionClient
 except ImportError:
-    DefaultAzureCredential = None  # type: ignore[assignment,misc]
-    LogsIngestionClient = None  # type: ignore[assignment,misc]
+    DefaultAzureCredential = None  # type: ignore[assignment, misc]
+    LogsIngestionClient = None
 
 
 class SentinelConnector:

@@ -455,7 +455,7 @@ class LandlockAdapter:
                     logger.warning("snapshot: could not read %s", p)
         return captured
 
-    def rollback(self, snapshot: dict[str, bytes]) -> None:  # type: ignore[override]
+    def rollback(self, snapshot: dict[str, bytes]) -> None:
         """Restore file contents to pre-execution state.
 
         Writes back the byte content captured by snapshot(). Does not

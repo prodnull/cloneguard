@@ -134,7 +134,7 @@ class WasmAdapter:
 
             start = instance.exports(store).get("_start")
             if start is not None:
-                start(store)
+                start(store)  # type: ignore[operator]
 
             return {"exit_code": 0}
         except Exception as exc:
