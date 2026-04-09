@@ -453,10 +453,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#standalone-scan-verified" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Standalone Scan (verified)
+        How It Works
       
     </span>
   </a>
@@ -464,10 +464,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#help-us-test" class="md-nav__link">
+  <a href="#standalone-scan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Help Us Test
+        Standalone Scan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
   </a>
@@ -1140,10 +1151,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#standalone-scan-verified" class="md-nav__link">
+  <a href="#how-it-works" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Standalone Scan (verified)
+        How It Works
       
     </span>
   </a>
@@ -1151,10 +1162,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#help-us-test" class="md-nav__link">
+  <a href="#standalone-scan" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Help Us Test
+        Standalone Scan
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#next-steps" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Next Steps
       
     </span>
   </a>
@@ -1182,38 +1204,60 @@
 
 
 <h1 id="gemini-cli-setup">Gemini CLI Setup<a class="headerlink" href="#gemini-cli-setup" title="Permanent link">&para;</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">Untested</p>
-<p>Hook-level integration with Gemini CLI has not been verified. The
-instructions below are based on protocol compatibility, not testing.
-Standalone scanning (<code>cloneguard scan</code>) works regardless.</p>
-</div>
-<p>Gemini CLI uses the same JSON stdin/stdout hook protocol and exit-code
-semantics as Claude Code. CloneGuard's hooks are expected to work but
-require manual configuration.</p>
+<p>CloneGuard works with Gemini CLI v0.37+ via hook integration. Tested
+and verified on Gemini CLI 0.37.0.</p>
 <h2 id="install">Install<a class="headerlink" href="#install" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;cloneguard[mini]&quot;</span>
 </code></pre></div>
 <h2 id="configure-hooks">Configure Hooks<a class="headerlink" href="#configure-hooks" title="Permanent link">&para;</a></h2>
-<p>CloneGuard does not have a <code>cloneguard init</code> command for Gemini CLI yet.
-You need to manually configure hooks in Gemini CLI's settings to point
-at <code>cloneguard hook-check --event &lt;EventName&gt;</code> for the relevant events.</p>
-<p>The hook command format is the same as Claude Code:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>cloneguard hook-check --event PreToolUse
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>cloneguard hook-check --event PostToolUse
+<p>Add CloneGuard hooks to <code>~/.gemini/settings.json</code>. Gemini CLI uses
+<code>BeforeTool</code> and <code>AfterTool</code> event names (not Claude Code's
+<code>PreToolUse</code>/<code>PostToolUse</code>). CloneGuard handles the translation
+automatically.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="p">{</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="nt">&quot;BeforeTool&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="p">{</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">        </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">          </span><span class="p">{</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">            </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;command&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">            </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cloneguard hook-check --event PreToolUse&quot;</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">          </span><span class="p">}</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">        </span><span class="p">]</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">    </span><span class="p">],</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="nt">&quot;AfterTool&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">      </span><span class="p">{</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">        </span><span class="nt">&quot;hooks&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">          </span><span class="p">{</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">            </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;command&quot;</span><span class="p">,</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">            </span><span class="nt">&quot;command&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;cloneguard hook-check --event PostToolUse&quot;</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">          </span><span class="p">}</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">        </span><span class="p">]</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">      </span><span class="p">}</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="p">]</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">  </span><span class="p">}</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="p">}</span>
 </code></pre></div>
-<p>Gemini CLI reads JSON from stdin and expects exit code 0 (allow) or 2
-(block).</p>
-<h2 id="standalone-scan-verified">Standalone Scan (verified)<a class="headerlink" href="#standalone-scan-verified" title="Permanent link">&para;</a></h2>
-<p>Layer 0 standalone scanning works with any agent:</p>
+<p>Use the full path to <code>cloneguard</code> if it's in a virtual environment.</p>
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<p>CloneGuard normalizes Gemini CLI's hook format automatically:</p>
+<ul>
+<li><code>BeforeTool</code> / <code>AfterTool</code> are mapped to <code>PreToolUse</code> / <code>PostToolUse</code></li>
+<li>Tool names (<code>read_file</code>, <code>run_shell_command</code>, <code>edit_file</code>, <code>write_file</code>)
+  are mapped to Claude Code equivalents (<code>Read</code>, <code>Bash</code>, <code>Edit</code>, <code>Write</code>)</li>
+<li>Tool output is extracted from <code>tool_response.llmContent</code></li>
+</ul>
+<p>Exit code 0 = allow, exit code 2 = block.</p>
+<h2 id="standalone-scan">Standalone Scan<a class="headerlink" href="#standalone-scan" title="Permanent link">&para;</a></h2>
+<p>Layer 0 standalone scanning works without any hook configuration:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>cloneguard<span class="w"> </span>scan<span class="w"> </span>/path/to/repo
 </code></pre></div>
-<p>Run this before opening a repo with Gemini CLI for pre-execution
-protection.</p>
-<h2 id="help-us-test">Help Us Test<a class="headerlink" href="#help-us-test" title="Permanent link">&para;</a></h2>
-<p>If you use Gemini CLI with CloneGuard hooks, we want to hear about it.
-<a href="https://github.com/prodnull/cloneguard/issues">Open an issue</a> with
-your experience.</p>
+<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../../guides/policy-engine/">Policy engine configuration</a></li>
+<li><a href="../../architecture/overview/">Architecture overview</a></li>
+</ul>
 
 
 
