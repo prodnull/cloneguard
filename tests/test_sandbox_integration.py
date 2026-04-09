@@ -141,6 +141,7 @@ class TestDockerFilesystemEnforcement:
     def test_writable_volume_allows_writes(self) -> None:
         """Writable volume mount allows writes."""
         with tempfile.TemporaryDirectory() as tmpdir:
+            os.chmod(tmpdir, 0o777)
             adapter = DockerAdapter()
             adapter.restrict_filesystem(writable=[tmpdir], readable=[])
             result = adapter.execute_sandboxed(
