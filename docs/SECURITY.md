@@ -66,15 +66,15 @@ Gates dangerous operations before they execute:
 
 ### CaMeL-lite: ToolCallMonitor (Behavioral Sequence Detection)
 
-Detects multi-step attack sequences by tracking tool-call patterns across the agent session. Implements 7 SEQ rules (SEQ-001 through SEQ-006, plus an mv/cp variant of SEQ-002):
+Detects multi-step attack sequences by tracking tool-call patterns across the agent session. Implements 6 SEQ rule IDs (SEQ-001 through SEQ-006):
 
 | Rule | Behavior | Mode |
 |------|----------|------|
 | SEQ-001 | Read sensitive file → write/network exfiltration | **Enforce** (block) |
-| SEQ-002 | Read sensitive file → move/copy to accessible location | **Enforce** (block) |
+| SEQ-002 | Read sensitive file → Bash curl/wget to external URL | **Enforce** (block) |
 | SEQ-005 | Write to agent config files (~/.claude/settings.json, etc.) | **Enforce** (block) |
-| SEQ-003 | Chained tool calls exceeding depth threshold | Advisory (log) |
-| SEQ-004 | Rapid-fire tool invocations within time window | Advisory (log) |
+| SEQ-003 | Same MCP tool called >5 times within last 10 events (frequency spike) | Advisory (log) |
+| SEQ-004 | Write to build-sensitive target followed by build command (supply chain) | Advisory (log) |
 | SEQ-006 | MCP tool call following sensitive file read | Advisory (log) |
 
 **Session-wide typed markers.** SEQ-001, SEQ-002, and SEQ-006 use typed markers (e.g., `sensitive_file_read`) that persist for the duration of the agent session, enabling detection of multi-step sequences where the read and exfiltration steps are separated by arbitrary intervening tool calls.
@@ -202,7 +202,7 @@ CloneGuard addresses a documented, active threat. This is not theoretical.
 | CVE-2025-53773 | GitHub Copilot | Wormable RCE via prompt injection in README/issues | 7.8 |
 | CVE-2025-54130 | Cursor | RCE via MCP server prompt injection | -- |
 | CVE-2025-61590 | Cursor | RCE via VS Code workspaces + MCP | -- |
-| IDEsaster (24+ CVEs) | All major AI IDEs | Universal prompt injection to tool abuse chain | -- |
+| IDEsaster (30+ CVEs) | All major AI IDEs | Universal prompt injection to tool abuse chain | -- |
 
 ### Confirmed Real-World Attacks
 

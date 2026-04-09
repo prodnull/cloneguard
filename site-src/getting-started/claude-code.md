@@ -38,11 +38,9 @@ Open Claude Code in any repository:
 claude
 ```
 
-CloneGuard scans transparently. To confirm it's active:
-
-```bash
-cloneguard status
-```
+CloneGuard scans transparently. When a detection fires, you'll see output in
+the hook's stderr. To confirm hooks are registered, check your
+`~/.claude/settings.json` for CloneGuard hook entries.
 
 ## Project-Level Hooks
 
@@ -94,13 +92,8 @@ To configure enforcement (sandboxing, blocking), see the
 
 ## Uninstall
 
-Remove hooks:
-
-```bash
-cloneguard uninstall
-```
-
-Remove the package:
+Remove CloneGuard hook entries from `~/.claude/settings.json` (or the
+project-level `.claude/settings.json`), then remove the package:
 
 ```bash
 pip uninstall cloneguard

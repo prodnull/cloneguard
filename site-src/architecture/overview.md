@@ -64,15 +64,14 @@ Three independent signals are computed for each tool call:
 | Semantic | MiniLM-L6-v2 ONNX classifier | ~16ms/sample | Catches synonym substitution, encoding evasion, social engineering |
 | Behavioral | CaMeL-lite session-wide monitoring | <0.5ms/event | Catches multi-step sequences (read credentials, then exfiltrate) |
 
-Signals are combined by the fusion layer into a single verdict with calibrated
-confidence. See [Detection Engine](detection-engine.md) for details.
+Signals are evaluated independently -- any signal crossing its threshold is
+sufficient to raise a detection. See [Detection Engine](detection-engine.md) for
+details.
 
 ## Enforcement Pipeline
 
 ```
-Detection signals
-       |
-  Fusion layer (weighted combination)
+Detection signals (evaluated independently)
        |
   Verdict: SAFE / SUSPICIOUS / MALICIOUS
        |
@@ -89,10 +88,5 @@ Default mode is dry-run: detect and log, do not enforce.
 
 ## Audit Trail
 
-Every detection event emits structured logs in three formats:
-
-- **NDJSON** -- one line per event, machine-readable
-- **SARIF 2.1.0** -- for GitHub Advanced Security and code scanning tools
-- **OTel spans** -- for observability pipelines (when enabled)
-
-See [Audit](audit.md) for details.
+Every detection event emits structured NDJSON logs -- one line per event,
+machine-readable. See [Audit](audit.md) for details.

@@ -6,7 +6,7 @@ plugin system. Scans tool inputs for prompt injection before forwarding,
 and scans tool outputs for injection patterns before returning.
 
 Detection tiers:
-  - Tier 0: PatternEngine regex (191 patterns, <50ms)
+  - Tier 0: PatternEngine regex (240 patterns, <50ms)
   - Tier 1.5: MiniSemanticClassifier ONNX (~16ms/sample, optional)
 
 Severity mapping:

@@ -299,7 +299,7 @@ def _emit_audit_event(
             tool_input_hash=_content_hash(json.dumps(data.get("tool_input", {}), sort_keys=True)),
             verdict=getattr(result, "verdict", "clean") if result else "clean",
             confidence=getattr(result, "confidence", 0.0) if result else 0.0,
-            cloneguard_version="0.5.0",
+            cloneguard_version="0.6.0",
             source_path=data.get("tool_input", {}).get("file_path", ""),
         )
         emitter.emit(event)

@@ -109,7 +109,7 @@ published SWE-bench datasets (SEQ-001 FPR: 0.0024%).
 | **Cursor** | Hook-compatible, `failClosed` support |
 | **Windsurf** | Hook-compatible |
 | **VS Code Copilot** | Hook-compatible (preview, v1.109+) |
-| **GitHub Actions** | SARIF upload to Security tab |
+| **GitHub Actions** | CI/CD scan integration via `cloneguard scan` |
 | **MCP** | Gateway middleware adapter |
 | **Any agent** | Layer 0 standalone scan: `cloneguard scan /path/to/repo` |
 

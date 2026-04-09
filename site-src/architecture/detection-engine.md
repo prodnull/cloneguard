@@ -1,6 +1,6 @@
 # Detection Engine
 
-CloneGuard uses three independent detection signals combined by a fusion layer.
+CloneGuard uses three independent detection signals, each evaluated separately.
 
 ## Signal 1: Pattern Matching
 
@@ -75,24 +75,25 @@ sequences where individual steps appear benign but the combination is malicious.
 
 | Rule | Detects | Mode |
 |------|---------|------|
-| SEQ-001 | Sensitive file read followed by network exfiltration | **Enforce** |
-| SEQ-002 | Sensitive file read followed by move/copy to accessible location | **Enforce** |
+| SEQ-001 | Sensitive file read followed by network exfiltration (WebFetch) | **Enforce** |
+| SEQ-002 | Sensitive file read followed by Bash curl/wget to external URL | **Enforce** |
 | SEQ-005 | Write to agent config files | **Enforce** |
-| SEQ-003 | Chained tool calls exceeding depth threshold | Advisory |
-| SEQ-004 | Rapid-fire tool invocations within time window | Advisory |
+| SEQ-003 | Same MCP tool called >5 times within last 10 events | Advisory |
+| SEQ-004 | Write to build-sensitive target followed by build command | Advisory |
 | SEQ-006 | MCP tool call following sensitive file read | Advisory |
 
 SEQ-001/002/006 use session-wide typed markers -- padding with benign events
 between the read and exfiltration steps does not evade detection.
 
-## Fusion Layer
+## Signal Evaluation
 
-The three signals are combined into a single verdict with calibrated confidence.
-Weight profiles are tunable per deployment:
+The three signals are evaluated independently -- any signal crossing its
+threshold is sufficient to raise a detection. There is no weighted fusion layer.
+Each signal contributes an independent verdict:
 
 - **Pattern signal** -- high precision, low recall on novel attacks
 - **Semantic signal** -- strong on evasion, weaker on truncation/fragmentation
 - **Behavioral signal** -- orthogonal to content-based signals, catches sequences
 
-The fusion layer was calibrated against 208,127 real coding-agent sessions from
-published SWE-bench datasets to validate false positive rates.
+False positive rates were calibrated against 208,127 real coding-agent sessions
+from published SWE-bench datasets.

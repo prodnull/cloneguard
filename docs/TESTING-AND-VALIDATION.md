@@ -18,7 +18,7 @@ Requirements: Python >= 3.11, ~100 MB disk for ONNX model. The model is not stor
 ### Run Full Test Suite
 
 ```bash
-pytest                      # 1,662+ tests (Tier 0 + Tier 1.5 + integration)
+pytest                      # 1,677+ tests (Tier 0 + Tier 1.5 + integration)
 pytest --co -q | tail -1    # verify count
 ```
 
@@ -329,7 +329,7 @@ The trust cache eliminates rescan cost for unchanged files. In a typical develop
 
 ## 6. Test Suite Structure
 
-1,321 tests across 37 test files. All in `tests/`.
+1,677 tests across 50 test files. All in `tests/`.
 
 | File | Tests | What It Covers |
 |------|:-----:|----------------|

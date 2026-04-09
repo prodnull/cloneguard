@@ -58,7 +58,7 @@ Binary classifier that detects prompt injection payloads targeting AI coding age
 
 Scanning repository files (CLAUDE.md, README.md, package.json, Makefile, CI configs, etc.) for prompt injection before an AI coding agent processes them. Part of a layered defense:
 
-1. **Tier 0** — Regex pattern matching (197 rules, <1 ms)
+1. **Tier 0** — Regex pattern matching (240 rules, <1 ms)
 2. **Tier 1.5** — This model (semantic classification, ~16 ms)
 3. **Tier 2** — Ollama LLM fallback (~680 ms)
 
@@ -76,7 +76,7 @@ Attack categories: instruction override, credential harvesting, exfiltration, be
 
 ### Multi-Tier Pipeline (Primary, v4)
 
-When combined with Tier 0 regex (201 patterns), the tiers compensate for each other. Evaluated on 185 adversarial payloads + 234 held-out benign samples (production mode):
+When combined with Tier 0 regex (240 patterns), the tiers compensate for each other. Evaluated on 185 adversarial payloads + 234 held-out benign samples (production mode):
 
 | Metric | Tier 0 alone | Tier 1.5 alone | Combined Pipeline |
 |--------|:------:|:--------:|:------:|

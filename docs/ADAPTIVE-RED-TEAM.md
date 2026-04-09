@@ -39,7 +39,7 @@ For open-source security tools, the adaptive threat model is not hypothetical. T
 
 The adaptive attacker receives a programmatically generated briefing document containing:
 
-- **All 201 Tier 0 regex patterns** with exact regex syntax, severity levels, false-positive hints, and scan mode restrictions, extracted from the 25 YAML category files
+- **All 240 Tier 0 regex patterns** with exact regex syntax, severity levels, false-positive hints, and scan mode restrictions, extracted from the 34 YAML category files
 - **Tier 1.5 semantic model architecture**: MiniLM-L6-v2 ONNX, 256-token window, 128-token stride, suspicious threshold (0.65), malicious threshold (0.88)
 - **All 6 behavioral sequence rules** (SEQ-001 through SEQ-006) with trigger conditions, enforcement status (enforce vs. advisory), and event window size (10 events)
 - **Hook layer architecture**: which events fire at which layer (L0 wrapper, L1 InstructionsLoaded, L2 PostToolUse, L3 PreToolUse), execution order, and exit code semantics
@@ -50,7 +50,7 @@ The briefing is generated programmatically from the source code by `scripts/pent
 ### 2.3 Scope Boundaries
 
 **In scope:**
-- Tier 0 regex evasion (all 201 patterns across 25 categories)
+- Tier 0 regex evasion (all 240 patterns across 34 categories)
 - Tier 1.5 semantic model evasion (MiniLM-L6-v2 threshold bypass)
 - SEQ behavioral sequence rule evasion (all 6 rules)
 - Combined tier evasion (payload must evade all tiers simultaneously)

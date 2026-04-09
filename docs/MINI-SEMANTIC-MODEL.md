@@ -28,7 +28,7 @@ Tier 0 (regex)  →  Tier 1.5 (this model)  →  Tier 2 (Ollama, fallback)
   <1 ms/file          ~16 ms/file               ~680 ms/file
   240 patterns         semantic classifier        qwen2.5:7b LLM
   23% recall           93.7% recall (v4 CV)       42% recall
-  91% precision        96.2% precision (CV)       93% precision
+  91% precision        95.04% precision (CV)      93% precision
 ```
 
 ### Multi-Tier Pipeline Performance

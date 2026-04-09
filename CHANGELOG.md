@@ -7,23 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [0.6.0] - 2026-04-07
 
 First PyPI release. Completes the v2 architecture milestone: detection engine
-extraction, adaptive enforcement, multi-agent support, three-signal fusion,
-enterprise governance, and agent-type expansion.
+extraction, adaptive enforcement, enterprise governance, and agent-type
+expansion.
 
 ### Added
 
 **Detection**
-- Three-signal fusion engine (pattern + semantic + sequence) with calibrated
-  weight profiles and configurable confidence thresholds
 - 240 detection rules across 34 categories (up from 204/25 in v0.5.0)
 - Agent-type expansion packs: browser (BRW), autonomous (AUT), financial (FIN),
   CI/CD (CIC) -- 36 seed patterns across 4 domains
 - PraisonAI CVE response patterns: Jinja2 SSTI (AUT-009), Python frame traversal
   sandbox escape (AUT-010), YAML tag deserialization (AUT-011), SSTI probes (AUT-012)
 - PatternEngine subdirectory scanning for expansion pack pattern libraries
-- MELON detector for provable re-execution detection
-- MCP registry fingerprinting and RADE detection patterns
-- Adversarial evaluation harness for fusion pipeline
 
 **Enforcement**
 - Three-verdict model: SAFE / SUSPICIOUS / MALICIOUS with operator-configurable
@@ -34,19 +29,9 @@ enterprise governance, and agent-type expansion.
 - Dry-run as default for all new installations
 - Adapter registry with D-08 strength ordering and auto-selection
 
-**Multi-Agent Support**
-- InputAdapter Protocol with adapters for Claude Code, Gemini CLI, Cursor,
-  and generic JSON
-- Microsoft AGT ToolCallInterceptor plugin
-- MCP middleware adapter
-- Adapter registry with automatic platform detection
-
 **Audit and Observability**
 - NDJSON structured audit with session_id, verdict, confidence, signals,
   and enforcement_action fields
-- SARIF 2.1.0 emitter validated against OASIS schema
-- OTel span emitter conforming to GenAI semantic conventions
-- GitHub Actions composite action with SARIF upload to Security tab
 
 **Enterprise Governance**
 - OPA/Rego policy backend via regopy
@@ -57,10 +42,9 @@ enterprise governance, and agent-type expansion.
 - MDM profiles for Jamf and Intune (macOS)
 
 **Packaging**
-- Detection engine extracted into `cloneguard.detection` package with typed
-  Protocol interfaces
-- hooks.py refactored to thin shim delegating to detection engine
-- Hook config integrity self-check (CVE-2025-59536 class defense)
+- Detection engine types extracted into `cloneguard.detection` package
+- Hook config integrity self-check via SettingsScanner (CVE-2025-59536 class
+  defense)
 - Optional dependency extras: `mini`, `semantic`, `opa`, `cedar`, `spiffe`,
   `splunk`, `sentinel`, `chronicle`, `docker`, `wasm`, `governance`,
   `sandbox`, `all`
