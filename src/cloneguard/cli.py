@@ -102,6 +102,17 @@ def parse_args(argv: list[str] | None = None) -> tuple[argparse.Namespace, list[
         action="store_true",
         help="Enable trust cache (skip re-scanning unchanged files)",
     )
+    scan_parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output NDJSON (one line per finding, machine-readable)",
+    )
+    scan_parser.add_argument(
+        "--sarif",
+        metavar="FILE",
+        default=None,
+        help="Write SARIF 2.1.0 output to FILE",
+    )
 
     # cloneguard setup
     subparsers.add_parser(
@@ -166,13 +177,23 @@ def handle_scan(
     tier2: bool = False,
     tier2_model: str | None = None,
     cache: bool = False,
+    json_output: bool = False,
+    sarif_path: str | None = None,
 ) -> int:
     """Run standalone scan and return exit code."""
     repo_path = Path(path_str).resolve()
     scanner = RepoScanner(tier2=tier2, tier2_model=tier2_model, cache=cache)
     report = scanner.scan(repo_path)
-    color = sys.stdout.isatty()
-    print(report.format(color=color))
+
+    if sarif_path:
+        Path(sarif_path).write_text(report.to_sarif(), encoding="utf-8")
+        print(f"SARIF written to {sarif_path}", file=sys.stderr)
+    if json_output:
+        print(report.to_json())
+    else:
+        color = sys.stdout.isatty()
+        print(report.format(color=color))
+
     return report.exit_code
 
 
@@ -413,6 +434,8 @@ def main(argv: list[str] | None = None) -> None:
             tier2=args.tier2 or bool(args.tier2_model),
             tier2_model=args.tier2_model,
             cache=args.cache,
+            json_output=args.json,
+            sarif_path=args.sarif,
         )
         sys.exit(code)
 

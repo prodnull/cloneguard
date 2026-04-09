@@ -18,14 +18,16 @@ cloneguard scan --tier2              # with Ollama fallback (requires ollama)
 cloneguard scan --cache              # with trust cache for repeated scans
 ```
 
-## Output Format
+## Output Formats
 
 ```bash
 cloneguard scan .                    # human-readable terminal output
+cloneguard scan . --json             # NDJSON (one line per finding, machine-readable)
+cloneguard scan . --sarif out.sarif  # SARIF 2.1.0 for GitHub Advanced Security
 ```
 
-Structured audit events are emitted as NDJSON to stderr during scanning.
-See [Audit](../architecture/audit.md) for the event schema.
+The `--sarif` flag writes to a file and still prints human-readable output.
+See [Audit](../architecture/audit.md) for the NDJSON event schema.
 
 ## Exit Codes
 

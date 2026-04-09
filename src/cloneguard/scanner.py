@@ -84,6 +84,91 @@ class ScanReport:
 
         return "\n".join(lines)
 
+    def to_json(self) -> str:
+        """Format as NDJSON (one line per finding, plus summary)."""
+        import json as _json
+
+        from cloneguard import __version__
+
+        lines: list[str] = []
+        for fr in self.file_results:
+            entry = {
+                "path": fr.path,
+                "status": fr.status.value,
+                "issues": fr.issues,
+            }
+            lines.append(_json.dumps(entry, separators=(",", ":")))
+        summary = {
+            "type": "summary",
+            "repo": str(self.repo_path),
+            "version": __version__,
+            "total_files": len(self.file_results),
+            "blocked": sum(1 for r in self.file_results if r.status == Status.BLOCKED),
+            "warnings": sum(1 for r in self.file_results if r.status == Status.WARNING),
+            "clean": sum(1 for r in self.file_results if r.status == Status.CLEAN),
+            "exit_code": self.exit_code,
+        }
+        lines.append(_json.dumps(summary, separators=(",", ":")))
+        return "\n".join(lines)
+
+    def to_sarif(self) -> str:
+        """Format as SARIF 2.1.0 for GitHub Advanced Security and code scanning tools."""
+        import json as _json
+
+        from cloneguard import __version__
+
+        results = []
+        rules_seen: dict[str, int] = {}
+        rules = []
+        for fr in self.file_results:
+            if fr.status == Status.CLEAN:
+                continue
+            for issue in fr.issues:
+                rule_id = issue.split("(")[1].rstrip(")") if "(" in issue else "unknown"
+                if rule_id not in rules_seen:
+                    rules_seen[rule_id] = len(rules)
+                    rules.append(
+                        {
+                            "id": rule_id,
+                            "shortDescription": {"text": issue},
+                        }
+                    )
+                level = "error" if fr.status == Status.BLOCKED else "warning"
+                results.append(
+                    {
+                        "ruleId": rule_id,
+                        "ruleIndex": rules_seen[rule_id],
+                        "level": level,
+                        "message": {"text": issue},
+                        "locations": [
+                            {
+                                "physicalLocation": {
+                                    "artifactLocation": {"uri": fr.path},
+                                }
+                            }
+                        ],
+                    }
+                )
+
+        sarif = {
+            "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+            "version": "2.1.0",
+            "runs": [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "CloneGuard",
+                            "version": __version__,
+                            "informationUri": "https://github.com/prodnull/cloneguard",
+                            "rules": rules,
+                        }
+                    },
+                    "results": results,
+                }
+            ],
+        }
+        return _json.dumps(sarif, indent=2)
+
     @staticmethod
     def _format_tag(status: Status, color: bool) -> str:
         label = status.value
