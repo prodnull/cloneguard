@@ -1,0 +1,30 @@
+category: autonomousSandboxEscape
+description: "Patterns detecting sandbox escape, template injection, and deserialization attacks in multi-agent frameworks"
+patterns:
+  - id: AUT-009
+    regex: '(?i)\{\{\s*(?:self|config|request|cycler|joiner|namespace|lipsum)\s*[\.\[].*?(?:__(?:init|class|globals|builtins|subclasses|import|getattr|mro)__|(?:popen|system|exec|eval|getattr)\s*\()'
+    severity: critical
+    description: "Jinja2/template SSTI payload — server-side template injection via dunder chain"
+    evidence: "CVE-2026-39891 (PraisonAI agent.start() template injection, CVSS 8.8)"
+    false_positive_hint: "Jinja2 template syntax {{ }} is common but dunder chains (__init__, __globals__, __builtins__) within template expressions are exploitation, not templating"
+
+  - id: AUT-010
+    regex: '(?:__traceback__\s*\.\s*tb_frame|\.f_back\s*\.\s*f_builtins|\.f_back\s*\.\s*f_globals|\.f_locals\s*\[|tb_frame\s*\.\s*f_back)'
+    severity: critical
+    description: "Python exception frame traversal — sandbox escape via traceback introspection"
+    evidence: "CVE-2026-39888 (PraisonAI sandbox escape via exception frame traversal, CVSS 9.9)"
+    false_positive_hint: "Python frame attributes (__traceback__, tb_frame, f_back, f_builtins) appear in CPython internals docs and debugger code but not in normal application code within repos"
+
+  - id: AUT-011
+    regex: '(?i)!!(?:js/function|js/undefined|python/object(?:/apply|/new)?|python/name|python/module|ruby/object|ruby/hash)'
+    severity: critical
+    description: "YAML dangerous tag injection — deserialization to code execution"
+    evidence: "CVE-2026-39890 (PraisonAI YAML deserialization RCE, CVSS 9.8)"
+    false_positive_hint: "YAML dangerous tags (!!js/function, !!python/object) are never needed in legitimate config files — always a deserialization attack"
+
+  - id: AUT-012
+    regex: '(?i)(?:\{\{\s*(?:7\s*\*\s*7|self\.__class__|lipsum\.__globals__|cycler\.__init__)|%\{\s*(?:import|system|exec)\s*\(|\{\{\s*config\s*\.(?:__class__|items\s*\(\)|from_envvar))'
+    severity: high
+    description: "Template injection probe — common SSTI detection payloads"
+    evidence: "Standard SSTI probe patterns; CVE-2026-39891 PoC chain"
+    false_positive_hint: "{{7*7}} and {{config}} are classic SSTI test payloads — presence in a repo file is suspicious unless it is an explicit security test fixture"

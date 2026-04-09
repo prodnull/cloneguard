@@ -131,10 +131,7 @@ class CedarPolicyBackend:
         # Extract Cedar policies
         cedar_text = raw.get("cedar_policies")
         if not cedar_text or not isinstance(cedar_text, str):
-            msg = (
-                "Cedar policy source must contain a 'cedar_policies' "
-                "field with Cedar policy text"
-            )
+            msg = "Cedar policy source must contain a 'cedar_policies' field with Cedar policy text"
             raise ValueError(msg)
 
         # Validate Cedar syntax via cedarpy.format_policies

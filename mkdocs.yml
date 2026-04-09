@@ -1,0 +1,78 @@
+site_name: CloneGuard
+site_url: https://prodnull.github.io/cloneguard/
+site_description: Hook-level prompt injection defense for AI coding agents
+site_author: prodnull
+repo_url: https://github.com/prodnull/cloneguard
+repo_name: prodnull/cloneguard
+
+docs_dir: site-src
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: deep purple
+      accent: amber
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - content.code.copy
+    - toc.follow
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Getting Started:
+      - Claude Code: getting-started/claude-code.md
+      - Gemini CLI: getting-started/gemini-cli.md
+      - Cursor: getting-started/cursor.md
+      - GitHub Actions: getting-started/github-actions.md
+      - Standalone CLI: getting-started/standalone-cli.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Detection Engine: architecture/detection-engine.md
+      - Enforcement: architecture/enforcement.md
+      - Audit: architecture/audit.md
+  - Guides:
+      - Policy Engine: guides/policy-engine.md
+      - Sandbox Adapters: guides/sandbox-adapters.md
+      - Enterprise: guides/enterprise.md
+  - Evaluation:
+      - Methodology: evaluation/methodology.md
+      - Results: evaluation/results.md
+      - Limitations: evaluation/limitations.md
+  - Changelog: changelog.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - tables
+  - toc:
+      permalink: true
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/prodnull/cloneguard
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/cloneguard/

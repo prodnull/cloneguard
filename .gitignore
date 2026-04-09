@@ -27,3 +27,15 @@ docs/publications/
 docs/sub-agents/
 data/redteam/
 data/trajectories/
+data/pentest/
+data/training/
+
+# Planning and internal artifacts
+.planning/
+CITATION.cff
+
+# Internal docs (not published)
+docs/papers/
+
+# MkDocs build output
+site/

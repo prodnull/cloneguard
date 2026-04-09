@@ -1,6 +1,6 @@
 [project]
 name = "cloneguard"
-version = "0.5.0"
+version = "0.6.0"
 description = "Raises the cost of prompt injection attacks against AI coding agents"
 readme = "README.md"
 license = "Apache-2.0"
@@ -25,7 +25,8 @@ classifiers = [
 [project.urls]
 Homepage = "https://github.com/prodnull/cloneguard"
 Repository = "https://github.com/prodnull/cloneguard"
-Documentation = "https://github.com/prodnull/cloneguard/blob/main/docs/USAGE.md"
+Documentation = "https://prodnull.github.io/cloneguard/"
+Changelog = "https://github.com/prodnull/cloneguard/blob/main/CHANGELOG.md"
 Issues = "https://github.com/prodnull/cloneguard/issues"
 
 [project.optional-dependencies]

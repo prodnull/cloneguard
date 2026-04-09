@@ -104,6 +104,7 @@ _HIGH_PRIORITY_FILES = [
     "GEMINI.md",
     "AGENTS.MD",
     ".cursorrules",
+    ".clinerules",
     ".junie/guidelines.md",
     "README.md",
     "CONTRIBUTING.md",
