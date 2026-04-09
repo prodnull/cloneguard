@@ -117,10 +117,12 @@ class TestDockerFilesystemEnforcement:
     def test_readable_volume_prevents_writes(self) -> None:
         """Read-only volume mount blocks writes."""
         with tempfile.TemporaryDirectory() as tmpdir:
-            # Create a file to read
+            # Create a file to read — make world-readable so container user can access
+            os.chmod(tmpdir, 0o755)
             test_file = os.path.join(tmpdir, "data.txt")
             with open(test_file, "w") as f:
                 f.write("readable content")
+            os.chmod(test_file, 0o644)
 
             adapter = DockerAdapter()
             adapter.restrict_filesystem(writable=[], readable=[tmpdir])
