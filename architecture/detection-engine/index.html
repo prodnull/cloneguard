@@ -693,10 +693,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fusion-layer" class="md-nav__link">
+  <a href="#signal-evaluation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fusion Layer
+        Signal Evaluation
       
     </span>
   </a>
@@ -1207,10 +1207,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#fusion-layer" class="md-nav__link">
+  <a href="#signal-evaluation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Fusion Layer
+        Signal Evaluation
       
     </span>
   </a>
@@ -1238,7 +1238,7 @@
 
 
 <h1 id="detection-engine">Detection Engine<a class="headerlink" href="#detection-engine" title="Permanent link">&para;</a></h1>
-<p>CloneGuard uses three independent detection signals combined by a fusion layer.</p>
+<p>CloneGuard uses three independent detection signals, each evaluated separately.</p>
 <h2 id="signal-1-pattern-matching">Signal 1: Pattern Matching<a class="headerlink" href="#signal-1-pattern-matching" title="Permanent link">&para;</a></h2>
 <p>240 compiled regex rules across 34 categories. Each rule specifies:</p>
 <ul>
@@ -1399,12 +1399,12 @@ sequences where individual steps appear benign but the combination is malicious.
 <tbody>
 <tr>
 <td>SEQ-001</td>
-<td>Sensitive file read followed by network exfiltration</td>
+<td>Sensitive file read followed by network exfiltration (WebFetch)</td>
 <td><strong>Enforce</strong></td>
 </tr>
 <tr>
 <td>SEQ-002</td>
-<td>Sensitive file read followed by move/copy to accessible location</td>
+<td>Sensitive file read followed by Bash curl/wget to external URL</td>
 <td><strong>Enforce</strong></td>
 </tr>
 <tr>
@@ -1414,12 +1414,12 @@ sequences where individual steps appear benign but the combination is malicious.
 </tr>
 <tr>
 <td>SEQ-003</td>
-<td>Chained tool calls exceeding depth threshold</td>
+<td>Same MCP tool called &gt;5 times within last 10 events</td>
 <td>Advisory</td>
 </tr>
 <tr>
 <td>SEQ-004</td>
-<td>Rapid-fire tool invocations within time window</td>
+<td>Write to build-sensitive target followed by build command</td>
 <td>Advisory</td>
 </tr>
 <tr>
@@ -1431,16 +1431,17 @@ sequences where individual steps appear benign but the combination is malicious.
 </table>
 <p>SEQ-001/002/006 use session-wide typed markers -- padding with benign events
 between the read and exfiltration steps does not evade detection.</p>
-<h2 id="fusion-layer">Fusion Layer<a class="headerlink" href="#fusion-layer" title="Permanent link">&para;</a></h2>
-<p>The three signals are combined into a single verdict with calibrated confidence.
-Weight profiles are tunable per deployment:</p>
+<h2 id="signal-evaluation">Signal Evaluation<a class="headerlink" href="#signal-evaluation" title="Permanent link">&para;</a></h2>
+<p>The three signals are evaluated independently -- any signal crossing its
+threshold is sufficient to raise a detection. There is no weighted fusion layer.
+Each signal contributes an independent verdict:</p>
 <ul>
 <li><strong>Pattern signal</strong> -- high precision, low recall on novel attacks</li>
 <li><strong>Semantic signal</strong> -- strong on evasion, weaker on truncation/fragmentation</li>
 <li><strong>Behavioral signal</strong> -- orthogonal to content-based signals, catches sequences</li>
 </ul>
-<p>The fusion layer was calibrated against 208,127 real coding-agent sessions from
-published SWE-bench datasets to validate false positive rates.</p>
+<p>False positive rates were calibrated against 208,127 real coding-agent sessions
+from published SWE-bench datasets.</p>
 
 
 

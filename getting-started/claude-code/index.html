@@ -1333,26 +1333,26 @@
 <p>Open Claude Code in any repository:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>claude
 </code></pre></div>
-<p>CloneGuard scans transparently. To confirm it's active:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>cloneguard<span class="w"> </span>status
-</code></pre></div>
+<p>CloneGuard scans transparently. When a detection fires, you'll see output in
+the hook's stderr. To confirm hooks are registered, check your
+<code>~/.claude/settings.json</code> for CloneGuard hook entries.</p>
 <h2 id="project-level-hooks">Project-Level Hooks<a class="headerlink" href="#project-level-hooks" title="Permanent link">&para;</a></h2>
 <p>For per-project configuration instead of global:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/project
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cloneguard<span class="w"> </span>init<span class="w"> </span>--project
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nb">cd</span><span class="w"> </span>/path/to/project
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>cloneguard<span class="w"> </span>init<span class="w"> </span>--project
 </code></pre></div>
 <p>This writes hooks to <code>.claude/settings.json</code> in the project directory.</p>
 <h2 id="trust-cache">Trust Cache<a class="headerlink" href="#trust-cache" title="Permanent link">&para;</a></h2>
 <p>For repositories you scan repeatedly, enable the trust cache to skip unchanged
 files:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cloneguard<span class="w"> </span>init<span class="w"> </span>--global<span class="w"> </span>--trust-cache
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>cloneguard<span class="w"> </span>init<span class="w"> </span>--global<span class="w"> </span>--trust-cache
 </code></pre></div>
 <p>The cache stores SHA-256 content hashes in <code>~/.cloneguard/trust-cache.json</code>.
 Any file modification -- even a single byte -- invalidates the entry.</p>
 <h2 id="false-positives">False Positives<a class="headerlink" href="#false-positives" title="Permanent link">&para;</a></h2>
 <p>Security documentation and research files may trigger detections. Allowlist
 reviewed files by content hash:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>cloneguard<span class="w"> </span>allow<span class="w"> </span>README.md<span class="w"> </span>--reason<span class="w"> </span><span class="s2">&quot;Documents attack patterns for reference&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cloneguard<span class="w"> </span>allow<span class="w"> </span>README.md<span class="w"> </span>--reason<span class="w"> </span><span class="s2">&quot;Documents attack patterns for reference&quot;</span>
 </code></pre></div>
 <p>The allowlist lives in <code>~/.cloneguard/allowlist.json</code> -- outside the repository,
 so repo content cannot tamper with it. If the file changes, the hash no longer
@@ -1368,11 +1368,9 @@ matches and it's scanned normally.</p>
 <p>To configure enforcement (sandboxing, blocking), see the
 <a href="../../guides/policy-engine/">policy engine guide</a>.</p>
 <h2 id="uninstall">Uninstall<a class="headerlink" href="#uninstall" title="Permanent link">&para;</a></h2>
-<p>Remove hooks:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>cloneguard<span class="w"> </span>uninstall
-</code></pre></div>
-<p>Remove the package:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>pip<span class="w"> </span>uninstall<span class="w"> </span>cloneguard
+<p>Remove CloneGuard hook entries from <code>~/.claude/settings.json</code> (or the
+project-level <code>.claude/settings.json</code>), then remove the package:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>pip<span class="w"> </span>uninstall<span class="w"> </span>cloneguard
 </code></pre></div>
 
 

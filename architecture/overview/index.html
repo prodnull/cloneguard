@@ -1356,31 +1356,25 @@ contains prompt injection.</p>
 </tr>
 </tbody>
 </table>
-<p>Signals are combined by the fusion layer into a single verdict with calibrated
-confidence. See <a href="../detection-engine/">Detection Engine</a> for details.</p>
+<p>Signals are evaluated independently -- any signal crossing its threshold is
+sufficient to raise a detection. See <a href="../detection-engine/">Detection Engine</a> for
+details.</p>
 <h2 id="enforcement-pipeline">Enforcement Pipeline<a class="headerlink" href="#enforcement-pipeline" title="Permanent link">&para;</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Detection signals
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>Detection signals (evaluated independently)
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>       |
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  Fusion layer (weighted combination)
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>  Verdict: SAFE / SUSPICIOUS / MALICIOUS
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>       |
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  Verdict: SAFE / SUSPICIOUS / MALICIOUS
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>  Policy engine (YAML rules, per-tool overrides)
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>       |
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  Policy engine (YAML rules, per-tool overrides)
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>       |
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>  Action: allow / constrain (sandbox) / block
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>  Action: allow / constrain (sandbox) / block
 </code></pre></div>
 <p>When enforcement is enabled, SUSPICIOUS verdicts can constrain the tool call
 via OS-level sandboxing (Landlock on Linux, Seatbelt on macOS) without affecting
 CloneGuard itself. See <a href="../enforcement/">Enforcement</a> for details.</p>
 <p>Default mode is dry-run: detect and log, do not enforce.</p>
 <h2 id="audit-trail">Audit Trail<a class="headerlink" href="#audit-trail" title="Permanent link">&para;</a></h2>
-<p>Every detection event emits structured logs in three formats:</p>
-<ul>
-<li><strong>NDJSON</strong> -- one line per event, machine-readable</li>
-<li><strong>SARIF 2.1.0</strong> -- for GitHub Advanced Security and code scanning tools</li>
-<li><strong>OTel spans</strong> -- for observability pipelines (when enabled)</li>
-</ul>
-<p>See <a href="../audit/">Audit</a> for details.</p>
+<p>Every detection event emits structured NDJSON logs -- one line per event,
+machine-readable. See <a href="../audit/">Audit</a> for details.</p>
 
 
 
