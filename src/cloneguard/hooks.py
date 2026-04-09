@@ -556,10 +556,59 @@ def handle_post_tool_use(data: dict[str, Any]) -> int:
     return 0
 
 
+def _normalize_gemini_input(data: dict[str, Any]) -> dict[str, Any]:
+    """Normalize Gemini CLI hook format to Claude Code format.
+
+    Gemini differences:
+    - tool_response.llmContent instead of tool_output.content
+    - hook_event_name instead of hook_type
+    - Tool names: read_file/read_many_files/run_shell_command/edit_file/write_file
+      vs Claude's Read/Bash/Edit/Write
+    """
+    # Normalize tool output: Gemini nests under tool_response.llmContent
+    if "tool_response" in data and "tool_output" not in data:
+        llm_content = data["tool_response"].get("llmContent", "")
+        data["tool_output"] = {"content": llm_content}
+
+    # Normalize tool names: Gemini -> Claude Code equivalents
+    tool_name_map = {
+        "read_file": "Read",
+        "read_many_files": "Read",
+        "run_shell_command": "Bash",
+        "edit_file": "Edit",
+        "write_file": "Write",
+    }
+    raw_name = data.get("tool_name", "")
+    if raw_name in tool_name_map:
+        data["tool_name"] = tool_name_map[raw_name]
+
+    # Normalize Bash command field: Gemini uses tool_input.command (same as Claude)
+    # No change needed — both use tool_input.command
+
+    return data
+
+
 def main() -> None:
     """Entry point for hook handler. Reads JSON from stdin, dispatches to handler."""
     data = json.load(sys.stdin)
-    hook_type = data.get("hook_type", "")
+
+    # Determine hook type: prefer --event CLI arg, fall back to JSON fields
+    hook_type = ""
+    for i, arg in enumerate(sys.argv):
+        if arg == "--event" and i + 1 < len(sys.argv):
+            hook_type = sys.argv[i + 1]
+            break
+    if not hook_type:
+        hook_type = data.get("hook_type", "")
+    if not hook_type:
+        # Gemini sends hook_event_name (BeforeTool/AfterTool)
+        gemini_event = data.get("hook_event_name", "")
+        event_map = {"BeforeTool": "PreToolUse", "AfterTool": "PostToolUse"}
+        hook_type = event_map.get(gemini_event, "")
+
+    # Normalize Gemini input format if detected
+    if data.get("hook_event_name"):
+        data = _normalize_gemini_input(data)
 
     if hook_type == "InstructionsLoaded":
         exit_code = handle_instructions_loaded(data)

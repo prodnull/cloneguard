@@ -21,7 +21,7 @@ suspicious tool calls, and emits structured audit logs -- before the agent
 executes. The agent cannot disable it because CloneGuard runs at the hook layer,
 outside the agent's control.
 
-Built for Claude Code. Standalone scanning works with any agent.
+Built for Claude Code and Gemini CLI. Standalone scanning works with any agent.
 Active development (v0.6.0) -- feedback and contributions welcome.
 
 ## See It In Action
@@ -104,17 +104,16 @@ published SWE-bench datasets (SEQ-001 FPR: 0.0024%).
 
 | Platform | Hook Integration | Standalone Scan | Status |
 |----------|:---:|:---:|--------|
-| **Claude Code** | Yes | Yes | Tested, `cloneguard init` configures hooks |
-| **Gemini CLI** | Untested | Yes | Same hook protocol, manual config required |
+| **Claude Code** | Tested | Yes | `cloneguard init` configures hooks |
+| **Gemini CLI** | Tested | Yes | Manual hook config, auto-normalizes format |
 | **Cursor** | Untested | Yes | Same hook protocol, manual config required |
 | **Windsurf** | Untested | Yes | Same hook protocol, manual config required |
 | **GitHub Actions** | -- | Yes | `cloneguard scan --sarif` for Security tab |
 | **Any agent** | -- | Yes | `cloneguard scan /path/to/repo` |
 
-Hook-level integration (Layers 1-3) is only verified with Claude Code.
-Gemini CLI, Cursor, and Windsurf use the same JSON stdin/stdout protocol
-and exit-code semantics, so hooks are expected to work with manual
-configuration. We haven't tested this yet and welcome feedback.
+Hook integration tested with Claude Code and Gemini CLI 0.37. Cursor and
+Windsurf use the same hook protocol and are expected to work with manual
+configuration but have not been tested. Feedback welcome.
 
 ## Enforcement
 

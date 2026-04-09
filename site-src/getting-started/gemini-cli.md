@@ -1,13 +1,7 @@
 # Gemini CLI Setup
 
-!!! warning "Untested"
-    Hook-level integration with Gemini CLI has not been verified. The
-    instructions below are based on protocol compatibility, not testing.
-    Standalone scanning (`cloneguard scan`) works regardless.
-
-Gemini CLI uses the same JSON stdin/stdout hook protocol and exit-code
-semantics as Claude Code. CloneGuard's hooks are expected to work but
-require manual configuration.
+CloneGuard works with Gemini CLI v0.37+ via hook integration. Tested
+and verified on Gemini CLI 0.37.0.
 
 ## Install
 
@@ -17,33 +11,60 @@ pip install "cloneguard[mini]"
 
 ## Configure Hooks
 
-CloneGuard does not have a `cloneguard init` command for Gemini CLI yet.
-You need to manually configure hooks in Gemini CLI's settings to point
-at `cloneguard hook-check --event <EventName>` for the relevant events.
+Add CloneGuard hooks to `~/.gemini/settings.json`. Gemini CLI uses
+`BeforeTool` and `AfterTool` event names (not Claude Code's
+`PreToolUse`/`PostToolUse`). CloneGuard handles the translation
+automatically.
 
-The hook command format is the same as Claude Code:
-
+```json
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cloneguard hook-check --event PreToolUse"
+          }
+        ]
+      }
+    ],
+    "AfterTool": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cloneguard hook-check --event PostToolUse"
+          }
+        ]
+      }
+    ]
+  }
+}
 ```
-cloneguard hook-check --event PreToolUse
-cloneguard hook-check --event PostToolUse
-```
 
-Gemini CLI reads JSON from stdin and expects exit code 0 (allow) or 2
-(block).
+Use the full path to `cloneguard` if it's in a virtual environment.
 
-## Standalone Scan (verified)
+## How It Works
 
-Layer 0 standalone scanning works with any agent:
+CloneGuard normalizes Gemini CLI's hook format automatically:
+
+- `BeforeTool` / `AfterTool` are mapped to `PreToolUse` / `PostToolUse`
+- Tool names (`read_file`, `run_shell_command`, `edit_file`, `write_file`)
+  are mapped to Claude Code equivalents (`Read`, `Bash`, `Edit`, `Write`)
+- Tool output is extracted from `tool_response.llmContent`
+
+Exit code 0 = allow, exit code 2 = block.
+
+## Standalone Scan
+
+Layer 0 standalone scanning works without any hook configuration:
 
 ```bash
 cloneguard scan /path/to/repo
 ```
 
-Run this before opening a repo with Gemini CLI for pre-execution
-protection.
+## Next Steps
 
-## Help Us Test
-
-If you use Gemini CLI with CloneGuard hooks, we want to hear about it.
-[Open an issue](https://github.com/prodnull/cloneguard/issues) with
-your experience.
+- [Policy engine configuration](../guides/policy-engine.md)
+- [Architecture overview](../architecture/overview.md)
